@@ -23,6 +23,10 @@ function Router() {
       <Route path="/auth">
         <AuthPage />
       </Route>
+      <Route path="/auth/magic-link/:token">
+        <AuthPage isMagicLink={true} />
+      </Route>
+      <ProtectedRoute path="/setup-profile" component={Settings} />
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/projects" component={Projects} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetails} />

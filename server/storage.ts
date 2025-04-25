@@ -83,11 +83,11 @@ export interface IStorage {
   updateSelectionChoice(id: number, selectedOption: string): Promise<Selection | undefined>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Using any type for sessionStore to avoid typing issues
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Using any type for sessionStore
 
   constructor() {
     this.sessionStore = new PostgresSessionStore({ 
@@ -126,11 +126,7 @@ export class DatabaseStorage implements IStorage {
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User> {
     const [updatedUser] = await db
       .update(users)
-      .set({
-        ...userData,
-        // Always update timestamp when user is updated
-        updatedAt: new Date()
-      })
+      .set(userData)
       .where(eq(users.id, id))
       .returning();
     
@@ -356,8 +352,7 @@ export class DatabaseStorage implements IStorage {
       .update(selections)
       .set({ 
         selectedOption, 
-        status: "selected",
-        updatedAt: new Date()
+        status: "selected"
       })
       .where(eq(selections.id, id))
       .returning();

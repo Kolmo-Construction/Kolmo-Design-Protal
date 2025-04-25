@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   phone: text("phone"),
   role: text("role").notNull().default("client"), // client, admin, projectManager
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   magicLinkToken: text("magic_link_token").unique(),
   magicLinkExpiry: timestamp("magic_link_expiry"),
   isActivated: boolean("is_activated").default(false).notNull(),
@@ -150,7 +151,8 @@ export const selections = pgTable("selections", {
 // Create insert schemas for each table
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+  updatedAt: true
 });
 
 export const insertProjectSchema = createInsertSchema(projects).omit({
