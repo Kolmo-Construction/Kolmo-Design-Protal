@@ -123,6 +123,13 @@ export default function Documents() {
     window.open(document.fileUrl, '_blank');
   };
 
+  // Reset date filters
+  const resetDateFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    refetchDocuments();
+  };
+
   return (
     <div className="flex h-screen bg-slate-50">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
@@ -136,52 +143,136 @@ export default function Documents() {
 
         {/* Filters */}
         <Card className="mb-6">
-          <CardContent className="p-4 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-slate-500 mb-1 block">Project</label>
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map(project => (
-                    <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium text-slate-500 mb-1 block">Category</label>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="relative">
-              <label className="text-sm font-medium text-slate-500 mb-1 block">Search</label>
+          <CardContent className="p-4 lg:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="text-sm font-medium text-slate-500 mb-1 block">Project</label>
+                <Select value={projectFilter} onValueChange={setProjectFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map(project => (
+                      <SelectItem key={project.id} value={project.id.toString()}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-slate-500 mb-1 block">Category</label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="text"
-                  placeholder="Search documents by name"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+                <label className="text-sm font-medium text-slate-500 mb-1 block">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search documents by name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Date Range Filter */}
+            <div className="border-t pt-4 mt-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-500 block">Date Filters</label>
+                  <div className="flex space-x-4">
+                    <div>
+                      <span className="text-xs text-slate-500 mb-1 block">Start Date</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={`w-[140px] justify-start text-left font-normal ${
+                              !startDate && "text-slate-400"
+                            }`}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {startDate ? format(startDate, "MMM d, yyyy") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={startDate}
+                            onSelect={setStartDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div>
+                      <span className="text-xs text-slate-500 mb-1 block">End Date</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={`w-[140px] justify-start text-left font-normal ${
+                              !endDate && "text-slate-400"
+                            }`}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {endDate ? format(endDate, "MMM d, yyyy") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={endDate}
+                            onSelect={setEndDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refetchDocuments}
+                    disabled={!startDate && !endDate}
+                  >
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Apply Filters
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetDateFilters}
+                    disabled={!startDate && !endDate}
+                  >
+                    Clear Dates
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
