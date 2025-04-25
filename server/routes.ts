@@ -473,6 +473,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
+  
+  // Get client-project assignments - admin only
+  app.get("/api/admin/client-projects/:clientId", isAdmin, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ message: "Invalid client ID" });
+      }
+      
+      // Check if client exists
+      const client = await storage.getUser(clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      // Only get projects for users with client role
+      if (client.role !== "client") {
+        return res.status(400).json({ message: "User is not a client" });
+      }
+      
+      const projects = await storage.getClientProjects(clientId);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching client projects:", error);
+      res.status(500).json({ message: "Failed to fetch client projects" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

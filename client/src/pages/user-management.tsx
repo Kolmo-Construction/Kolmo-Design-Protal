@@ -233,6 +233,7 @@ export default function UserManagement() {
                     <TableHead>Username</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -268,6 +269,22 @@ export default function UserManagement() {
                             <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
                               Pending Setup
                             </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {user.role === "client" && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setSelectedUserId(user.id);
+                                setActiveTab("client-projects");
+                              }}
+                              className="gap-1 text-xs"
+                            >
+                              <Building2 className="h-3.5 w-3.5" />
+                              View Projects
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
