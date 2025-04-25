@@ -12,6 +12,7 @@ import {
   insertSelectionSchema
 } from "@shared/schema";
 import { z } from "zod";
+import { isEmailServiceConfigured } from "./email";
 
 // Helper function to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -475,6 +476,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get client-project assignments - admin only
+  // Check email service configuration status - admin only
+  app.get("/api/admin/email-config", isAdmin, (req, res) => {
+    res.json({ configured: isEmailServiceConfigured() });
+  });
+
   app.get("/api/admin/client-projects/:clientId", isAdmin, async (req, res) => {
     try {
       const clientId = parseInt(req.params.clientId);

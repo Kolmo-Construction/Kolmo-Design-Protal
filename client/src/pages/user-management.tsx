@@ -136,6 +136,15 @@ export default function UserManagement() {
     enabled: !!selectedUserId && activeTab === "client-projects"
   });
 
+  // Get email service configuration status
+  const {
+    data: emailConfig,
+    isLoading: emailConfigLoading,
+  } = useQuery<{ configured: boolean }, Error>({
+    queryKey: ["/api/admin/email-config"],
+    queryFn: getQueryFn({ on401: "throw" }),
+  });
+
   // Get selected client's details
   const selectedClient = selectedUserId
     ? users?.find(u => u.id === selectedUserId)
