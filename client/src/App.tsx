@@ -14,6 +14,8 @@ import ProgressUpdates from "@/pages/progress-updates";
 import Schedule from "@/pages/schedule";
 import Selections from "@/pages/selections";
 import Settings from "@/pages/settings";
+import SetupProfile from "@/pages/setup-profile";
+import UserManagement from "@/pages/user-management";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 
@@ -26,7 +28,7 @@ function Router() {
       <Route path="/auth/magic-link/:token">
         <AuthPage isMagicLink={true} />
       </Route>
-      <ProtectedRoute path="/setup-profile" component={Settings} />
+      <ProtectedRoute path="/setup-profile" component={SetupProfile} />
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/projects" component={Projects} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetails} />
