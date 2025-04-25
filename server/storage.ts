@@ -1,0 +1,327 @@
+import { users, projects, clientProjects, documents, invoices, payments, messages, progressUpdates, updateMedia, milestones, selections } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
+import type {
+  User, InsertUser,
+  Project, InsertProject,
+  ClientProject, InsertClientProject,
+  Document, InsertDocument,
+  Invoice, InsertInvoice,
+  Payment, InsertPayment,
+  Message, InsertMessage,
+  ProgressUpdate, InsertProgressUpdate,
+  UpdateMedia, InsertUpdateMedia,
+  Milestone, InsertMilestone,
+  Selection, InsertSelection
+} from "@shared/schema";
+
+const PostgresSessionStore = connectPg(session);
+
+export interface IStorage {
+  // User methods
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  
+  // Project methods
+  getProject(id: number): Promise<Project | undefined>;
+  getAllProjects(): Promise<Project[]>;
+  getClientProjects(clientId: number): Promise<Project[]>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: number, project: InsertProject): Promise<Project | undefined>;
+  
+  // Client-Project relationship methods
+  assignClientToProject(clientId: number, projectId: number): Promise<ClientProject>;
+  clientHasProjectAccess(clientId: number, projectId: number): Promise<boolean>;
+  
+  // Document methods
+  getProjectDocuments(projectId: number): Promise<Document[]>;
+  createDocument(document: InsertDocument): Promise<Document>;
+  
+  // Invoice methods
+  getProjectInvoices(projectId: number): Promise<Invoice[]>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  
+  // Payment methods
+  getInvoicePayments(invoiceId: number): Promise<Payment[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  
+  // Message methods
+  getProjectMessages(projectId: number): Promise<Message[]>;
+  createMessage(message: InsertMessage): Promise<Message>;
+  
+  // Progress update methods
+  getProjectUpdates(projectId: number): Promise<ProgressUpdate[]>;
+  createProgressUpdate(update: InsertProgressUpdate): Promise<ProgressUpdate>;
+  
+  // Update media methods
+  getUpdateMedia(updateId: number): Promise<UpdateMedia[]>;
+  createUpdateMedia(media: InsertUpdateMedia): Promise<UpdateMedia>;
+  
+  // Milestone methods
+  getProjectMilestones(projectId: number): Promise<Milestone[]>;
+  createMilestone(milestone: InsertMilestone): Promise<Milestone>;
+  
+  // Selection methods
+  getProjectSelections(projectId: number): Promise<Selection[]>;
+  createSelection(selection: InsertSelection): Promise<Selection>;
+  updateSelectionChoice(id: number, selectedOption: string): Promise<Selection | undefined>;
+  
+  // Session store
+  sessionStore: session.SessionStore;
+}
+
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.SessionStore;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true,
+      tableName: 'session'
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  // Project methods
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
+  }
+
+  async getAllProjects(): Promise<Project[]> {
+    return await db.select().from(projects);
+  }
+
+  async getClientProjects(clientId: number): Promise<Project[]> {
+    const result = await db
+      .select({
+        project: projects
+      })
+      .from(clientProjects)
+      .innerJoin(projects, eq(clientProjects.projectId, projects.id))
+      .where(eq(clientProjects.clientId, clientId));
+    
+    return result.map(r => r.project);
+  }
+
+  async createProject(project: InsertProject): Promise<Project> {
+    const [newProject] = await db.insert(projects).values(project).returning();
+    return newProject;
+  }
+
+  async updateProject(id: number, project: InsertProject): Promise<Project | undefined> {
+    const [updatedProject] = await db
+      .update(projects)
+      .set(project)
+      .where(eq(projects.id, id))
+      .returning();
+    
+    return updatedProject;
+  }
+
+  // Client-Project relationship methods
+  async assignClientToProject(clientId: number, projectId: number): Promise<ClientProject> {
+    const [clientProject] = await db
+      .insert(clientProjects)
+      .values({ clientId, projectId })
+      .returning();
+    
+    return clientProject;
+  }
+
+  async clientHasProjectAccess(clientId: number, projectId: number): Promise<boolean> {
+    const [result] = await db
+      .select()
+      .from(clientProjects)
+      .where(
+        and(
+          eq(clientProjects.clientId, clientId),
+          eq(clientProjects.projectId, projectId)
+        )
+      );
+    
+    return !!result;
+  }
+
+  // Document methods
+  async getProjectDocuments(projectId: number): Promise<Document[]> {
+    return await db
+      .select()
+      .from(documents)
+      .where(eq(documents.projectId, projectId));
+  }
+
+  async createDocument(document: InsertDocument): Promise<Document> {
+    const [newDocument] = await db
+      .insert(documents)
+      .values(document)
+      .returning();
+    
+    return newDocument;
+  }
+
+  // Invoice methods
+  async getProjectInvoices(projectId: number): Promise<Invoice[]> {
+    return await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.projectId, projectId));
+  }
+
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const [newInvoice] = await db
+      .insert(invoices)
+      .values(invoice)
+      .returning();
+    
+    return newInvoice;
+  }
+
+  // Payment methods
+  async getInvoicePayments(invoiceId: number): Promise<Payment[]> {
+    return await db
+      .select()
+      .from(payments)
+      .where(eq(payments.invoiceId, invoiceId));
+  }
+
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [newPayment] = await db
+      .insert(payments)
+      .values(payment)
+      .returning();
+    
+    return newPayment;
+  }
+
+  // Message methods
+  async getProjectMessages(projectId: number): Promise<Message[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(eq(messages.projectId, projectId));
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const [newMessage] = await db
+      .insert(messages)
+      .values(message)
+      .returning();
+    
+    return newMessage;
+  }
+
+  // Progress update methods
+  async getProjectUpdates(projectId: number): Promise<ProgressUpdate[]> {
+    return await db
+      .select()
+      .from(progressUpdates)
+      .where(eq(progressUpdates.projectId, projectId));
+  }
+
+  async createProgressUpdate(update: InsertProgressUpdate): Promise<ProgressUpdate> {
+    const [newUpdate] = await db
+      .insert(progressUpdates)
+      .values(update)
+      .returning();
+    
+    return newUpdate;
+  }
+
+  // Update media methods
+  async getUpdateMedia(updateId: number): Promise<UpdateMedia[]> {
+    return await db
+      .select()
+      .from(updateMedia)
+      .where(eq(updateMedia.updateId, updateId));
+  }
+
+  async createUpdateMedia(media: InsertUpdateMedia): Promise<UpdateMedia> {
+    const [newMedia] = await db
+      .insert(updateMedia)
+      .values(media)
+      .returning();
+    
+    return newMedia;
+  }
+
+  // Milestone methods
+  async getProjectMilestones(projectId: number): Promise<Milestone[]> {
+    return await db
+      .select()
+      .from(milestones)
+      .where(eq(milestones.projectId, projectId));
+  }
+
+  async createMilestone(milestone: InsertMilestone): Promise<Milestone> {
+    const [newMilestone] = await db
+      .insert(milestones)
+      .values(milestone)
+      .returning();
+    
+    return newMilestone;
+  }
+
+  // Selection methods
+  async getProjectSelections(projectId: number): Promise<Selection[]> {
+    return await db
+      .select()
+      .from(selections)
+      .where(eq(selections.projectId, projectId));
+  }
+
+  async createSelection(selection: InsertSelection): Promise<Selection> {
+    const [newSelection] = await db
+      .insert(selections)
+      .values(selection)
+      .returning();
+    
+    return newSelection;
+  }
+
+  async updateSelectionChoice(id: number, selectedOption: string): Promise<Selection | undefined> {
+    const [updatedSelection] = await db
+      .update(selections)
+      .set({ 
+        selectedOption, 
+        status: "selected",
+        updatedAt: new Date()
+      })
+      .where(eq(selections.id, id))
+      .returning();
+    
+    return updatedSelection;
+  }
+}
+
+export const storage = new DatabaseStorage();
