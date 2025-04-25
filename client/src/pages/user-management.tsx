@@ -797,6 +797,102 @@ export default function UserManagement() {
             )}
           </DialogContent>
         </Dialog>
+        
+        {/* Reset Password Dialog */}
+        <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Reset User Password</DialogTitle>
+              <DialogDescription>
+                {userToManage && `Set a new password for ${userToManage.firstName} ${userToManage.lastName}`}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Form {...resetPasswordForm}>
+              <form onSubmit={resetPasswordForm.handleSubmit(handleResetPassword)} className="space-y-4">
+                <FormField
+                  control={resetPasswordForm.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Password must be at least 8 characters
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={resetPasswordForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <DialogFooter>
+                  <Button 
+                    variant="outline" 
+                    type="button"
+                    onClick={() => setIsResetPasswordDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={resetPasswordMutation.isPending}
+                  >
+                    {resetPasswordMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Reset Password
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete User Confirmation Dialog */}
+        <AlertDialog open={isDeleteUserDialogOpen} onOpenChange={setIsDeleteUserDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {userToManage && (
+                  <>
+                    This will permanently delete {userToManage.firstName} {userToManage.lastName}'s account 
+                    and remove all their project associations. This action cannot be undone.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => userToManage && deleteUserMutation.mutate(userToManage.id)}
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                disabled={deleteUserMutation.isPending}
+              >
+                {deleteUserMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Delete User
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
