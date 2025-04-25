@@ -28,15 +28,36 @@ import {
   FileIcon,
   Image as ImageIcon,
   DownloadCloud,
-  Loader2
+  Loader2,
+  Calendar,
+  RefreshCcw
 } from "lucide-react";
 import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 export default function Documents() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  
+  // Create query params with date filters
+  const createParams = () => {
+    const params = new URLSearchParams();
+    if (startDate) {
+      params.append('startDate', startDate.toISOString());
+    }
+    if (endDate) {
+      params.append('endDate', endDate.toISOString());
+    }
+    return params.toString();
+  };
+  
+  // Prepare query string for documents endpoint
+  const documentsQueryString = createParams();
 
   // Fetch projects
   const { 
@@ -49,9 +70,10 @@ export default function Documents() {
   // Fetch all documents across all projects
   const { 
     data: allDocuments = [],
-    isLoading: isLoadingDocuments 
+    isLoading: isLoadingDocuments,
+    refetch: refetchDocuments
   } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
+    queryKey: ["/api/documents", documentsQueryString],
     enabled: projects.length > 0,
   });
 

@@ -1,6 +1,6 @@
 import { users, projects, clientProjects, documents, invoices, payments, messages, progressUpdates, updateMedia, milestones, selections } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lt } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -214,47 +214,78 @@ export class DatabaseStorage implements IStorage {
 
   // Document methods
   async getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]> {
-    let query = db.select().from(documents);
+    // Apply filters in JavaScript to avoid complex SQL queries
+    const allDocs = await db.select().from(documents).orderBy(desc(documents.createdAt));
     
-    if (filters) {
-      if (filters.startDate) {
-        query = query.where(gte(documents.createdAt, filters.startDate));
-      }
-      
-      if (filters.endDate) {
-        // Add one day to include the end date fully
-        const endDate = new Date(filters.endDate);
-        endDate.setDate(endDate.getDate() + 1);
-        query = query.where(lt(documents.createdAt, endDate));
-      }
+    if (!filters || (!filters.startDate && !filters.endDate)) {
+      return allDocs;
     }
     
-    return await query.orderBy(desc(documents.createdAt));
+    // Filter documents by date range in JavaScript
+    return allDocs.filter(doc => {
+      const docDate = new Date(doc.createdAt);
+      
+      // Filter by start date if provided
+      if (filters.startDate) {
+        const startDate = new Date(filters.startDate);
+        if (docDate < startDate) {
+          return false;
+        }
+      }
+      
+      // Filter by end date if provided
+      if (filters.endDate) {
+        const endDate = new Date(filters.endDate);
+        // Set time to end of day to include the end date
+        endDate.setHours(23, 59, 59, 999);
+        if (docDate > endDate) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   }
   
   async getProjectDocuments(
     projectId: number, 
     filters?: { startDate?: Date; endDate?: Date }
   ): Promise<Document[]> {
-    let query = db
+    // First get all documents for the project
+    const projectDocs = await db
       .select()
       .from(documents)
-      .where(eq(documents.projectId, projectId));
+      .where(eq(documents.projectId, projectId))
+      .orderBy(desc(documents.createdAt));
     
-    if (filters) {
-      if (filters.startDate) {
-        query = query.where(gte(documents.createdAt, filters.startDate));
-      }
-      
-      if (filters.endDate) {
-        // Add one day to include the end date fully
-        const endDate = new Date(filters.endDate);
-        endDate.setDate(endDate.getDate() + 1);
-        query = query.where(lt(documents.createdAt, endDate));
-      }
+    if (!filters || (!filters.startDate && !filters.endDate)) {
+      return projectDocs;
     }
     
-    return await query.orderBy(desc(documents.createdAt));
+    // Filter documents by date range in JavaScript
+    return projectDocs.filter(doc => {
+      const docDate = new Date(doc.createdAt);
+      
+      // Filter by start date if provided
+      if (filters.startDate) {
+        const startDate = new Date(filters.startDate);
+        if (docDate < startDate) {
+          return false;
+        }
+      }
+      
+      // Filter by end date if provided
+      if (filters.endDate) {
+        const endDate = new Date(filters.endDate);
+        // Set time to end of day to include the end date
+        endDate.setHours(23, 59, 59, 999);
+        if (docDate > endDate) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {

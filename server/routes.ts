@@ -470,9 +470,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user!;
       let documents = [];
       
+      // Parse date filters from query params if provided
+      const filters: { startDate?: Date; endDate?: Date } = {};
+      
+      if (req.query.startDate) {
+        filters.startDate = new Date(req.query.startDate as string);
+      }
+      
+      if (req.query.endDate) {
+        filters.endDate = new Date(req.query.endDate as string);
+      }
+      
       if (user.role === "admin" || user.role === "projectManager") {
         // Admins and project managers can see all documents
-        documents = await storage.getAllDocuments();
+        documents = await storage.getAllDocuments(filters);
       } else {
         // Clients can only see documents from projects they have access to
         const clientProjects = await storage.getClientProjects(user.id);
@@ -483,7 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Fetch documents for each project the client has access to
         const projectDocuments = await Promise.all(
-          clientProjects.map(project => storage.getProjectDocuments(project.id))
+          clientProjects.map(project => storage.getProjectDocuments(project.id, filters))
         );
         
         // Flatten the array of document arrays
