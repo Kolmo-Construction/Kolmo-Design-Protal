@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { sendMagicLinkEmail } from "./email";
 
 declare global {
   namespace Express {
@@ -195,15 +196,39 @@ export function setupAuth(app: Express) {
         }
       }
       
-      // In a real application, you would send the magic link via email here
-      // For now, we'll just return it in the response for testing
-      const magicLink = `${req.protocol}://${req.get('host')}/auth/magic-link/${token}`;
+      // Create the magic link URL
+      const host = process.env.NODE_ENV === 'production' 
+        ? req.get('host') 
+        : 'localhost:5000';
+        
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+      const magicLink = `${protocol}://${host}/auth/magic-link/${token}`;
       
-      res.status(200).json({ 
-        message: "Magic link created successfully", 
+      // Send the magic link email
+      const isNewUser = !user.isActivated;
+      const emailSent = await sendMagicLinkEmail(
+        email,
+        firstName,
         magicLink,
+        isNewUser
+      );
+      
+      // Always return the magic link in development for testing purposes
+      const result: any = { 
+        message: "Magic link created successfully", 
         user: { id: user.id, email: user.email }
-      });
+      };
+      
+      // In development, also return the magic link directly
+      if (process.env.NODE_ENV !== 'production') {
+        result.magicLink = magicLink;
+      }
+      
+      if (!emailSent) {
+        result.warning = "Magic link email could not be sent. Check server logs for details.";
+      }
+      
+      res.status(200).json(result);
     } catch (err) {
       next(err);
     }

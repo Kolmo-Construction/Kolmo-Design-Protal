@@ -92,6 +92,7 @@ type NewUserFormValues = z.infer<typeof newUserSchema>;
 export default function UserManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("users");
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
   const [createdMagicLink, setCreatedMagicLink] = useState<string | null>(null);
   const { toast } = useToast();

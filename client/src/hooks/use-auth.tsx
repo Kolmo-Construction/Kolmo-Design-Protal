@@ -45,6 +45,7 @@ type MagicLinkCreationData = {
   firstName: string;
   lastName: string;
   role?: string;
+  projectIds?: number[];
 };
 
 type MagicLinkCreationResponse = {
