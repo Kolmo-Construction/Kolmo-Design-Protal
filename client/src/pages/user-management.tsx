@@ -327,6 +327,16 @@ export default function UserManagement() {
               <CardDescription>
                 All user accounts in the system
               </CardDescription>
+              
+              {!emailConfigLoading && emailConfig && !emailConfig.configured && (
+                <Alert className="mt-2 bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    Email service is not configured. Magic links will be displayed but not sent automatically. 
+                    <span className="block mt-1 text-sm">To enable email delivery, set the <code className="bg-amber-100 p-1 rounded text-xs">SENDGRID_API_KEY</code> environment variable.</span>
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardHeader>
             <CardContent className="px-6">
               {usersLoading ? (
