@@ -104,16 +104,33 @@ export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
   });
 
   const onLoginSubmit = (values: LoginFormValues) => {
-    loginMutation.mutate(values, {
-      onSuccess: (userData) => {
-        console.log("Login successful, redirecting to dashboard", userData);
-        // Force refresh user data in the auth context
-        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-        // Use timeout to ensure state updates before navigation
-        setTimeout(() => {
-          navigate("/");
-        }, 100);
-      },
+    // Call the login API directly
+    fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(values)
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Login failed');
+      return res.json();
+    })
+    .then(userData => {
+      console.log("Login successful, redirecting to dashboard", userData);
+      
+      // Force clear and update query cache
+      queryClient.clear();
+      queryClient.setQueryData(["/api/user"], userData);
+      
+      // Navigate to dashboard
+      window.location.href = '/';
+    })
+    .catch(err => {
+      console.error("Login error:", err);
+      loginForm.setError("root", { 
+        type: "manual",
+        message: "Invalid username or password" 
+      });
     });
   };
 
@@ -256,11 +273,13 @@ export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
                       )}
                     />
                     
-                    {loginMutation.isError && (
+                    {(loginMutation.isError || loginForm.formState.errors.root) && (
                       <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
-                          {loginMutation.error?.message || "Invalid username or password"}
+                          {loginForm.formState.errors.root?.message || 
+                           loginMutation.error?.message || 
+                           "Invalid username or password"}
                         </AlertDescription>
                       </Alert>
                     )}

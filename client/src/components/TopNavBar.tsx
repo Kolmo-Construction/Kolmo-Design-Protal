@@ -23,16 +23,27 @@ export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
   const [, navigate] = useLocation();
 
   const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        // Clear any cached user data
-        queryClient.setQueryData(["/api/user"], null);
-        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-        // Force navigate to login page
-        setTimeout(() => {
-          navigate("/auth");
-        }, 100);
-      }
+    // First, call the server to logout
+    fetch("/api/logout", { 
+      method: "POST",
+      credentials: "include" 
+    })
+    .then(() => {
+      // Force clear all query cache
+      queryClient.clear();
+      
+      // Reset user data in context
+      queryClient.setQueryData(["/api/user"], null);
+      
+      // Force navigate to login page
+      console.log("Logout successful, redirecting to auth page");
+      navigate("/auth");
+    })
+    .catch(err => {
+      console.error("Logout error:", err);
+      // Even on error, clear cache and redirect to ensure user can log out
+      queryClient.setQueryData(["/api/user"], null);
+      navigate("/auth");
     });
   };
 
