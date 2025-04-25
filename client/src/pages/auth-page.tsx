@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,14 +29,53 @@ const registerSchema = insertUserSchema.extend({
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export default function AuthPage() {
+interface AuthPageProps {
+  isMagicLink?: boolean;
+}
+
+export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [, navigate] = useLocation();
-  const { user, loginMutation, registerMutation } = useAuth();
+  const [magicLinkStatus, setMagicLinkStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [magicLinkError, setMagicLinkError] = useState<string>('');
+  const { 
+    user, 
+    loginMutation, 
+    registerMutation, 
+    verifyMagicLinkMutation 
+  } = useAuth();
   const [regSuccess, setRegSuccess] = useState(false);
 
+  // Get token from URL if in magic link mode
+  const params = useParams();
+  const token = isMagicLink ? params.token : null;
+
+  // Process magic link token
+  useEffect(() => {
+    if (isMagicLink && token) {
+      verifyMagicLinkMutation.mutate(token, {
+        onSuccess: (data) => {
+          setMagicLinkStatus('success');
+          // If there's a redirect, navigate there
+          if (data.redirect) {
+            navigate(data.redirect);
+          } else {
+            // Otherwise go to dashboard after short delay
+            setTimeout(() => {
+              navigate("/");
+            }, 2000);
+          }
+        },
+        onError: (error) => {
+          setMagicLinkStatus('error');
+          setMagicLinkError(error.message || "Invalid or expired magic link");
+        }
+      });
+    }
+  }, [isMagicLink, token, verifyMagicLinkMutation, navigate]);
+
   // If user is already logged in, redirect to home page
-  if (user) {
+  if (user && !isMagicLink) {
     navigate("/");
     return null;
   }
@@ -85,6 +124,76 @@ export default function AuthPage() {
     });
   };
 
+  // Render magic link verification UI if in magic link mode
+  if (isMagicLink) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="h-8 w-8 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor"/>
+                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="text-2xl font-bold">BuildPortal</span>
+            </div>
+            <CardTitle className="text-2xl">Magic Link Authentication</CardTitle>
+            <CardDescription>
+              {magicLinkStatus === 'loading' 
+                ? 'Verifying your secure access link...' 
+                : magicLinkStatus === 'success' 
+                  ? 'Authentication successful!' 
+                  : 'Authentication failed'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {magicLinkStatus === 'loading' && (
+              <div className="flex flex-col items-center py-8">
+                <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+                <p className="text-center text-muted-foreground">
+                  Please wait while we verify your access link...
+                </p>
+              </div>
+            )}
+            
+            {magicLinkStatus === 'success' && (
+              <Alert className="bg-green-50 text-green-800 border-green-200">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <div className="ml-3">
+                  <AlertDescription className="text-green-700 font-medium">
+                    You have been successfully authenticated.
+                  </AlertDescription>
+                  <p className="text-sm mt-1">Redirecting you to your dashboard...</p>
+                </div>
+              </Alert>
+            )}
+            
+            {magicLinkStatus === 'error' && (
+              <>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <AlertDescription className="ml-2">
+                    {magicLinkError || "There was an error verifying your magic link"}
+                  </AlertDescription>
+                </Alert>
+                <div className="text-center mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate("/auth")}
+                    className="mx-auto"
+                  >
+                    Return to Login
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Regular auth form for non-magic link access
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">

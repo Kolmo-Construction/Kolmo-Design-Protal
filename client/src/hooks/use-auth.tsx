@@ -15,9 +15,46 @@ type AuthContextType = {
   loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
+  verifyMagicLinkMutation: UseMutationResult<MagicLinkResponse, Error, string>;
+  setupProfileMutation: UseMutationResult<ProfileSetupResponse, Error, ProfileSetupData>;
+  createMagicLinkMutation: UseMutationResult<MagicLinkCreationResponse, Error, MagicLinkCreationData>;
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
+
+type ProfileSetupData = {
+  username: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+};
+
+type ProfileSetupResponse = {
+  message: string;
+  user: Omit<SelectUser, "password" | "magicLinkToken" | "magicLinkExpiry">;
+};
+
+type MagicLinkResponse = {
+  user?: Partial<SelectUser>;
+  redirect?: string;
+};
+
+type MagicLinkCreationData = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role?: string;
+};
+
+type MagicLinkCreationResponse = {
+  message: string;
+  magicLink: string;
+  user: {
+    id: number;
+    email: string;
+  };
+};
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -81,6 +118,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const verifyMagicLinkMutation = useMutation({
+    mutationFn: async (token: string) => {
+      const res = await apiRequest("GET", `/api/auth/magic-link/${token}`);
+      return await res.json();
+    },
+    onSuccess: (data: MagicLinkResponse) => {
+      if (data.user) {
+        queryClient.setQueryData(["/api/user"], data.user);
+        toast({
+          title: "Authentication successful",
+          description: "You have been securely logged in.",
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Magic link authentication failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const setupProfileMutation = useMutation({
+    mutationFn: async (data: ProfileSetupData) => {
+      const res = await apiRequest("POST", "/api/auth/setup-profile", data);
+      return await res.json();
+    },
+    onSuccess: (data: ProfileSetupResponse) => {
+      queryClient.setQueryData(["/api/user"], data.user);
+      toast({
+        title: "Profile setup completed",
+        description: "Your account has been activated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Profile setup failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const createMagicLinkMutation = useMutation({
+    mutationFn: async (data: MagicLinkCreationData) => {
+      const res = await apiRequest("POST", "/api/admin/create-magic-link", data);
+      return await res.json();
+    },
+    onSuccess: (data: MagicLinkCreationResponse) => {
+      toast({
+        title: "Magic link created",
+        description: "A magic link has been created for the user.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Magic link creation failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   return (
     <AuthContext.Provider
       value={{
@@ -90,6 +191,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        verifyMagicLinkMutation,
+        setupProfileMutation,
+        createMagicLinkMutation,
       }}
     >
       {children}
