@@ -36,6 +36,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User>;
   updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<User>;
+  deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
   
   // Project methods
@@ -149,6 +150,18 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users);
+  }
+  
+  async deleteUser(id: number): Promise<void> {
+    // Delete all client-project associations first
+    await db
+      .delete(clientProjects)
+      .where(eq(clientProjects.clientId, id));
+      
+    // Now delete the user
+    await db
+      .delete(users)
+      .where(eq(users.id, id));
   }
 
   // Project methods

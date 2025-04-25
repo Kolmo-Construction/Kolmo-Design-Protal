@@ -13,6 +13,10 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { isEmailServiceConfigured } from "./email";
+import { randomBytes, scrypt } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
 
 // Helper function to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -574,6 +578,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Reset user password - admin only
+  app.post("/api/admin/users/:userId/reset-password", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const { newPassword } = req.body;
+      if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters" });
+      }
+
+      // Hash the new password
+      const salt = randomBytes(16).toString("hex");
+      const buf = (await scryptAsync(newPassword, salt, 64)) as Buffer;
+      const hashedPassword = `${buf.toString("hex")}.${salt}`;
+
+      // Update the user's password
+      const user = await storage.updateUser(userId, { 
+        password: hashedPassword 
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Password reset successful" 
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // Delete user - admin only
+  app.delete("/api/admin/users/:userId", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Don't allow deleting your own account
+      if (req.user && req.user.id === userId) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+      }
+
+      // First check if the user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Delete the user
+      await storage.deleteUser(userId);
+
+      res.json({ 
+        success: true, 
+        message: "User deleted successfully" 
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
     }
   });
   
