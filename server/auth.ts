@@ -338,4 +338,54 @@ export function setupAuth(app: Express) {
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
+
+  // API endpoint to create an admin user (only in development mode)
+  app.post("/api/create-admin", async (req, res) => {
+    try {
+      // Extra security: only allow this in development mode
+      if (process.env.NODE_ENV !== "development") {
+        return res.status(403).json({ message: "This endpoint is only available in development mode" });
+      }
+      
+      const { username, password, email, firstName, lastName } = req.body;
+      
+      if (!username || !password || !email || !firstName || !lastName) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+      
+      // Create new admin user
+      const hashedPassword = await hashPassword(password);
+      const newUser = await storage.createUser({
+        username,
+        password: hashedPassword,
+        email,
+        firstName,
+        lastName,
+        role: "admin",
+        isActivated: true, // Set as already activated
+      });
+      
+      // Remove password from response
+      const { password: _, ...userResponse } = newUser;
+      
+      res.status(201).json({
+        message: "Admin user created successfully",
+        user: userResponse
+      });
+    } catch (error) {
+      console.error("Error creating admin user:", error);
+      res.status(500).json({ message: "Failed to create admin user" });
+    }
+  });
 }

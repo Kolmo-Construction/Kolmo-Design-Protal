@@ -50,8 +50,8 @@ export interface IStorage {
   clientHasProjectAccess(clientId: number, projectId: number): Promise<boolean>;
   
   // Document methods
-  getAllDocuments(): Promise<Document[]>;
-  getProjectDocuments(projectId: number): Promise<Document[]>;
+  getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>;
+  getProjectDocuments(projectId: number, filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   
   // Invoice methods
@@ -213,19 +213,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Document methods
-  async getAllDocuments(): Promise<Document[]> {
-    return await db
-      .select()
-      .from(documents)
-      .orderBy(desc(documents.createdAt));
+  async getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]> {
+    let query = db.select().from(documents);
+    
+    if (filters) {
+      if (filters.startDate) {
+        query = query.where(gte(documents.createdAt, filters.startDate));
+      }
+      
+      if (filters.endDate) {
+        // Add one day to include the end date fully
+        const endDate = new Date(filters.endDate);
+        endDate.setDate(endDate.getDate() + 1);
+        query = query.where(lt(documents.createdAt, endDate));
+      }
+    }
+    
+    return await query.orderBy(desc(documents.createdAt));
   }
   
-  async getProjectDocuments(projectId: number): Promise<Document[]> {
-    return await db
+  async getProjectDocuments(
+    projectId: number, 
+    filters?: { startDate?: Date; endDate?: Date }
+  ): Promise<Document[]> {
+    let query = db
       .select()
       .from(documents)
-      .where(eq(documents.projectId, projectId))
-      .orderBy(desc(documents.createdAt));
+      .where(eq(documents.projectId, projectId));
+    
+    if (filters) {
+      if (filters.startDate) {
+        query = query.where(gte(documents.createdAt, filters.startDate));
+      }
+      
+      if (filters.endDate) {
+        // Add one day to include the end date fully
+        const endDate = new Date(filters.endDate);
+        endDate.setDate(endDate.getDate() + 1);
+        query = query.where(lt(documents.createdAt, endDate));
+      }
+    }
+    
+    return await query.orderBy(desc(documents.createdAt));
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
