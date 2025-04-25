@@ -97,9 +97,12 @@ const projectFormSchema = insertProjectSchema
     ]),
     projectManagerId: z.union([
       z.number().positive("Project manager ID must be positive"),
-      z.string().transform((val) => val === "" ? null : parseInt(val, 10)),
-      z.null()
-    ]).nullable().optional(),
+      z.string().transform((val) => val === "" ? undefined : parseInt(val, 10)),
+      z.undefined()
+    ]).optional(),
+    description: z.string().optional().or(z.literal('')),
+    imageUrl: z.string().optional().or(z.literal('')),
+    progress: z.number().optional().default(0),
   });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
@@ -201,7 +204,8 @@ export default function ProjectManagement() {
       status: "planning",
       totalBudget: "",
       progress: 0,
-      projectManagerId: null,
+      projectManagerId: undefined,
+      imageUrl: "",
     },
   });
 
@@ -218,7 +222,8 @@ export default function ProjectManagement() {
       status: "planning",
       totalBudget: "",
       progress: 0,
-      projectManagerId: null,
+      projectManagerId: undefined,
+      imageUrl: "",
     },
   });
 
@@ -241,7 +246,7 @@ export default function ProjectManagement() {
       startDate: project.startDate ? new Date(project.startDate) : undefined,
       estimatedCompletionDate: project.estimatedCompletionDate ? new Date(project.estimatedCompletionDate) : undefined,
       actualCompletionDate: project.actualCompletionDate ? new Date(project.actualCompletionDate) : undefined,
-      projectManagerId: project.projectManagerId || null,
+      projectManagerId: project.projectManagerId || undefined,
     });
     
     setIsEditDialogOpen(true);
