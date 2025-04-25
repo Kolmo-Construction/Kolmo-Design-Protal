@@ -32,7 +32,6 @@ import {
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -66,6 +65,7 @@ import {
 } from "@/components/ui/tabs";
 import { 
   AlertCircle, 
+  Building2,
   CheckCircle2, 
   Clipboard, 
   Copy, 
@@ -124,6 +124,22 @@ export default function UserManagement() {
     queryKey: ["/api/projects"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
+
+  // Get client's assigned projects when a client is selected
+  const {
+    data: clientProjects,
+    isLoading: clientProjectsLoading,
+    isError: clientProjectsError,
+  } = useQuery<Project[], Error>({
+    queryKey: ["/api/admin/client-projects", selectedUserId],
+    queryFn: selectedUserId ? getQueryFn({ on401: "throw" }) : () => Promise.resolve([]),
+    enabled: !!selectedUserId && activeTab === "client-projects"
+  });
+
+  // Get selected client's details
+  const selectedClient = selectedUserId
+    ? users?.find(u => u.id === selectedUserId)
+    : null;
 
   const form = useForm<NewUserFormValues>({
     resolver: zodResolver(newUserSchema),
@@ -191,116 +207,205 @@ export default function UserManagement() {
           </Button>
         </div>
 
-        <Card>
-          <CardHeader className="px-6">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>User Accounts</CardTitle>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList>
+            <TabsTrigger value="users" onClick={() => setActiveTab("users")}>
+              User Accounts
+            </TabsTrigger>
+            {selectedClient && (
+              <TabsTrigger value="client-projects" onClick={() => setActiveTab("client-projects")}>
+                {selectedClient.firstName}'s Projects
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </Tabs>
+
+        {activeTab === "client-projects" && selectedClient ? (
+          <Card>
+            <CardHeader className="px-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>Projects for {selectedClient.firstName} {selectedClient.lastName}</CardTitle>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setActiveTab("users")}
+                >
+                  Back to Users
+                </Button>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2"
-                onClick={() => refetchUsers()}
-              >
-                <RotateCw className="h-4 w-4" />
-                Refresh
-              </Button>
-            </div>
-            <CardDescription>
-              All user accounts in the system
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-6">
-            {usersLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : usersError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Error loading users. Please try again.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users && users.length > 0 ? (
-                    users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.firstName} {user.lastName}
-                        </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            user.role === "admin" 
-                              ? "default" 
-                              : user.role === "projectManager" 
+              <CardDescription>
+                Projects that this client has access to
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6">
+              {clientProjectsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : clientProjectsError ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Error loading client projects. Please try again.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project Name</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Budget</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clientProjects && clientProjects.length > 0 ? (
+                      clientProjects.map((project) => (
+                        <TableRow key={project.id}>
+                          <TableCell className="font-medium">{project.name}</TableCell>
+                          <TableCell>{project.address}, {project.city}, {project.state}</TableCell>
+                          <TableCell>${project.totalBudget ? parseFloat(project.totalBudget.toString()).toLocaleString() : 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              project.status === "active" 
                                 ? "outline" 
-                                : "secondary"
-                          }>
-                            {user.role === "admin" 
-                              ? "Admin" 
-                              : user.role === "projectManager" 
-                                ? "Project Manager" 
-                                : "Client"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {user.isActivated ? (
-                            <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">
-                              Active
+                                : project.status === "completed" 
+                                  ? "default" 
+                                  : "secondary"
+                            }>
+                              {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
                             </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                              Pending Setup
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {user.role === "client" && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => {
-                                setSelectedUserId(user.id);
-                                setActiveTab("client-projects");
-                              }}
-                              className="gap-1 text-xs"
-                            >
-                              <Building2 className="h-3.5 w-3.5" />
-                              View Projects
-                            </Button>
-                          )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                          This client doesn't have access to any projects yet.
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader className="px-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>User Accounts</CardTitle>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2"
+                  onClick={() => refetchUsers()}
+                >
+                  <RotateCw className="h-4 w-4" />
+                  Refresh
+                </Button>
+              </div>
+              <CardDescription>
+                All user accounts in the system
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6">
+              {usersLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : usersError ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Error loading users. Please try again.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                        No users found. Create a new user to get started.
-                      </TableCell>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {users && users.length > 0 ? (
+                      users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">
+                            {user.firstName} {user.lastName}
+                          </TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.username}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              user.role === "admin" 
+                                ? "default" 
+                                : user.role === "projectManager" 
+                                  ? "outline" 
+                                  : "secondary"
+                            }>
+                              {user.role === "admin" 
+                                ? "Admin" 
+                                : user.role === "projectManager" 
+                                  ? "Project Manager" 
+                                  : "Client"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {user.isActivated ? (
+                              <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">
+                                Active
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                                Pending Setup
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {user.role === "client" && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedUserId(user.id);
+                                  setActiveTab("client-projects");
+                                }}
+                                className="gap-1 text-xs"
+                              >
+                                <Building2 className="h-3.5 w-3.5" />
+                                View Projects
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                          No users found. Create a new user to get started.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Create User Dialog */}
         <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
@@ -339,7 +444,7 @@ export default function UserManagement() {
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    In a production environment, this would be automatically emailed to the user.
+                    The magic link has been emailed to the user with instructions.
                   </p>
                 </div>
                 
