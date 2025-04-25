@@ -36,7 +36,8 @@ import {
   Image,
   CheckCircle2,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Download
 } from "lucide-react";
 
 export default function ProjectDetails() {
@@ -220,7 +221,15 @@ export default function ProjectDetails() {
               <MessageSquare className="h-4 w-4" />
               Contact Team
             </Button>
-            <Button className="gap-2">
+            <Button 
+              className="gap-2"
+              onClick={() => {
+                const tabsElement = document.querySelector('button[value="documents"]');
+                if (tabsElement) {
+                  (tabsElement as HTMLButtonElement).click();
+                }
+              }}
+            >
               <FileText className="h-4 w-4" />
               View Documents
             </Button>
@@ -371,9 +380,16 @@ export default function ProjectDetails() {
                           <div>
                             <p className="font-medium">{doc.name}</p>
                             <p className="text-sm text-slate-500">{doc.category} • {(doc.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                            {doc.description && <p className="text-xs text-slate-400 mt-1">{doc.description}</p>}
                           </div>
                         </div>
-                        <Button size="sm" variant="outline" className="text-primary-600">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-primary-600 gap-2"
+                          onClick={() => window.open(doc.fileUrl, '_blank')}
+                        >
+                          <Download className="h-4 w-4" />
                           Download
                         </Button>
                       </div>

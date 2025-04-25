@@ -1,6 +1,6 @@
 import { users, projects, clientProjects, documents, invoices, payments, messages, progressUpdates, updateMedia, milestones, selections } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -50,6 +50,7 @@ export interface IStorage {
   clientHasProjectAccess(clientId: number, projectId: number): Promise<boolean>;
   
   // Document methods
+  getAllDocuments(): Promise<Document[]>;
   getProjectDocuments(projectId: number): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   
@@ -212,11 +213,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Document methods
+  async getAllDocuments(): Promise<Document[]> {
+    return await db
+      .select()
+      .from(documents)
+      .orderBy(desc(documents.createdAt));
+  }
+  
   async getProjectDocuments(projectId: number): Promise<Document[]> {
     return await db
       .select()
       .from(documents)
-      .where(eq(documents.projectId, projectId));
+      .where(eq(documents.projectId, projectId))
+      .orderBy(desc(documents.createdAt));
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {

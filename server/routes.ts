@@ -464,6 +464,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all documents (for document center)
+  app.get("/api/documents", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      let documents = [];
+      
+      if (user.role === "admin" || user.role === "projectManager") {
+        // Admins and project managers can see all documents
+        documents = await storage.getAllDocuments();
+      } else {
+        // Clients can only see documents from projects they have access to
+        const clientProjects = await storage.getClientProjects(user.id);
+        
+        if (clientProjects.length === 0) {
+          return res.json([]);
+        }
+        
+        // Fetch documents for each project the client has access to
+        const projectDocuments = await Promise.all(
+          clientProjects.map(project => storage.getProjectDocuments(project.id))
+        );
+        
+        // Flatten the array of document arrays
+        documents = projectDocuments.flat();
+      }
+      
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching all documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+  
   // User management routes (admin only)
   app.get("/api/users", isAdmin, async (req, res) => {
     try {
