@@ -18,6 +18,13 @@ import type {
   Selection, InsertSelection
 } from "@shared/schema";
 
+// Fix typescript issues with session store
+declare module "express-session" {
+  interface SessionData {
+    passport: any;
+  }
+}
+
 const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
@@ -25,7 +32,10 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByMagicLinkToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User>;
+  updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<User>;
   getAllUsers(): Promise<User[]>;
   
   // Project methods
@@ -103,9 +113,41 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByMagicLinkToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.magicLinkToken, token));
+    return user;
+  }
+
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await db.insert(users).values(user).returning();
     return newUser;
+  }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        ...userData,
+        // Always update timestamp when user is updated
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    
+    return updatedUser;
+  }
+  
+  async updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        magicLinkToken: token,
+        magicLinkExpiry: expiry
+      })
+      .where(eq(users.id, id))
+      .returning();
+    
+    return updatedUser;
   }
 
   async getAllUsers(): Promise<User[]> {

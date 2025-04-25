@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -26,6 +26,18 @@ async function comparePasswords(supplied: string, stored: string) {
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
+// Generate a unique token for magic links
+function generateMagicLinkToken(): string {
+  return randomBytes(32).toString("hex");
+}
+
+// Calculate expiry time (default: 24 hours from now)
+function getMagicLinkExpiry(hours = 24): Date {
+  const expiryDate = new Date();
+  expiryDate.setHours(expiryDate.getHours() + hours);
+  return expiryDate;
 }
 
 export function setupAuth(app: Express) {
@@ -75,41 +87,161 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
+  // Magic link authentication
+  app.get("/api/auth/magic-link/:token", async (req, res, next) => {
     try {
-      const existingUser = await storage.getUserByUsername(req.body.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Invalid token" });
       }
-
-      // Also check if email is already in use
-      const existingEmail = await storage.getUserByEmail(req.body.email);
-      if (existingEmail) {
-        return res.status(400).json({ message: "Email already in use" });
+      
+      const user = await storage.getUserByMagicLinkToken(token);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Invalid or expired link" });
       }
-
-      const hashedPassword = await hashPassword(req.body.password);
-      const user = await storage.createUser({
-        ...req.body,
-        password: hashedPassword,
-      });
-
-      // Remove password from response
-      const { password, ...userWithoutPassword } = user;
-
-      req.login(user, (err) => {
+      
+      // Check if the token has expired
+      if (user.magicLinkExpiry && new Date(user.magicLinkExpiry) < new Date()) {
+        return res.status(401).json({ message: "Magic link has expired" });
+      }
+      
+      // Log the user in
+      req.login(user, async (err) => {
         if (err) return next(err);
-        res.status(201).json(userWithoutPassword);
+        
+        // Mark the token as used by removing it
+        await storage.updateUserMagicLinkToken(user.id, null, null);
+        
+        // If the user hasn't set up their account yet, redirect to profile setup
+        if (!user.isActivated) {
+          return res.status(200).json({ 
+            redirect: "/setup-profile",
+            user: { 
+              id: user.id, 
+              email: user.email, 
+              firstName: user.firstName, 
+              lastName: user.lastName,
+              role: user.role,
+              isActivated: user.isActivated
+            }
+          });
+        }
+        
+        // Regular login for users who have already set up their account
+        const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user;
+        return res.status(200).json({ user: userWithoutSensitiveData });
       });
     } catch (err) {
       next(err);
     }
   });
 
+  // Admin endpoint to create a magic link for a user
+  app.post("/api/admin/create-magic-link", async (req, res, next) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { email, firstName, lastName, role = "client" } = req.body;
+      
+      if (!email || !firstName || !lastName) {
+        return res.status(400).json({ message: "Email, first name, and last name are required" });
+      }
+
+      // Check if user already exists
+      let user = await storage.getUserByEmail(email);
+      const token = generateMagicLinkToken();
+      const expiry = getMagicLinkExpiry();
+      
+      if (user) {
+        // Update existing user with new magic link token
+        user = await storage.updateUserMagicLinkToken(user.id, token, expiry);
+      } else {
+        // Create a temporary password - user will set real password during activation
+        const temporaryPassword = await hashPassword(randomBytes(16).toString("hex"));
+        
+        // Generate a username based on email (this can be changed by user during activation)
+        const username = email.split('@')[0] + '_' + randomBytes(4).toString('hex');
+        
+        // Create new user with magic link token
+        user = await storage.createUser({
+          email,
+          firstName,
+          lastName,
+          username,
+          password: temporaryPassword,
+          role,
+          magicLinkToken: token,
+          magicLinkExpiry: expiry,
+          isActivated: false
+        });
+      }
+      
+      // In a real application, you would send the magic link via email here
+      // For now, we'll just return it in the response for testing
+      const magicLink = `${req.protocol}://${req.get('host')}/auth/magic-link/${token}`;
+      
+      res.status(200).json({ 
+        message: "Magic link created successfully", 
+        magicLink,
+        user: { id: user.id, email: user.email }
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Setup profile and password for a user who came in via magic link
+  app.post("/api/auth/setup-profile", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const { username, password, firstName, lastName, phone } = req.body;
+      
+      if (!username || !password || !firstName || !lastName) {
+        return res.status(400).json({ message: "Username, password, first name, and last name are required" });
+      }
+      
+      // Check if username is already taken by another user
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser && existingUser.id !== req.user.id) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Update the user's profile
+      const hashedPassword = await hashPassword(password);
+      const updatedUser = await storage.updateUser(req.user.id, {
+        username,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        phone,
+        isActivated: true
+      });
+      
+      // Remove sensitive information from response
+      const { password: _, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = updatedUser;
+      
+      res.status(200).json({ 
+        message: "Profile setup complete", 
+        user: userWithoutSensitiveData
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Standard login - will be used primarily by admins
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    // Remove password from response
-    const { password, ...userWithoutPassword } = req.user as SelectUser;
-    res.status(200).json(userWithoutPassword);
+    // Remove password and magic link data from response
+    const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = req.user as SelectUser;
+    res.status(200).json(userWithoutSensitiveData);
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -122,9 +254,9 @@ export function setupAuth(app: Express) {
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     
-    // Remove password from response
-    const { password, ...userWithoutPassword } = req.user as SelectUser;
-    res.json(userWithoutPassword);
+    // Remove sensitive data from response
+    const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = req.user as SelectUser;
+    res.json(userWithoutSensitiveData);
   });
 
   // API endpoint to check if user is authenticated and has admin role

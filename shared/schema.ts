@@ -13,6 +13,9 @@ export const users = pgTable("users", {
   phone: text("phone"),
   role: text("role").notNull().default("client"), // client, admin, projectManager
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  magicLinkToken: text("magic_link_token").unique(),
+  magicLinkExpiry: timestamp("magic_link_expiry"),
+  isActivated: boolean("is_activated").default(false).notNull(),
 });
 
 // Projects table for storing project details
