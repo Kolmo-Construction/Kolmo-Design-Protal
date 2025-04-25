@@ -7,6 +7,13 @@ if (!process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
+/**
+ * Check if the email service is configured properly
+ */
+export function isEmailServiceConfigured(): boolean {
+  return !!process.env.SENDGRID_API_KEY;
+}
+
 interface EmailOptions {
   to: string;
   subject: string;

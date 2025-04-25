@@ -6,7 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
-import { sendMagicLinkEmail } from "./email";
+import { sendMagicLinkEmail, isEmailServiceConfigured } from "./email";
 
 declare global {
   namespace Express {
@@ -206,12 +206,18 @@ export function setupAuth(app: Express) {
       
       // Send the magic link email
       const isNewUser = !user.isActivated;
-      const emailSent = await sendMagicLinkEmail(
-        email,
-        firstName,
-        magicLink,
-        isNewUser
-      );
+      let emailSent = false;
+      
+      if (isEmailServiceConfigured()) {
+        emailSent = await sendMagicLinkEmail(
+          email,
+          firstName,
+          magicLink,
+          isNewUser
+        );
+      } else {
+        console.warn('Email service not configured. Magic link will not be sent.');
+      }
       
       // Always return the magic link in development for testing purposes
       const result: any = { 

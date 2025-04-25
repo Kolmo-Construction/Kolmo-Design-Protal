@@ -50,7 +50,8 @@ type MagicLinkCreationData = {
 
 type MagicLinkCreationResponse = {
   message: string;
-  magicLink: string;
+  magicLink?: string;
+  warning?: string;
   user: {
     id: number;
     email: string;
@@ -169,10 +170,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await res.json();
     },
     onSuccess: (data: MagicLinkCreationResponse) => {
-      toast({
-        title: "Magic link created",
-        description: "A magic link has been created for the user.",
-      });
+      if (data.warning) {
+        toast({
+          title: "Magic link created with warning",
+          description: data.warning,
+          variant: "warning",
+        });
+      } else {
+        toast({
+          title: "Magic link created",
+          description: "A magic link has been created and emailed to the user.",
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
