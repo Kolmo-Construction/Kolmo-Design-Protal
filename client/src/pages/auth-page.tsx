@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation, useParams } from "wouter";
+import { useLocation, useParams, Link } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -701,10 +701,17 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
               </TabsContent>
             </Tabs>
           </CardContent>
-          <CardFooter className="flex justify-center">
+          <CardFooter className="flex flex-col gap-2 items-center">
             <p className="text-sm text-muted-foreground">
               By continuing, you agree to our Terms of Service and Privacy Policy.
             </p>
+            {import.meta.env.DEV && (
+              <Link href="/dev-tools">
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+                  Dev Tools
+                </Button>
+              </Link>
+            )}
           </CardFooter>
         </Card>
         
@@ -764,16 +771,17 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                   <AlertDescription className="text-green-700">
                     We've sent a password reset link to your email if an account exists with that address.
+                    {import.meta.env.DEV && (
+                      <p className="mt-1 text-sm italic">
+                        (In development mode: Check the server console for the reset link)
+                      </p>
+                    )}
                   </AlertDescription>
                 </Alert>
                 <DialogFooter>
                   <Button 
                     type="button" 
-                    onClick={() => {
-                      setForgotPasswordDialogOpen(false);
-                      setForgotPasswordSuccess(false);
-                      setForgotPasswordEmail('');
-                    }}
+                    onClick={handleForgotPasswordDialogClose}
                   >
                     Close
                   </Button>

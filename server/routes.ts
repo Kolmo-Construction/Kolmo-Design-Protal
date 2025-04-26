@@ -152,8 +152,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Development-only route to create an admin user
+  // Development-only routes
   if (process.env.NODE_ENV === 'development') {
+    // Get all password reset tokens for testing (DEVELOPMENT ONLY)
+    app.get("/api/dev/reset-tokens", async (req, res) => {
+      try {
+        const users = await storage.getAllUsers();
+        const resetTokens = users
+          .filter(user => user.magicLinkToken && user.magicLinkExpiry && new Date(user.magicLinkExpiry) > new Date())
+          .map(user => ({
+            userId: user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            tokenExpiry: user.magicLinkExpiry,
+            resetLink: `/reset-password/${user.magicLinkToken}`
+          }));
+        
+        res.json(resetTokens);
+      } catch (error) {
+        console.error("Error fetching reset tokens:", error);
+        res.status(500).json({ message: "Error fetching reset tokens" });
+      }
+    });
+    
+    // Route to create an admin user
     app.post("/api/dev/create-admin", async (req, res) => {
       try {
         // Hash password
