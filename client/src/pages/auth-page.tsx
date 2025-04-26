@@ -12,6 +12,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2, Home, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { insertUserSchema } from "@shared/schema";
 
 const loginSchema = z.object({
@@ -39,6 +41,10 @@ export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
   const [, navigate] = useLocation();
   const [magicLinkStatus, setMagicLinkStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [magicLinkError, setMagicLinkError] = useState<string>('');
+  const [forgotPasswordDialogOpen, setForgotPasswordDialogOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordSubmitting, setForgotPasswordSubmitting] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
   const { 
     user, 
     loginMutation, 
@@ -294,6 +300,16 @@ export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
                         "Sign In"
                       )}
                     </Button>
+                    <div className="mt-2 text-center">
+                      <Button 
+                        variant="link" 
+                        className="text-sm text-primary hover:text-primary-600 p-0"
+                        type="button"
+                        onClick={() => setForgotPasswordDialogOpen(true)}
+                      >
+                        Forgot your password?
+                      </Button>
+                    </div>
                   </form>
                 </Form>
               </TabsContent>
@@ -450,6 +466,104 @@ export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
             </p>
           </CardFooter>
         </Card>
+        
+        {/* Forgot Password Dialog */}
+        <Dialog open={forgotPasswordDialogOpen} onOpenChange={setForgotPasswordDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Reset Your Password</DialogTitle>
+              <DialogDescription>
+                {!forgotPasswordSuccess 
+                  ? "Enter your email address and we'll send you a link to reset your password." 
+                  : "Password reset link sent!"}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {!forgotPasswordSuccess ? (
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                setForgotPasswordSubmitting(true);
+                
+                // Make API call to request password reset
+                fetch('/api/password-reset-request', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: forgotPasswordEmail })
+                })
+                .then(res => {
+                  if (!res.ok) throw new Error('Failed to send reset link');
+                  return res.json();
+                })
+                .then(() => {
+                  setForgotPasswordSuccess(true);
+                })
+                .catch(err => {
+                  console.error("Password reset error:", err);
+                  // We still show success even if there's an error for security reasons
+                  // This prevents email enumeration attacks
+                  setForgotPasswordSuccess(true);
+                })
+                .finally(() => {
+                  setForgotPasswordSubmitting(false);
+                });
+              }}>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email address"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setForgotPasswordDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={forgotPasswordSubmitting || !forgotPasswordEmail}>
+                    {forgotPasswordSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Send Reset Link"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            ) : (
+              <div className="space-y-4 py-4">
+                <Alert className="bg-green-50 text-green-800 border-green-200">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <AlertDescription className="text-green-700">
+                    We've sent a password reset link to your email if an account exists with that address.
+                  </AlertDescription>
+                </Alert>
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    onClick={() => {
+                      setForgotPasswordDialogOpen(false);
+                      setForgotPasswordSuccess(false);
+                      setForgotPasswordEmail('');
+                    }}
+                  >
+                    Close
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
         
         {/* Info Section */}
         <div className="hidden md:flex flex-col space-y-8 p-8">

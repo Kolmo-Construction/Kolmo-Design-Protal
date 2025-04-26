@@ -12,7 +12,7 @@ import {
   insertSelectionSchema
 } from "@shared/schema";
 import { z } from "zod";
-import { isEmailServiceConfigured } from "./email";
+import { isEmailServiceConfigured, sendMagicLinkEmail } from "./email";
 import { randomBytes, scrypt } from "crypto";
 import { promisify } from "util";
 
@@ -37,6 +37,54 @@ function isAdmin(req: Request, res: Response, next: Function) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
+  
+  // Password reset request endpoint
+  app.post("/api/password-reset-request", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      
+      // If user exists, send reset email
+      if (user) {
+        // Generate token and expiry
+        const token = randomBytes(32).toString('hex');
+        const expiry = new Date();
+        expiry.setHours(expiry.getHours() + 24); // Token valid for 24 hours
+        
+        // Save token to user record
+        await storage.updateUserMagicLinkToken(user.id, token, expiry);
+        
+        // Send reset email with magic link
+        if (isEmailServiceConfigured()) {
+          await sendMagicLinkEmail({
+            email: user.email,
+            firstName: user.firstName,
+            token,
+            resetPassword: true
+          });
+        } else {
+          console.log(`[DEV] Password reset link: /reset-password/${token}`);
+        }
+      }
+      
+      // Always return success for security, even if user doesn't exist
+      res.status(200).json({ 
+        message: "If an account exists with that email, a password reset link has been sent." 
+      });
+    } catch (error) {
+      console.error("Error requesting password reset:", error);
+      // Still return success for security
+      res.status(200).json({ 
+        message: "If an account exists with that email, a password reset link has been sent." 
+      });
+    }
+  });
 
   // Development-only route to create an admin user
   if (process.env.NODE_ENV === 'development') {
