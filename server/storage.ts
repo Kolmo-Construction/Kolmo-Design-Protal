@@ -43,12 +43,14 @@ export interface IStorage {
   getProject(id: number): Promise<Project | undefined>;
   getAllProjects(): Promise<Project[]>;
   getClientProjects(clientId: number): Promise<Project[]>;
+  getProjectManagerProjects(projectManagerId: number): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: number, project: InsertProject): Promise<Project | undefined>;
   
   // Client-Project relationship methods
   assignClientToProject(clientId: number, projectId: number): Promise<ClientProject>;
   clientHasProjectAccess(clientId: number, projectId: number): Promise<boolean>;
+  projectManagerHasProjectAccess(projectManagerId: number, projectId: number): Promise<boolean>;
   
   // Document methods
   getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>;
@@ -223,6 +225,29 @@ export class DatabaseStorage implements IStorage {
       );
     
     return !!result;
+  }
+  
+  async getProjectManagerProjects(projectManagerId: number): Promise<Project[]> {
+    // Find all projects where the user is assigned as project manager
+    return await db
+      .select()
+      .from(projects)
+      .where(eq(projects.projectManagerId, projectManagerId));
+  }
+  
+  async projectManagerHasProjectAccess(projectManagerId: number, projectId: number): Promise<boolean> {
+    // Check if the user is assigned as a project manager for this project
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.id, projectId),
+          eq(projects.projectManagerId, projectManagerId)
+        )
+      );
+      
+    return !!project;
   }
 
   // Document methods
