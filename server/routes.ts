@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import multer from 'multer'; // <-- Import multer
+import { Router } from "express"; // <-- ADDED: Import Router
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { uploadToR2 } from "./r2-upload"; // <-- Import the updated upload function
@@ -12,13 +13,23 @@ import {
   insertProgressUpdateSchema,
   insertMilestoneSchema,
   insertSelectionSchema,
-  User // Added User type import
+  User, // Added User type import
+  // --- ADDED: Import new schema items ---
+  tasks as tasksTable,
+  taskDependencies as taskDependenciesTable,
+  dailyLogs as dailyLogsTable,
+  dailyLogPhotos as dailyLogPhotosTable,
+  punchListItems as punchListItemsTable,
+  insertTaskSchema,
+  insertDailyLogSchema,
+  insertPunchListItemSchema
+  // --- END ADDED ---
 } from "@shared/schema";
 import { z } from "zod";
 import { isEmailServiceConfigured, sendMagicLinkEmail } from "./email";
 import { randomBytes, scrypt } from "crypto";
 import { promisify } from "util";
-import { ilike, or } from "drizzle-orm";
+import { ilike, or, eq, and } from "drizzle-orm"; // <-- ADDED: eq, and
 
 const scryptAsync = promisify(scrypt);
 
@@ -73,6 +84,11 @@ function isAdmin(req: Request, res: Response, next: NextFunction) {
 
 // Helper function to check project access based on user role
 async function checkProjectAccess(req: Request, res: Response, projectId: number): Promise<boolean> {
+   // Ensure user is authenticated before checking access
+  if (!req.isAuthenticated() || !req.user) {
+     res.status(401).json({ message: "Unauthorized" });
+     return false;
+  }
   const user = req.user!;
 
   // Admins can access any project
@@ -95,9 +111,22 @@ async function checkProjectAccess(req: Request, res: Response, projectId: number
       return false;
     }
   }
+  // Handle unexpected roles if necessary
+  else {
+      res.status(403).json({ message: "Forbidden" });
+      return false;
+  }
 
   return true;
 }
+
+// --- ADDED: Define Routers for new features ---
+// mergeParams allows access to :projectId from the parent route (app.use)
+const taskRouter = Router({ mergeParams: true });
+const dailyLogRouter = Router({ mergeParams: true });
+const punchListRouter = Router({ mergeParams: true });
+// --- END ADDED ---
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -336,21 +365,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = req.user!;
-      // Check permissions based on role
-      if (user.role === "admin") {
-        // Admins can access any project
-      } else if (user.role === "projectManager") {
-        // Project managers can only access projects they're assigned to
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
-      } else if (user.role === "client") {
-        // Clients can only access projects they're assigned to
-        const hasAccess = await storage.clientHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Check permissions based on role (using checkProjectAccess helper)
+      if (!(await checkProjectAccess(req, res, projectId))) {
+         return; // checkProjectAccess handles the response
       }
 
       res.json(project);
@@ -411,7 +428,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("Received edit project data:", req.body);
-      const { clientIds, ...projectData } = insertProjectSchema.parse(req.body);
+      // Assuming clientIds might be passed for updating associations (handle separately if needed)
+      const { clientIds, ...projectData } = insertProjectSchema.partial().parse(req.body); // Use partial for updates
       console.log("Validated edit project data:", projectData);
 
       const updatedProject = await storage.updateProject(projectId, projectData);
@@ -419,6 +437,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedProject) {
         return res.status(404).json({ message: "Project not found" });
       }
+
+      // TODO: Handle client association updates if clientIds are passed
 
       res.json(updatedProject);
     } catch (error) {
@@ -463,11 +483,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only project managers or admins can assign clients" });
       }
 
+      // Check PM has access to the project they are assigning to
       if (user.role === "projectManager") {
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+          if (!(await checkProjectAccess(req, res, projectId))) {
+              return; // Response handled by checkProjectAccess
+          }
       }
 
       const client = await storage.getUser(clientId);
@@ -517,8 +537,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- MODIFIED Document Upload Route ---
-  // Note: Assuming 'documentFile' is the field name used in the frontend form for the file input
+  // --- Document Upload Route ---
+  // Applies Multer middleware *only* to this route
   app.post(
     "/api/projects/:projectId/documents",
     isAuthenticated,
@@ -560,14 +580,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const user = req.user!;
 
         // Check if user has permission to upload documents for this project
-        if (user.role === "client") {
-          return res.status(403).json({ message: "Clients cannot upload documents" });
-        } else if (user.role === "projectManager") {
-          const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-          if (!hasAccess) {
-            return res.status(403).json({ message: "You don't have access to this project" });
-          }
+        // (Allow Admin/PM, deny Client)
+        if (user.role !== 'admin' && user.role !== 'projectManager') {
+            if (user.role === 'client') {
+                return res.status(403).json({ message: "Clients cannot upload documents" });
+            } else {
+                // If somehow another role exists, check access generically
+                 if (!(await checkProjectAccess(req, res, projectId))) {
+                    return; // Response handled by checkProjectAccess
+                 }
+            }
+        } else if (user.role === 'projectManager') {
+             // Double check PM access specifically if needed (already done by checkProjectAccess)
+             if (!(await checkProjectAccess(req, res, projectId))) {
+                 return;
+             }
         }
+
 
         // --- Upload to R2 ---
         const fileBuffer = req.file.buffer;
@@ -614,7 +643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
-  // --- END MODIFIED Document Upload Route ---
+  // --- END Document Upload Route ---
 
   // Get all documents (for document center)
   app.get("/api/documents", isAuthenticated, async (req, res) => {
@@ -624,14 +653,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Parse date filters from query params if provided
       const filters: { startDate?: Date; endDate?: Date } = {};
+      const { startDate, endDate } = req.query;
 
-      if (req.query.startDate) {
-        filters.startDate = new Date(req.query.startDate as string);
+      if (startDate && typeof startDate === 'string') {
+        const parsedDate = new Date(startDate);
+        if (!isNaN(parsedDate.getTime())) {
+          filters.startDate = parsedDate;
+        }
       }
 
-      if (req.query.endDate) {
-        filters.endDate = new Date(req.query.endDate as string);
+      if (endDate && typeof endDate === 'string') {
+         const parsedDate = new Date(endDate);
+         if (!isNaN(parsedDate.getTime())) {
+            // Set to end of day for inclusive range
+            parsedDate.setHours(23, 59, 59, 999);
+            filters.endDate = parsedDate;
+         }
       }
+
 
       if (user.role === "admin") {
         // Admins can see all documents
@@ -645,12 +684,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Fetch documents for each project the project manager has access to
-        const projectDocuments = await Promise.all(
-          pmProjects.map(project => storage.getProjectDocuments(project.id, filters))
-        );
+        const projectIds = pmProjects.map(p => p.id);
+        documents = await storage.getDocumentsForMultipleProjects(projectIds, filters);
 
-        // Flatten the array of document arrays
-        documents = projectDocuments.flat();
       } else {
         // Clients can only see documents from projects they have access to
         const clientProjects = await storage.getClientProjects(user.id);
@@ -660,12 +696,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Fetch documents for each project the client has access to
-        const projectDocuments = await Promise.all(
-          clientProjects.map(project => storage.getProjectDocuments(project.id, filters))
-        );
-
-        // Flatten the array of document arrays
-        documents = projectDocuments.flat();
+        const projectIds = clientProjects.map(p => p.id);
+        documents = await storage.getDocumentsForMultipleProjects(projectIds, filters);
       }
 
       res.json(documents);
@@ -796,14 +828,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = req.user!;
 
-      if (user.role === "client") {
-        return res.status(403).json({ message: "Clients cannot create progress updates" });
-      } else if (user.role === "projectManager") {
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Allow only Admin/PM to create updates
+      if (user.role !== 'admin' && user.role !== 'projectManager') {
+          return res.status(403).json({ message: "Clients cannot create progress updates" });
+      } else {
+          // Ensure PM has access to this specific project
+          if (!(await checkProjectAccess(req, res, projectId))) {
+             return;
+          }
       }
+
 
       const updateData = insertProgressUpdateSchema.parse({
         ...req.body,
@@ -851,13 +885,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = req.user!;
 
-      if (user.role === "client") {
-        return res.status(403).json({ message: "Clients cannot create milestones" });
-      } else if (user.role === "projectManager") {
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Allow only Admin/PM to create milestones
+      if (user.role !== 'admin' && user.role !== 'projectManager') {
+          return res.status(403).json({ message: "Clients cannot create milestones" });
+      } else {
+           if (!(await checkProjectAccess(req, res, projectId))) {
+              return;
+           }
       }
 
       const milestoneData = insertMilestoneSchema.parse({
@@ -905,13 +939,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = req.user!;
 
-      if (user.role === "client") {
-        return res.status(403).json({ message: "Clients cannot create selections" });
-      } else if (user.role === "projectManager") {
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
+      // Allow only Admin/PM to create selections
+      if (user.role !== 'admin' && user.role !== 'projectManager') {
+          return res.status(403).json({ message: "Clients cannot create selections" });
+      } else {
+           if (!(await checkProjectAccess(req, res, projectId))) {
+              return;
+           }
       }
 
       const selectionData = insertSelectionSchema.parse({
@@ -983,7 +1017,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users", isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
-      res.json(users);
+      // Sanitize users before sending
+      const sanitizedUsers = users.map(user => {
+         const { password, magicLinkToken, magicLinkExpiry, ...userData } = user;
+         return userData;
+      });
+      res.json(sanitizedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
@@ -994,7 +1033,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/project-managers", isAdmin, async (req, res) => {
     try {
       const projectManagers = await storage.getAllProjectManagers();
-      res.json(projectManagers);
+      // Sanitize users before sending
+       const sanitizedPMs = projectManagers.map(user => {
+          const { password, magicLinkToken, magicLinkExpiry, ...pmData } = user;
+          return pmData;
+       });
+      res.json(sanitizedPMs);
     } catch (error) {
       console.error("Error fetching project managers:", error);
       res.status(500).json({ message: "Failed to fetch project managers" });
@@ -1076,7 +1120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user!;
 
       if (user.role !== "projectManager" && user.role !== "admin") {
-        return res.status(403).json({ message: "Only project managers can access this endpoint" });
+        return res.status(403).json({ message: "Only project managers or admins can access this endpoint" });
       }
 
       let projects;
@@ -1112,16 +1156,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      if (user.role === "projectManager") {
-        const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
-        if (!hasAccess) {
-          return res.status(403).json({ message: "You don't have access to this project" });
-        }
-      }
+      // Ensure PM has access to this specific project
+       if (user.role === "projectManager") {
+          if (!(await checkProjectAccess(req, res, projectId))) {
+             return; // Response handled by checkProjectAccess
+          }
+       }
 
       const availableClients = await storage.getClientsNotInProject(projectId);
+      // Sanitize client data before sending
+      const sanitizedClients = availableClients.map(client => {
+          const { password, magicLinkToken, magicLinkExpiry, ...clientData } = client;
+          return clientData;
+      });
 
-      res.json(availableClients);
+      res.json(sanitizedClients);
     } catch (error) {
       console.error("Error fetching available clients:", error);
       res.status(500).json({ message: "Failed to fetch available clients" });
@@ -1177,16 +1226,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (projectManager.role !== "projectManager" && projectManager.role !== "admin") {
-        return res.status(400).json({ message: "User is not a project manager" });
+        return res.status(400).json({ message: "User is not a project manager or admin" });
       }
 
       const updatedProject = await storage.updateProject(projectId, {
-        ...project,
+        // ...project, // Don't spread here, updateProject should handle partial updates
         projectManagerId: parseInt(projectManagerId)
       });
 
       if (!updatedProject) {
-        return res.status(500).json({ message: "Failed to assign project manager" });
+        // updateProject returns the updated project or null if not found
+        return res.status(404).json({ message: "Project not found or failed to update" });
       }
 
       res.status(200).json({

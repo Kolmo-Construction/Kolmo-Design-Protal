@@ -21,22 +21,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Building2,
+  Building2, // Keep if used elsewhere, not directly in this snippet anymore
   MapPin,
   FileText,
   MessageSquare,
   ArrowLeft,
   Loader2,
+  // --- ADDED: Icons for new tabs (Optional) ---
+  ListChecks, // For Punch List
+  ClipboardList, // For Tasks
+  NotebookText // For Daily Logs
+  // --- END ADDED ---
 } from "lucide-react";
-
-// Import the new child components
+// Import the existing child components
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
 import { ProjectDocumentsTab } from "@/components/project-details/ProjectDocumentsTab";
 import { ProjectFinancialsTab } from "@/components/project-details/ProjectFinancialsTab";
 import { ProjectMessagesTab } from "@/components/project-details/ProjectMessagesTab";
 import { ProjectScheduleTab } from "@/components/project-details/ProjectScheduleTab";
-import { cn } from "@/lib/utils"; // Import cn if needed for Badge styling
+// --- ADDED: Import new tab components ---
+import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
+import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
+import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
+// --- END ADDED ---
+import { cn } from "@/lib/utils";
+// --- ADDED: Import useAuth hook ---
+import { useAuth } from "@/hooks/use-auth";
+// --- END ADDED ---
+
 
 // Helper function to get status label (can be moved to a utils file)
 const getStatusLabel = (status: string | undefined | null): string => {
@@ -51,7 +64,8 @@ const getStatusLabel = (status: string | undefined | null): string => {
 };
 
 // Helper function to get status badge variant/color (can be moved to a utils file)
-const getStatusBadgeVariant = (status: string | undefined | null): "default" | "secondary" | "destructive" | "outline" => {
+const getStatusBadgeVariant = (status: string | undefined | null): "default" |
+  "secondary" | "destructive" | "outline" => {
     if (!status) return "secondary";
     switch (status) {
         case "planning": return "default"; // Or choose a specific color
@@ -81,6 +95,10 @@ export default function ProjectDetails() {
   // Ensure projectId is parsed correctly and defaults to 0 if invalid/missing
   const projectId = params.id ? parseInt(params.id, 10) : 0;
   const [activeTab, setActiveTab] = useState('updates'); // Default tab
+
+  // --- ADDED: Get user info ---
+  const { user } = useAuth();
+  // --- END ADDED ---
 
   // Fetch ONLY project details here
   const {
@@ -190,8 +208,21 @@ export default function ProjectDetails() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           {/* Make TabsList scrollable on small screens */}
           <div className="overflow-x-auto mb-4 pb-1">
-             <TabsList className="grid grid-flow-col auto-cols-max w-max sm:w-full sm:grid-cols-5 gap-1">
+             {/* --- MODIFIED: Dynamically adjust grid columns based on role --- */}
+             <TabsList className={cn(
+                "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1",
+                 user?.role === 'client' ? 'sm:grid-cols-5' : 'sm:grid-cols-8' // 5 for client, 8 for internal
+             )}>
                 <TabsTrigger value="updates">Updates</TabsTrigger>
+                 {/* --- ADDED: Conditionally render internal tabs --- */}
+                {user?.role !== 'client' && (
+                   <>
+                      <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                      <TabsTrigger value="dailylogs">Daily Logs</TabsTrigger>
+                      <TabsTrigger value="punchlist">Punch List</TabsTrigger>
+                   </>
+                )}
+                {/* --- END ADDED --- */}
                 <TabsTrigger value="documents">Documents</TabsTrigger>
                 <TabsTrigger value="financials">Financials</TabsTrigger>
                 <TabsTrigger value="messages">Messages</TabsTrigger>
@@ -199,11 +230,26 @@ export default function ProjectDetails() {
              </TabsList>
           </div>
 
-
           {/* Render Tab Content using new components */}
           <TabsContent value="updates" className="mt-0">
+             {/* Conditional rendering based on activeTab is good practice to avoid unnecessary mounts */}
              {activeTab === 'updates' && <ProjectUpdatesTab projectId={projectId} />}
           </TabsContent>
+          {/* --- ADDED: Conditionally render internal tab content --- */}
+          {user?.role !== 'client' && (
+            <>
+              <TabsContent value="tasks" className="mt-0">
+                {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} />}
+              </TabsContent>
+              <TabsContent value="dailylogs" className="mt-0">
+                {activeTab === 'dailylogs' && <ProjectDailyLogsTab projectId={projectId} />}
+              </TabsContent>
+              <TabsContent value="punchlist" className="mt-0">
+                {activeTab === 'punchlist' && <ProjectPunchListTab projectId={projectId} />}
+              </TabsContent>
+            </>
+          )}
+          {/* --- END ADDED --- */}
           <TabsContent value="documents" className="mt-0">
              {activeTab === 'documents' && <ProjectDocumentsTab projectId={projectId} />}
           </TabsContent>

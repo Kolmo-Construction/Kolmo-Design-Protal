@@ -1,6 +1,24 @@
-import { users, projects, clientProjects, documents, invoices, payments, messages, progressUpdates, updateMedia, milestones, selections } from "@shared/schema";
+import {
+  users,
+  projects,
+  clientProjects,
+  documents,
+  invoices,
+  payments,
+  messages,
+  progressUpdates,
+  updateMedia,
+  milestones,
+  selections,
+  // --- ADDED: Import new schema tables ---
+  tasks as tasksTable, // Use alias to avoid name collision if needed elsewhere
+  taskDependencies as taskDependenciesTable,
+  dailyLogs as dailyLogsTable,
+  dailyLogPhotos as dailyLogPhotosTable,
+  punchListItems as punchListItemsTable,
+} from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, gte, lt, or, ilike } from "drizzle-orm"; // Added or, ilike
+import { eq, and, desc, gte, lt, or, ilike, inArray } from "drizzle-orm"; // Added inArray
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -15,7 +33,14 @@ import type {
   ProgressUpdate, InsertProgressUpdate,
   UpdateMedia, InsertUpdateMedia,
   Milestone, InsertMilestone,
-  Selection, InsertSelection
+  Selection, InsertSelection,
+  // --- ADDED: Import new schema types ---
+  Task, InsertTask, TaskWithAssignee, // Add combined types if needed
+  TaskDependency, InsertTaskDependency,
+  DailyLog, InsertDailyLog, DailyLogWithPhotos,
+  DailyLogPhoto, InsertDailyLogPhoto,
+  PunchListItem, InsertPunchListItem, PunchListItemWithAssignee
+  // --- END ADDED ---
 } from "@shared/schema";
 
 // Fix typescript issues with session store
@@ -27,6 +52,7 @@ declare module "express-session" {
 
 const PostgresSessionStore = connectPg(session);
 
+// --- UPDATED: Add new methods to interface ---
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -38,10 +64,10 @@ export interface IStorage {
   updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<User>;
   deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
-  getAllProjectManagers(): Promise<User[]>; // Added based on usage in routes
-  getAllClients(): Promise<User[]>; // Added based on usage in routes
-  getClientsNotInProject(projectId: number): Promise<User[]>; // Added based on usage in routes
-  searchClients(query: string): Promise<User[]>; // Added for client search
+  getAllProjectManagers(): Promise<User[]>;
+  getAllClients(): Promise<User[]>;
+  getClientsNotInProject(projectId: number): Promise<User[]>;
+  searchClients(query: string): Promise<User[]>;
 
   // Project methods
   getProject(id: number): Promise<Project | undefined>;
@@ -49,7 +75,7 @@ export interface IStorage {
   getClientProjects(clientId: number): Promise<Project[]>;
   getProjectManagerProjects(projectManagerId: number): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
-  updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined>; // Use Partial<> for update
+  updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined>;
 
   // Client-Project relationship methods
   assignClientToProject(clientId: number, projectId: number): Promise<ClientProject>;
@@ -59,6 +85,7 @@ export interface IStorage {
   // Document methods
   getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>;
   getProjectDocuments(projectId: number, filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>;
+  getDocumentsForMultipleProjects(projectIds: number[], filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>; // Added based on usage
   createDocument(document: InsertDocument): Promise<Document>;
 
   // Invoice methods
@@ -89,6 +116,38 @@ export interface IStorage {
   getProjectSelections(projectId: number): Promise<Selection[]>;
   createSelection(selection: InsertSelection): Promise<Selection>;
   updateSelectionChoice(id: number, selectedOption: string): Promise<Selection | undefined>;
+
+  // --- ADDED: Task methods ---
+  getProjectTasks(projectId: number): Promise<Task[]>; // Consider TaskWithAssignee later
+  getTask(taskId: number): Promise<Task | undefined>; // Consider TaskWithAssignee later
+  createTask(taskData: InsertTask): Promise<Task>;
+  updateTask(taskId: number, taskData: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(taskId: number): Promise<void>;
+  // --- END ADDED ---
+
+  // --- ADDED: Task Dependency methods ---
+  getTaskDependencies(taskId: number): Promise<TaskDependency[]>;
+  createTaskDependency(depData: InsertTaskDependency): Promise<TaskDependency>;
+  deleteTaskDependency(dependencyId: number): Promise<void>;
+  // --- END ADDED ---
+
+  // --- ADDED: Daily Log methods ---
+  getProjectDailyLogs(projectId: number): Promise<DailyLog[]>; // Consider DailyLogWithPhotos later
+  getDailyLog(logId: number): Promise<DailyLog | undefined>; // Consider DailyLogWithPhotos later
+  createDailyLog(logData: InsertDailyLog): Promise<DailyLog>;
+  updateDailyLog(logId: number, logData: Partial<InsertDailyLog>): Promise<DailyLog | undefined>;
+  deleteDailyLog(logId: number): Promise<void>;
+  addDailyLogPhoto(photoData: InsertDailyLogPhoto): Promise<DailyLogPhoto>;
+  // Consider deleteDailyLogPhoto if needed
+  // --- END ADDED ---
+
+  // --- ADDED: Punch List methods ---
+  getProjectPunchListItems(projectId: number): Promise<PunchListItem[]>; // Consider PunchListItemWithAssignee later
+  getPunchListItem(itemId: number): Promise<PunchListItem | undefined>; // Consider PunchListItemWithAssignee later
+  createPunchListItem(itemData: InsertPunchListItem): Promise<PunchListItem>;
+  updatePunchListItem(itemId: number, itemData: Partial<InsertPunchListItem>): Promise<PunchListItem | undefined>;
+  deletePunchListItem(itemId: number): Promise<void>;
+  // --- END ADDED ---
 
   // Session store
   sessionStore: any; // Using any type for sessionStore to avoid typing issues
@@ -134,7 +193,7 @@ export class DatabaseStorage implements IStorage {
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User> {
     const [updatedUser] = await db
       .update(users)
-      .set(userData)
+      .set({ ...userData, updatedAt: new Date() }) // Ensure updatedAt is updated
       .where(eq(users.id, id))
       .returning();
 
@@ -146,7 +205,8 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({
         magicLinkToken: token,
-        magicLinkExpiry: expiry
+        magicLinkExpiry: expiry,
+        updatedAt: new Date()
       })
       .where(eq(users.id, id))
       .returning();
@@ -158,52 +218,45 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users);
   }
 
-  // Get all project managers
   async getAllProjectManagers(): Promise<User[]> {
     return await db.select().from(users).where(eq(users.role, "projectManager"));
   }
 
-  // Get all clients
   async getAllClients(): Promise<User[]> {
     return await db.select().from(users).where(eq(users.role, "client"));
   }
 
-  // Get clients not assigned to a specific project
   async getClientsNotInProject(projectId: number): Promise<User[]> {
-    // First get all clients
     const allClients = await this.getAllClients();
+    if (allClients.length === 0) return [];
 
-    // Get all client IDs already assigned to this project
     const clientProjectAssignments = await db
       .select({ clientId: clientProjects.clientId })
       .from(clientProjects)
       .where(eq(clientProjects.projectId, projectId));
 
     const assignedClientIds = new Set(clientProjectAssignments.map(cp => cp.clientId));
-
-    // Filter out clients that are already assigned to this project
     return allClients.filter(client => !assignedClientIds.has(client.id));
   }
 
   async deleteUser(id: number): Promise<void> {
-    // Delete all client-project associations first
-    await db
-      .delete(clientProjects)
-      .where(eq(clientProjects.clientId, id));
+    // Consider cascading deletes or setting related fields to null in schema first
+    // Example: Set assigned tasks/punch list items to null
+    await db.update(tasksTable).set({ assigneeId: null, updatedAt: new Date() }).where(eq(tasksTable.assigneeId, id));
+    await db.update(punchListItemsTable).set({ assigneeId: null, updatedAt: new Date() }).where(eq(punchListItemsTable.assigneeId, id));
+
+    // Delete client-project associations
+    await db.delete(clientProjects).where(eq(clientProjects.clientId, id));
 
     // Now delete the user
-    await db
-      .delete(users)
-      .where(eq(users.id, id));
+    await db.delete(users).where(eq(users.id, id));
   }
 
-  // --- NEW: Client search method ---
   async searchClients(query: string): Promise<User[]> {
     if (!query) {
       return [];
     }
     const searchTerm = `%${query.toLowerCase()}%`;
-    // Search by first name, last name, or email, only for users with 'client' role
     return await db.select()
       .from(users)
       .where(
@@ -216,335 +269,221 @@ export class DatabaseStorage implements IStorage {
           )
         )
       )
-      .limit(10); // Limit results for performance
+      .limit(10);
   }
-  // --- END NEW ---
 
   // Project methods
   async getProject(id: number): Promise<Project | undefined> {
-    const [project] = await db.select().from(projects).where(eq(projects.id, id));
-    return project;
+    // Example using db.query for potential relation fetching later
+    return await db.query.projects.findFirst({
+        where: eq(projects.id, id),
+        // with: { projectManager: true } // Example of fetching relation
+    });
   }
 
   async getAllProjects(): Promise<Project[]> {
-    return await db.select().from(projects);
+    return await db.select().from(projects).orderBy(desc(projects.createdAt));
   }
 
   async getClientProjects(clientId: number): Promise<Project[]> {
     const result = await db
-      .select({
-        project: projects
-      })
+      .select({ project: projects })
       .from(clientProjects)
       .innerJoin(projects, eq(clientProjects.projectId, projects.id))
-      .where(eq(clientProjects.clientId, clientId));
+      .where(eq(clientProjects.clientId, clientId))
+      .orderBy(desc(projects.createdAt));
 
     return result.map(r => r.project);
   }
 
-  // --- FIXED createProject ---
   async createProject(projectData: InsertProject): Promise<Project> {
-    // Convert date strings (if they exist and are strings) back to Date objects for Drizzle
     const dataToInsert = {
       ...projectData,
-      startDate: projectData.startDate && typeof projectData.startDate === 'string'
-                   ? new Date(projectData.startDate)
-                   : projectData.startDate, // Pass if already Date or undefined
-      estimatedCompletionDate: projectData.estimatedCompletionDate && typeof projectData.estimatedCompletionDate === 'string'
-                                 ? new Date(projectData.estimatedCompletionDate)
-                                 : projectData.estimatedCompletionDate, // Pass if already Date or undefined
-      actualCompletionDate: projectData.actualCompletionDate && typeof projectData.actualCompletionDate === 'string'
-                              ? new Date(projectData.actualCompletionDate)
-                              : projectData.actualCompletionDate, // Pass if already Date or undefined
-      // Ensure totalBudget is number (should be handled by frontend validation + parsing)
-      totalBudget: typeof projectData.totalBudget === 'string'
-                     ? parseFloat(projectData.totalBudget) // Assume it's clean numeric string
-                     : projectData.totalBudget,
+      startDate: projectData.startDate && typeof projectData.startDate === 'string' ? new Date(projectData.startDate) : projectData.startDate,
+      estimatedCompletionDate: projectData.estimatedCompletionDate && typeof projectData.estimatedCompletionDate === 'string' ? new Date(projectData.estimatedCompletionDate) : projectData.estimatedCompletionDate,
+      actualCompletionDate: projectData.actualCompletionDate && typeof projectData.actualCompletionDate === 'string' ? new Date(projectData.actualCompletionDate) : projectData.actualCompletionDate,
+      totalBudget: typeof projectData.totalBudget === 'string' ? parseFloat(projectData.totalBudget) : projectData.totalBudget,
     };
-
-    // Now insert the data with Date objects (or undefined)
     const [newProject] = await db.insert(projects).values(dataToInsert).returning();
     return newProject;
   }
 
-  // --- FIXED updateProject ---
   async updateProject(id: number, projectData: Partial<InsertProject>): Promise<Project | undefined> {
-     // Convert date strings (if they exist and are strings) back to Date objects for Drizzle
      const dataToSet = {
       ...projectData,
-      // Only convert if the field is present in the partial update AND is a string
-      startDate: (projectData.startDate && typeof projectData.startDate === 'string')
-                   ? new Date(projectData.startDate)
-                   : projectData.startDate, // Pass original if Date/undefined/not present
-      estimatedCompletionDate: (projectData.estimatedCompletionDate && typeof projectData.estimatedCompletionDate === 'string')
-                                 ? new Date(projectData.estimatedCompletionDate)
-                                 : projectData.estimatedCompletionDate,
-      actualCompletionDate: (projectData.actualCompletionDate && typeof projectData.actualCompletionDate === 'string')
-                              ? new Date(projectData.actualCompletionDate)
-                              : projectData.actualCompletionDate,
-       // Ensure totalBudget is number if present
-       totalBudget: (projectData.totalBudget !== undefined && typeof projectData.totalBudget === 'string')
-                      ? parseFloat(projectData.totalBudget) // Assume it's clean numeric string
-                      : projectData.totalBudget,
+      startDate: (projectData.startDate && typeof projectData.startDate === 'string') ? new Date(projectData.startDate) : projectData.startDate,
+      estimatedCompletionDate: (projectData.estimatedCompletionDate && typeof projectData.estimatedCompletionDate === 'string') ? new Date(projectData.estimatedCompletionDate) : projectData.estimatedCompletionDate,
+      actualCompletionDate: (projectData.actualCompletionDate && typeof projectData.actualCompletionDate === 'string') ? new Date(projectData.actualCompletionDate) : projectData.actualCompletionDate,
+      totalBudget: (projectData.totalBudget !== undefined && typeof projectData.totalBudget === 'string') ? parseFloat(projectData.totalBudget) : projectData.totalBudget,
+      updatedAt: new Date(), // Always update 'updatedAt'
     };
 
     const [updatedProject] = await db
       .update(projects)
-      .set(dataToSet) // Use the object with potentially converted Date objects
+      .set(dataToSet)
       .where(eq(projects.id, id))
       .returning();
 
-    return updatedProject;
+    return updatedProject; // Returns undefined if not found
   }
 
   // Client-Project relationship methods
   async assignClientToProject(clientId: number, projectId: number): Promise<ClientProject> {
-    const [clientProject] = await db
-      .insert(clientProjects)
-      .values({ clientId, projectId })
-      .returning();
+    // Avoid duplicates - check if exists first (optional, depends on constraints)
+    const existing = await db.query.clientProjects.findFirst({
+        where: and(eq(clientProjects.clientId, clientId), eq(clientProjects.projectId, projectId))
+    });
+    if (existing) return existing;
 
+    const [clientProject] = await db.insert(clientProjects).values({ clientId, projectId }).returning();
     return clientProject;
   }
 
   async clientHasProjectAccess(clientId: number, projectId: number): Promise<boolean> {
-    const [result] = await db
-      .select()
-      .from(clientProjects)
-      .where(
-        and(
-          eq(clientProjects.clientId, clientId),
-          eq(clientProjects.projectId, projectId)
-        )
-      );
-
+    const result = await db.query.clientProjects.findFirst({
+        columns: { id: true }, // Select only necessary column
+        where: and(eq(clientProjects.clientId, clientId), eq(clientProjects.projectId, projectId))
+    });
     return !!result;
   }
 
   async getProjectManagerProjects(projectManagerId: number): Promise<Project[]> {
-    // Find all projects where the user is assigned as project manager
-    return await db
-      .select()
-      .from(projects)
-      .where(eq(projects.projectManagerId, projectManagerId));
+    return await db.query.projects.findMany({
+        where: eq(projects.projectManagerId, projectManagerId),
+        orderBy: desc(projects.createdAt)
+    });
   }
 
   async projectManagerHasProjectAccess(projectManagerId: number, projectId: number): Promise<boolean> {
-    // Check if the user is assigned as a project manager for this project
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, projectId),
-          eq(projects.projectManagerId, projectManagerId)
-        )
-      );
-
-    return !!project;
+    const result = await db.query.projects.findFirst({
+        columns: { id: true }, // Select only necessary column
+        where: and(eq(projects.id, projectId), eq(projects.projectManagerId, projectManagerId))
+    });
+    return !!result;
   }
 
   // Document methods
-  async getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]> {
-    // Apply filters in JavaScript to avoid complex SQL queries
-    const allDocs = await db.select().from(documents).orderBy(desc(documents.createdAt));
-
+  // Helper to apply date filters
+  private applyDateFilters<T extends { createdAt: Date | string }>(items: T[], filters?: { startDate?: Date; endDate?: Date }): T[] {
     if (!filters || (!filters.startDate && !filters.endDate)) {
-      return allDocs;
+      return items;
     }
-
-    // Filter documents by date range in JavaScript
-    return allDocs.filter(doc => {
-      const docDate = new Date(doc.createdAt);
-
-      // Filter by start date if provided
-      if (filters.startDate) {
-        const startDate = new Date(filters.startDate);
-        if (docDate < startDate) {
-          return false;
-        }
-      }
-
-      // Filter by end date if provided
+    return items.filter(item => {
+      const itemDate = new Date(item.createdAt);
+      if (filters.startDate && itemDate < filters.startDate) return false;
       if (filters.endDate) {
-        const endDate = new Date(filters.endDate);
-        // Set time to end of day to include the end date
-        endDate.setHours(23, 59, 59, 999);
-        if (docDate > endDate) {
-          return false;
-        }
+        const endDateEndOfDay = new Date(filters.endDate);
+        endDateEndOfDay.setHours(23, 59, 59, 999);
+        if (itemDate > endDateEndOfDay) return false;
       }
-
       return true;
     });
   }
 
-  async getProjectDocuments(
-    projectId: number,
-    filters?: { startDate?: Date; endDate?: Date }
-  ): Promise<Document[]> {
-    // First get all documents for the project
-    const projectDocs = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.projectId, projectId))
-      .orderBy(desc(documents.createdAt));
+  async getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]> {
+    const allDocs = await db.select().from(documents).orderBy(desc(documents.createdAt));
+    return this.applyDateFilters(allDocs, filters);
+  }
 
-    if (!filters || (!filters.startDate && !filters.endDate)) {
-      return projectDocs;
-    }
+  async getProjectDocuments(projectId: number, filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]> {
+    const projectDocs = await db.select().from(documents).where(eq(documents.projectId, projectId)).orderBy(desc(documents.createdAt));
+    return this.applyDateFilters(projectDocs, filters);
+  }
 
-    // Filter documents by date range in JavaScript
-    return projectDocs.filter(doc => {
-      const docDate = new Date(doc.createdAt);
-
-      // Filter by start date if provided
-      if (filters.startDate) {
-        const startDate = new Date(filters.startDate);
-        if (docDate < startDate) {
-          return false;
-        }
-      }
-
-      // Filter by end date if provided
-      if (filters.endDate) {
-        const endDate = new Date(filters.endDate);
-        // Set time to end of day to include the end date
-        endDate.setHours(23, 59, 59, 999);
-        if (docDate > endDate) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+  async getDocumentsForMultipleProjects(projectIds: number[], filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]> {
+     if (projectIds.length === 0) return [];
+     const projectDocs = await db.select().from(documents).where(inArray(documents.projectId, projectIds)).orderBy(desc(documents.createdAt));
+     return this.applyDateFilters(projectDocs, filters);
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
-    const [newDocument] = await db
-      .insert(documents)
-      .values(document)
-      .returning();
-
+    const [newDocument] = await db.insert(documents).values(document).returning();
     return newDocument;
   }
 
   // Invoice methods
   async getProjectInvoices(projectId: number): Promise<Invoice[]> {
-    return await db
-      .select()
-      .from(invoices)
-      .where(eq(invoices.projectId, projectId));
+    return await db.query.invoices.findMany({ where: eq(invoices.projectId, projectId) });
   }
 
   async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
-    const [newInvoice] = await db
-      .insert(invoices)
-      .values(invoice)
-      .returning();
-
+    const [newInvoice] = await db.insert(invoices).values(invoice).returning();
     return newInvoice;
   }
 
   // Payment methods
   async getInvoicePayments(invoiceId: number): Promise<Payment[]> {
-    return await db
-      .select()
-      .from(payments)
-      .where(eq(payments.invoiceId, invoiceId));
+    return await db.query.payments.findMany({ where: eq(payments.invoiceId, invoiceId) });
   }
 
   async createPayment(payment: InsertPayment): Promise<Payment> {
-    const [newPayment] = await db
-      .insert(payments)
-      .values(payment)
-      .returning();
-
+    const [newPayment] = await db.insert(payments).values(payment).returning();
     return newPayment;
   }
 
   // Message methods
   async getProjectMessages(projectId: number): Promise<Message[]> {
-    return await db
-      .select()
-      .from(messages)
-      .where(eq(messages.projectId, projectId));
+    // Example using db.query with relations
+    return await db.query.messages.findMany({
+        where: eq(messages.projectId, projectId),
+        with: {
+            sender: { columns: { id: true, firstName: true, lastName: true, role: true } }, // Fetch sender info
+            // recipient: { columns: { id: true, firstName: true, lastName: true, role: true } } // Fetch recipient if needed
+        },
+        orderBy: desc(messages.createdAt)
+    });
   }
 
   async createMessage(message: InsertMessage): Promise<Message> {
-    const [newMessage] = await db
-      .insert(messages)
-      .values(message)
-      .returning();
-
+    const [newMessage] = await db.insert(messages).values(message).returning();
     return newMessage;
   }
 
   // Progress update methods
   async getProjectUpdates(projectId: number): Promise<ProgressUpdate[]> {
-    return await db
-      .select()
-      .from(progressUpdates)
-      .where(eq(progressUpdates.projectId, projectId));
+    // Example using db.query with relations
+    return await db.query.progressUpdates.findMany({
+        where: eq(progressUpdates.projectId, projectId),
+        with: {
+            creator: { columns: { id: true, firstName: true, lastName: true, role: true } },
+            media: true // Fetch associated media
+        },
+        orderBy: desc(progressUpdates.createdAt)
+    });
   }
 
   async createProgressUpdate(update: InsertProgressUpdate): Promise<ProgressUpdate> {
-    const [newUpdate] = await db
-      .insert(progressUpdates)
-      .values(update)
-      .returning();
-
+    const [newUpdate] = await db.insert(progressUpdates).values(update).returning();
     return newUpdate;
   }
 
   // Update media methods
   async getUpdateMedia(updateId: number): Promise<UpdateMedia[]> {
-    return await db
-      .select()
-      .from(updateMedia)
-      .where(eq(updateMedia.updateId, updateId));
+    return await db.query.updateMedia.findMany({ where: eq(updateMedia.updateId, updateId) });
   }
 
   async createUpdateMedia(media: InsertUpdateMedia): Promise<UpdateMedia> {
-    const [newMedia] = await db
-      .insert(updateMedia)
-      .values(media)
-      .returning();
-
+    const [newMedia] = await db.insert(updateMedia).values(media).returning();
     return newMedia;
   }
 
   // Milestone methods
   async getProjectMilestones(projectId: number): Promise<Milestone[]> {
-    return await db
-      .select()
-      .from(milestones)
-      .where(eq(milestones.projectId, projectId));
+    return await db.query.milestones.findMany({ where: eq(milestones.projectId, projectId), orderBy: desc(milestones.plannedDate) });
   }
 
   async createMilestone(milestone: InsertMilestone): Promise<Milestone> {
-    const [newMilestone] = await db
-      .insert(milestones)
-      .values(milestone)
-      .returning();
-
+    const [newMilestone] = await db.insert(milestones).values(milestone).returning();
     return newMilestone;
   }
 
   // Selection methods
   async getProjectSelections(projectId: number): Promise<Selection[]> {
-    return await db
-      .select()
-      .from(selections)
-      .where(eq(selections.projectId, projectId));
+    return await db.query.selections.findMany({ where: eq(selections.projectId, projectId), orderBy: desc(selections.createdAt) });
   }
 
   async createSelection(selection: InsertSelection): Promise<Selection> {
-    const [newSelection] = await db
-      .insert(selections)
-      .values(selection)
-      .returning();
-
+    const [newSelection] = await db.insert(selections).values(selection).returning();
     return newSelection;
   }
 
@@ -553,13 +492,177 @@ export class DatabaseStorage implements IStorage {
       .update(selections)
       .set({
         selectedOption,
-        status: "selected"
+        status: "selected",
+        updatedAt: new Date() // Ensure updatedAt is updated
       })
       .where(eq(selections.id, id))
       .returning();
 
     return updatedSelection;
   }
-}
+
+  // --- ADDED: Task Methods ---
+  async getProjectTasks(projectId: number): Promise<Task[]> {
+      // Use db.query to potentially include relations later easily
+      return await db.query.tasksTable.findMany({
+          where: eq(tasksTable.projectId, projectId),
+          orderBy: desc(tasksTable.createdAt) // Or order by dueDate, etc.
+          // with: { assignee: true } // Add this to fetch assignee details
+      });
+  }
+
+  async getTask(taskId: number): Promise<Task | undefined> {
+      return await db.query.tasksTable.findFirst({
+          where: eq(tasksTable.id, taskId),
+          // with: { assignee: true } // Fetch related data if needed
+      });
+  }
+
+  async createTask(taskData: InsertTask): Promise<Task> {
+      const [newTask] = await db.insert(tasksTable).values(taskData).returning();
+      return newTask;
+  }
+
+  async updateTask(taskId: number, taskData: Partial<InsertTask>): Promise<Task | undefined> {
+      const [updatedTask] = await db.update(tasksTable)
+          .set({ ...taskData, updatedAt: new Date() })
+          .where(eq(tasksTable.id, taskId))
+          .returning();
+      return updatedTask;
+  }
+
+  async deleteTask(taskId: number): Promise<void> {
+      // Important: Handle dependencies first if required by your logic/constraints
+      await db.delete(taskDependenciesTable).where(or(
+          eq(taskDependenciesTable.predecessorId, taskId),
+          eq(taskDependenciesTable.successorId, taskId)
+      ));
+      // Then delete the task
+      await db.delete(tasksTable).where(eq(tasksTable.id, taskId));
+  }
+  // --- END Task Methods ---
+
+
+  // --- ADDED: Task Dependency Methods ---
+  async getTaskDependencies(taskId: number): Promise<TaskDependency[]> {
+      // Get dependencies where the given task is either a predecessor or successor
+      return await db.query.taskDependenciesTable.findMany({
+          where: or(
+              eq(taskDependenciesTable.predecessorId, taskId),
+              eq(taskDependenciesTable.successorId, taskId)
+          ),
+          // with: { predecessor: true, successor: true } // Fetch related tasks if needed
+      });
+  }
+
+  async createTaskDependency(depData: InsertTaskDependency): Promise<TaskDependency> {
+      // Optional: Check for circular dependencies before inserting if needed
+      const [newDep] = await db.insert(taskDependenciesTable).values(depData).returning();
+      return newDep;
+  }
+
+  async deleteTaskDependency(dependencyId: number): Promise<void> {
+      await db.delete(taskDependenciesTable).where(eq(taskDependenciesTable.id, dependencyId));
+  }
+  // --- END Task Dependency Methods ---
+
+
+  // --- ADDED: Daily Log Methods ---
+  async getProjectDailyLogs(projectId: number): Promise<DailyLog[]> { // Return basic log first
+    return await db.query.dailyLogsTable.findMany({
+        where: eq(dailyLogsTable.projectId, projectId),
+        orderBy: desc(dailyLogsTable.logDate),
+        // with: { photos: true, creator: true } // Use 'with' to fetch related photos/creator later
+    });
+  }
+
+  // Example of fetching with photos
+  async getProjectDailyLogsWithPhotos(projectId: number): Promise<DailyLogWithPhotos[]> {
+    return await db.query.dailyLogsTable.findMany({
+        where: eq(dailyLogsTable.projectId, projectId),
+        orderBy: desc(dailyLogsTable.logDate),
+        with: { photos: true }
+    });
+  }
+
+
+  async getDailyLog(logId: number): Promise<DailyLog | undefined> { // Consider with photos
+    return await db.query.dailyLogsTable.findFirst({
+        where: eq(dailyLogsTable.id, logId),
+        // with: { photos: true, creator: true } // Fetch related data if needed
+    });
+  }
+
+  async createDailyLog(logData: InsertDailyLog): Promise<DailyLog> {
+    const [newLog] = await db.insert(dailyLogsTable).values(logData).returning();
+    return newLog;
+  }
+
+  async updateDailyLog(logId: number, logData: Partial<InsertDailyLog>): Promise<DailyLog | undefined> {
+      // Cannot update 'createdAt' or 'createdById', filter them out if present
+      const { createdAt, createdById, ...updateData } = logData;
+      const [updatedLog] = await db.update(dailyLogsTable)
+          .set(updateData) // No automatic updatedAt here, add if needed in schema/logic
+          .where(eq(dailyLogsTable.id, logId))
+          .returning();
+      return updatedLog;
+  }
+
+  async deleteDailyLog(logId: number): Promise<void> {
+    // Schema uses onDelete: 'cascade' for photos, so deleting log deletes photos
+    await db.delete(dailyLogsTable).where(eq(dailyLogsTable.id, logId));
+  }
+
+  async addDailyLogPhoto(photoData: InsertDailyLogPhoto): Promise<DailyLogPhoto> {
+    const [newPhoto] = await db.insert(dailyLogPhotosTable).values(photoData).returning();
+    return newPhoto;
+  }
+  // --- END Daily Log Methods ---
+
+
+  // --- ADDED: Punch List Methods ---
+  async getProjectPunchListItems(projectId: number): Promise<PunchListItem[]> {
+    return await db.query.punchListItemsTable.findMany({
+        where: eq(punchListItemsTable.projectId, projectId),
+        orderBy: desc(punchListItemsTable.createdAt),
+        // with: { assignee: true, creator: true } // Fetch related data later if needed
+    });
+  }
+
+  async getPunchListItem(itemId: number): Promise<PunchListItem | undefined> {
+     return await db.query.punchListItemsTable.findFirst({
+         where: eq(punchListItemsTable.id, itemId),
+         // with: { assignee: true, creator: true } // Fetch related data if needed
+     });
+  }
+
+  async createPunchListItem(itemData: InsertPunchListItem): Promise<PunchListItem> {
+     const [newItem] = await db.insert(punchListItemsTable).values(itemData).returning();
+     return newItem;
+  }
+
+  async updatePunchListItem(itemId: number, itemData: Partial<InsertPunchListItem>): Promise<PunchListItem | undefined> {
+      const dataToSet = {
+          ...itemData,
+          updatedAt: new Date(), // Always update timestamp
+          resolvedAt: itemData.status === 'resolved' || itemData.status === 'verified' ? new Date() : undefined // Set resolvedAt if status indicates resolution
+      };
+      // Remove fields that shouldn't be updated directly if necessary
+      delete dataToSet.createdAt;
+      delete dataToSet.createdById;
+
+      const [updatedItem] = await db.update(punchListItemsTable)
+          .set(dataToSet)
+          .where(eq(punchListItemsTable.id, itemId))
+          .returning();
+      return updatedItem;
+  }
+
+  async deletePunchListItem(itemId: number): Promise<void> {
+      await db.delete(punchListItemsTable).where(eq(punchListItemsTable.id, itemId));
+  }
+  // --- END Punch List Methods ---
+
+} // End of DatabaseStorage class
 
 export const storage = new DatabaseStorage();

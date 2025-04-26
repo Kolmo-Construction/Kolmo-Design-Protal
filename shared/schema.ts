@@ -1,6 +1,8 @@
 import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
+
 
 // Users table for authentication and profile information
 export const users = pgTable("users", {
@@ -147,6 +149,134 @@ export const selections = pgTable("selections", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }), // Cascade delete tasks if project is deleted
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("todo"), // todo, in_progress, blocked, done, cancelled
+  priority: text("priority").default("medium"), // low, medium, high
+  startDate: timestamp("start_date"),
+  dueDate: timestamp("due_date"),
+  assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }), // Set assignee to null if user deleted
+  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }),
+  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Task dependencies table (many-to-many relationship on tasks)
+export const taskDependencies = pgTable("task_dependencies", {
+  id: serial("id").primaryKey(),
+  predecessorId: integer("predecessor_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  successorId: integer("successor_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  type: text("type").default("FS"), // FS (Finish-to-Start), SS, FF, SF
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Daily Logs table for field reporting
+export const dailyLogs = pgTable("daily_logs", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  logDate: timestamp("log_date").notNull(),
+  weather: text("weather"),
+  temperature: decimal("temperature", { precision: 5, scale: 2 }), // Optional temp tracking
+  crewOnSite: text("crew_on_site"), // Simple text for now, could be relational
+  workPerformed: text("work_performed").notNull(),
+  issuesEncountered: text("issues_encountered"),
+  safetyObservations: text("safety_observations"),
+  createdById: integer("created_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Daily Log Photos (one-to-many relationship with dailyLogs)
+export const dailyLogPhotos = pgTable("daily_log_photos", {
+  id: serial("id").primaryKey(),
+  dailyLogId: integer("daily_log_id").notNull().references(() => dailyLogs.id, { onDelete: 'cascade' }),
+  photoUrl: text("photo_url").notNull(), // URL from R2
+  caption: text("caption"),
+  uploadedById: integer("uploaded_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Punch List Items table
+export const punchListItems = pgTable("punch_list_items", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  description: text("description").notNull(),
+  location: text("location"), // e.g., "Kitchen", "Master Bath"
+  status: text("status").notNull().default("open"), // open, in_progress, resolved, verified
+  priority: text("priority").default("medium"), // low, medium, high
+  assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }),
+  dueDate: timestamp("due_date"),
+  photoUrl: text("photo_url"), // Optional photo URL from R2
+  createdById: integer("created_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at"),
+});
+export const projectRelations = relations(projects, ({ many, one }) => ({
+  tasks: many(tasks),
+  dailyLogs: many(dailyLogs),
+  punchListItems: many(punchListItems),
+  projectManager: one(users, {
+      fields: [projects.projectManagerId],
+      references: [users.id],
+      relationName: 'ProjectManager', // Added relation name if needed
+  }),
+  clientProjects: many(clientProjects),
+  documents: many(documents),
+  invoices: many(invoices),
+  messages: many(messages),
+  progressUpdates: many(progressUpdates),
+  milestones: many(milestones),
+  selections: many(selections),
+}));
+
+export const userRelations = relations(users, ({ many }) => ({
+  assignedTasks: many(tasks, { relationName: 'Assignee' }),
+  createdTasks: many(tasks, { relationName: 'Creator' }), // Need creatorId in tasks if tracking
+  createdDailyLogs: many(dailyLogs),
+  uploadedDailyLogPhotos: many(dailyLogPhotos),
+  createdPunchListItems: many(punchListItems),
+  assignedPunchListItems: many(punchListItems, { relationName: 'PunchListAssignee' }),
+  clientProjects: many(clientProjects), // Added relation for clients' projects
+  managedProjects: many(projects, { relationName: 'ProjectManager' }), // Added relation for PMs' projects
+  uploadedDocuments: many(documents),
+  sentMessages: many(messages, { relationName: 'Sender' }),
+  receivedMessages: many(messages, { relationName: 'Recipient' }),
+  createdProgressUpdates: many(progressUpdates),
+  uploadedUpdateMedia: many(updateMedia),
+}));
+
+export const taskRelations = relations(tasks, ({ one, many }) => ({
+  project: one(projects, { fields: [tasks.projectId], references: [projects.id] }),
+  assignee: one(users, { fields: [tasks.assigneeId], references: [users.id], relationName: 'Assignee' }),
+  predecessorDependencies: many(taskDependencies, { relationName: 'Successor' }),
+  successorDependencies: many(taskDependencies, { relationName: 'Predecessor' }),
+}));
+
+export const taskDependencyRelations = relations(taskDependencies, ({ one }) => ({
+  predecessor: one(tasks, { fields: [taskDependencies.predecessorId], references: [tasks.id], relationName: 'Predecessor' }),
+  successor: one(tasks, { fields: [taskDependencies.successorId], references: [tasks.id], relationName: 'Successor' }),
+}));
+
+export const dailyLogRelations = relations(dailyLogs, ({ one, many }) => ({
+  project: one(projects, { fields: [dailyLogs.projectId], references: [projects.id] }),
+  creator: one(users, { fields: [dailyLogs.createdById], references: [users.id] }),
+  photos: many(dailyLogPhotos),
+}));
+
+export const dailyLogPhotoRelations = relations(dailyLogPhotos, ({ one }) => ({
+  dailyLog: one(dailyLogs, { fields: [dailyLogPhotos.dailyLogId], references: [dailyLogs.id] }),
+  uploader: one(users, { fields: [dailyLogPhotos.uploadedById], references: [users.id] }),
+}));
+
+export const punchListItemRelations = relations(punchListItems, ({ one }) => ({
+  project: one(projects, { fields: [punchListItems.projectId], references: [projects.id] }),
+  assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
+  creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
+}));
 
 // Create insert schemas for each table
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -223,6 +353,7 @@ export const insertSelectionSchema = createInsertSchema(selections).omit({
   updatedAt: true
 });
 
+
 // Export types for use in the application
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -256,3 +387,55 @@ export type Milestone = typeof milestones.$inferSelect;
 
 export type InsertSelection = z.infer<typeof insertSelectionSchema>;
 export type Selection = typeof selections.$inferSelect;
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+    // Allow strings for ISO dates
+    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+    dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+});
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;
+
+export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
+export type TaskDependency = typeof taskDependencies.$inferSelect;
+
+export const insertDailyLogSchema = createInsertSchema(dailyLogs).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+    // Allow strings for ISO dates
+    logDate: z.union([z.string().datetime(), z.date()]), // Make required
+});
+export type InsertDailyLog = z.infer<typeof insertDailyLogSchema>;
+export type DailyLog = typeof dailyLogs.$inferSelect;
+
+export const insertDailyLogPhotoSchema = createInsertSchema(dailyLogPhotos).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertDailyLogPhoto = z.infer<typeof insertDailyLogPhotoSchema>;
+export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
+
+export const insertPunchListItemSchema = createInsertSchema(punchListItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedAt: true, // Usually set when status changes
+}).extend({
+  // Allow strings for ISO dates
+  dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+});
+export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
+export type PunchListItem = typeof punchListItems.$inferSelect;
+
+// You might want to export combined types too, e.g.,
+export type DailyLogWithPhotos = DailyLog & { photos: DailyLogPhoto[] };
+export type TaskWithAssignee = Task & { assignee: User | null }; // Assuming User type exists
+export type PunchListItemWithAssignee = PunchListItem & { assignee: User | null };
