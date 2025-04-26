@@ -140,7 +140,7 @@ export default function ProjectManagement() {
     data: projectManagers = [],
     isLoading: managersLoading,
   } = useQuery<User[], Error>({
-    queryKey: ["/api/admin/users?role=projectManager"],
+    queryKey: ["/api/project-managers"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
