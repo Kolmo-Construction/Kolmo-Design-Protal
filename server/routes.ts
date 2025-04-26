@@ -125,6 +125,664 @@ async function checkProjectAccess(req: Request, res: Response, projectId: number
 const taskRouter = Router({ mergeParams: true });
 const dailyLogRouter = Router({ mergeParams: true });
 const punchListRouter = Router({ mergeParams: true });
+
+// Define interfaces for request params
+interface ProjectParams {
+  projectId: string;
+}
+
+interface TaskParams extends ProjectParams {
+  taskId: string;
+}
+
+interface DailyLogParams extends ProjectParams {
+  logId: string;
+}
+
+interface PunchListItemParams extends ProjectParams {
+  itemId: string;
+}
+
+// Task Router Implementation
+// GET all tasks for a project
+taskRouter.get("/", async (req: Request<ProjectParams>, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    const tasks = await storage.getProjectTasks(projectId);
+    res.json(tasks);
+  } catch (error) {
+    console.error("Error fetching project tasks:", error);
+    res.status(500).json({ message: "Failed to fetch tasks" });
+  }
+});
+
+// GET a single task
+taskRouter.get("/:taskId", async (req: Request<TaskParams>, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const taskId = parseInt(req.params.taskId);
+    
+    if (isNaN(projectId) || isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid project ID or task ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    const task = await storage.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    // Verify the task belongs to the specified project
+    if (task.projectId !== projectId) {
+      return res.status(404).json({ message: "Task not found in this project" });
+    }
+    
+    res.json(task);
+  } catch (error) {
+    console.error("Error fetching task details:", error);
+    res.status(500).json({ message: "Failed to fetch task details" });
+  }
+});
+
+// POST create a new task
+taskRouter.post("/", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    // Check if user has access to this project (only admins and project managers can create tasks)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can create tasks" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Validate the task data
+    const taskData = insertTaskSchema.parse(req.body);
+
+    // Ensure the task is created for the specified project
+    const newTask = await storage.createTask({
+      ...taskData,
+      projectId // Override projectId to ensure it matches the URL param
+    });
+
+    res.status(201).json(newTask);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid task data", errors: error.errors });
+    }
+    console.error("Error creating task:", error);
+    res.status(500).json({ message: "Failed to create task" });
+  }
+});
+
+// PUT update a task
+taskRouter.put("/:taskId", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const taskId = parseInt(req.params.taskId);
+    
+    if (isNaN(projectId) || isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid project ID or task ID" });
+    }
+
+    // Check if user has access (only admins and project managers can update tasks)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can update tasks" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // First, check if the task exists and belongs to this project
+    const existingTask = await storage.getTask(taskId);
+    if (!existingTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    if (existingTask.projectId !== projectId) {
+      return res.status(404).json({ message: "Task not found in this project" });
+    }
+
+    // Validate update data
+    const updateData = insertTaskSchema.partial().parse(req.body);
+
+    // Update the task
+    const updatedTask = await storage.updateTask(taskId, {
+      ...updateData,
+      projectId // Ensure projectId remains unchanged
+    });
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Task not found or failed to update" });
+    }
+
+    res.json(updatedTask);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid task data", errors: error.errors });
+    }
+    console.error("Error updating task:", error);
+    res.status(500).json({ message: "Failed to update task" });
+  }
+});
+
+// DELETE a task
+taskRouter.delete("/:taskId", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const taskId = parseInt(req.params.taskId);
+    
+    if (isNaN(projectId) || isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid project ID or task ID" });
+    }
+
+    // Check if user has access (only admins and project managers can delete tasks)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can delete tasks" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Check if the task exists and belongs to this project
+    const existingTask = await storage.getTask(taskId);
+    if (!existingTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    if (existingTask.projectId !== projectId) {
+      return res.status(404).json({ message: "Task not found in this project" });
+    }
+
+    // Delete the task
+    await storage.deleteTask(taskId);
+    
+    res.status(200).json({ message: "Task deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    res.status(500).json({ message: "Failed to delete task" });
+  }
+});
+
+// Daily Log Router Implementation
+// GET all daily logs for a project
+dailyLogRouter.get("/", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    const dailyLogs = await storage.getProjectDailyLogs(projectId);
+    res.json(dailyLogs);
+  } catch (error) {
+    console.error("Error fetching project daily logs:", error);
+    res.status(500).json({ message: "Failed to fetch daily logs" });
+  }
+});
+
+// GET a single daily log
+dailyLogRouter.get("/:logId", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const logId = parseInt(req.params.logId);
+    
+    if (isNaN(projectId) || isNaN(logId)) {
+      return res.status(400).json({ message: "Invalid project ID or log ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    const dailyLog = await storage.getDailyLog(logId);
+    
+    if (!dailyLog) {
+      return res.status(404).json({ message: "Daily log not found" });
+    }
+    
+    // Verify the log belongs to the specified project
+    if (dailyLog.projectId !== projectId) {
+      return res.status(404).json({ message: "Daily log not found in this project" });
+    }
+    
+    res.json(dailyLog);
+  } catch (error) {
+    console.error("Error fetching daily log details:", error);
+    res.status(500).json({ message: "Failed to fetch daily log details" });
+  }
+});
+
+// POST create a new daily log
+dailyLogRouter.post("/", upload.array('photos', 5), async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    // Check if user has access to this project (only admins and project managers can create logs)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can create daily logs" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // The body will be form data due to file uploads, so we need to parse it differently
+    const logData = insertDailyLogSchema.parse({
+      ...req.body,
+      projectId, // Ensure projectId matches URL param
+      createdById: user.id, // Set the creator to the current user
+      logDate: req.body.logDate ? new Date(req.body.logDate) : new Date() // Parse date
+    });
+
+    // Create the daily log
+    const newDailyLog = await storage.createDailyLog(logData);
+
+    // Handle photo uploads if any
+    const uploadedPhotos = [];
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        try {
+          // Upload the file to R2 or your storage service
+          const photoUrl = await uploadToR2(
+            projectId,
+            file.buffer,
+            file.originalname,
+            file.mimetype
+          );
+
+          // Create a record for the photo
+          const photo = await storage.addDailyLogPhoto({
+            dailyLogId: newDailyLog.id,
+            photoUrl,
+            caption: file.originalname, // Use filename as caption or get from form
+            uploadedById: user.id
+          });
+
+          uploadedPhotos.push(photo);
+        } catch (uploadError) {
+          console.error("Error uploading photo:", uploadError);
+          // Continue with other photos even if one fails
+        }
+      }
+    }
+
+    res.status(201).json({
+      dailyLog: newDailyLog,
+      photos: uploadedPhotos
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid daily log data", errors: error.errors });
+    }
+    if (error instanceof multer.MulterError) {
+      return res.status(400).json({ message: "File upload error", error: error.message });
+    }
+    console.error("Error creating daily log:", error);
+    res.status(500).json({ message: "Failed to create daily log" });
+  }
+});
+
+// PUT update a daily log
+dailyLogRouter.put("/:logId", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const logId = parseInt(req.params.logId);
+    
+    if (isNaN(projectId) || isNaN(logId)) {
+      return res.status(400).json({ message: "Invalid project ID or log ID" });
+    }
+
+    // Check if user has access (only admins and project managers can update logs)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can update daily logs" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Check if the log exists and belongs to this project
+    const existingLog = await storage.getDailyLog(logId);
+    if (!existingLog) {
+      return res.status(404).json({ message: "Daily log not found" });
+    }
+    
+    if (existingLog.projectId !== projectId) {
+      return res.status(404).json({ message: "Daily log not found in this project" });
+    }
+
+    // Validate update data
+    const updateData = insertDailyLogSchema.partial().parse({
+      ...req.body,
+      logDate: req.body.logDate ? new Date(req.body.logDate) : undefined
+    });
+
+    // Update the log
+    const updatedLog = await storage.updateDailyLog(logId, {
+      ...updateData,
+      projectId // Ensure projectId remains unchanged
+    });
+
+    if (!updatedLog) {
+      return res.status(404).json({ message: "Daily log not found or failed to update" });
+    }
+
+    res.json(updatedLog);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid daily log data", errors: error.errors });
+    }
+    console.error("Error updating daily log:", error);
+    res.status(500).json({ message: "Failed to update daily log" });
+  }
+});
+
+// DELETE a daily log
+dailyLogRouter.delete("/:logId", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const logId = parseInt(req.params.logId);
+    
+    if (isNaN(projectId) || isNaN(logId)) {
+      return res.status(400).json({ message: "Invalid project ID or log ID" });
+    }
+
+    // Check if user has access (only admins and project managers can delete logs)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can delete daily logs" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Check if the log exists and belongs to this project
+    const existingLog = await storage.getDailyLog(logId);
+    if (!existingLog) {
+      return res.status(404).json({ message: "Daily log not found" });
+    }
+    
+    if (existingLog.projectId !== projectId) {
+      return res.status(404).json({ message: "Daily log not found in this project" });
+    }
+
+    // Delete the log (photos should be deleted via CASCADE constraint)
+    await storage.deleteDailyLog(logId);
+    
+    res.status(200).json({ message: "Daily log deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting daily log:", error);
+    res.status(500).json({ message: "Failed to delete daily log" });
+  }
+});
+
+// Punch List Router Implementation
+// GET all punch list items for a project
+punchListRouter.get("/", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    const punchListItems = await storage.getProjectPunchListItems(projectId);
+    res.json(punchListItems);
+  } catch (error) {
+    console.error("Error fetching project punch list items:", error);
+    res.status(500).json({ message: "Failed to fetch punch list items" });
+  }
+});
+
+// GET a single punch list item
+punchListRouter.get("/:itemId", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const itemId = parseInt(req.params.itemId);
+    
+    if (isNaN(projectId) || isNaN(itemId)) {
+      return res.status(400).json({ message: "Invalid project ID or item ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    const item = await storage.getPunchListItem(itemId);
+    
+    if (!item) {
+      return res.status(404).json({ message: "Punch list item not found" });
+    }
+    
+    // Verify the item belongs to the specified project
+    if (item.projectId !== projectId) {
+      return res.status(404).json({ message: "Punch list item not found in this project" });
+    }
+    
+    res.json(item);
+  } catch (error) {
+    console.error("Error fetching punch list item details:", error);
+    res.status(500).json({ message: "Failed to fetch punch list item details" });
+  }
+});
+
+// POST create a new punch list item
+punchListRouter.post("/", upload.single('photo'), async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    // Check if user has access (only admins and project managers can create punch list items)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can create punch list items" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    let photoUrl = null;
+    // Handle photo upload if present
+    if (req.file) {
+      try {
+        photoUrl = await uploadToR2(
+          projectId,
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype
+        );
+      } catch (uploadError) {
+        console.error("Error uploading photo:", uploadError);
+        // Continue without the photo
+      }
+    }
+
+    // Validate item data
+    const itemData = insertPunchListItemSchema.parse({
+      ...req.body,
+      projectId, // Ensure projectId matches URL param
+      createdById: user.id, // Set the creator to the current user
+      photoUrl, // Add the photo URL if uploaded
+      dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined
+    });
+
+    // Create the punch list item
+    const newItem = await storage.createPunchListItem(itemData);
+
+    res.status(201).json(newItem);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid punch list item data", errors: error.errors });
+    }
+    if (error instanceof multer.MulterError) {
+      return res.status(400).json({ message: "File upload error", error: error.message });
+    }
+    console.error("Error creating punch list item:", error);
+    res.status(500).json({ message: "Failed to create punch list item" });
+  }
+});
+
+// PUT update a punch list item
+punchListRouter.put("/:itemId", upload.single('photo'), async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const itemId = parseInt(req.params.itemId);
+    
+    if (isNaN(projectId) || isNaN(itemId)) {
+      return res.status(400).json({ message: "Invalid project ID or item ID" });
+    }
+
+    // Check if user has access (only admins and project managers can update punch list items)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can update punch list items" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Check if the item exists and belongs to this project
+    const existingItem = await storage.getPunchListItem(itemId);
+    if (!existingItem) {
+      return res.status(404).json({ message: "Punch list item not found" });
+    }
+    
+    if (existingItem.projectId !== projectId) {
+      return res.status(404).json({ message: "Punch list item not found in this project" });
+    }
+
+    let photoUrl = existingItem.photoUrl; // Default to existing photo URL
+    // Handle photo upload if present
+    if (req.file) {
+      try {
+        photoUrl = await uploadToR2(
+          projectId,
+          req.file.buffer,
+          req.file.originalname, 
+          req.file.mimetype
+        );
+      } catch (uploadError) {
+        console.error("Error uploading photo:", uploadError);
+        // Continue with existing photo
+      }
+    }
+
+    // Validate update data
+    const updateData = insertPunchListItemSchema.partial().parse({
+      ...req.body,
+      photoUrl, // Include new photo URL if uploaded
+      dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined,
+      resolvedAt: req.body.status === 'resolved' ? new Date() : existingItem.resolvedAt
+    });
+
+    // Update the item
+    const updatedItem = await storage.updatePunchListItem(itemId, {
+      ...updateData,
+      projectId // Ensure projectId remains unchanged
+    });
+
+    if (!updatedItem) {
+      return res.status(404).json({ message: "Punch list item not found or failed to update" });
+    }
+
+    res.json(updatedItem);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid punch list item data", errors: error.errors });
+    }
+    if (error instanceof multer.MulterError) {
+      return res.status(400).json({ message: "File upload error", error: error.message });
+    }
+    console.error("Error updating punch list item:", error);
+    res.status(500).json({ message: "Failed to update punch list item" });
+  }
+});
+
+// DELETE a punch list item
+punchListRouter.delete("/:itemId", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const itemId = parseInt(req.params.itemId);
+    
+    if (isNaN(projectId) || isNaN(itemId)) {
+      return res.status(400).json({ message: "Invalid project ID or item ID" });
+    }
+
+    // Check if user has access (only admins and project managers can delete punch list items)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can delete punch list items" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Check if the item exists and belongs to this project
+    const existingItem = await storage.getPunchListItem(itemId);
+    if (!existingItem) {
+      return res.status(404).json({ message: "Punch list item not found" });
+    }
+    
+    if (existingItem.projectId !== projectId) {
+      return res.status(404).json({ message: "Punch list item not found in this project" });
+    }
+
+    // Delete the item
+    await storage.deletePunchListItem(itemId);
+    
+    res.status(200).json({ message: "Punch list item deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting punch list item:", error);
+    res.status(500).json({ message: "Failed to delete punch list item" });
+  }
+});
 // --- END ADDED ---
 
 
@@ -1248,6 +1906,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to assign project manager" });
     }
   });
+
+  // --- ADDED: Mount the new routers to their respective endpoints ---
+  // Each router is mounted to a path with a projectId parameter
+  app.use("/api/projects/:projectId/tasks", isAuthenticated, taskRouter);
+  app.use("/api/projects/:projectId/daily-logs", isAuthenticated, dailyLogRouter);
+  app.use("/api/projects/:projectId/punch-list", isAuthenticated, punchListRouter);
+  // --- END ADDED ---
 
   const httpServer = createServer(app);
   return httpServer;
