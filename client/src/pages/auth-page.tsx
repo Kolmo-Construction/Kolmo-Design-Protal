@@ -34,9 +34,10 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 interface AuthPageProps {
   isMagicLink?: boolean;
+  isPasswordReset?: boolean;
 }
 
-export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
+export default function AuthPage({ isMagicLink = false, isPasswordReset = false }: AuthPageProps) {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [, navigate] = useLocation();
   const [magicLinkStatus, setMagicLinkStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -153,6 +154,198 @@ export default function AuthPage({ isMagicLink = false }: AuthPageProps) {
       },
     });
   };
+
+  // Define password reset schema
+  const resetPasswordSchema = z.object({
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+  type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+
+  const resetPasswordForm = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  // State for password reset form
+  const [resetPasswordStatus, setResetPasswordStatus] = useState<'loading' | 'verifying' | 'ready' | 'success' | 'error'>('loading');
+  const [resetPasswordError, setResetPasswordError] = useState<string>('');
+  const resetToken = isPasswordReset ? params.token : null;
+
+  // Check if token is valid for password reset
+  useEffect(() => {
+    if (isPasswordReset && resetToken) {
+      setResetPasswordStatus('verifying');
+      
+      // Verify the token is valid
+      fetch(`/api/verify-reset-token/${resetToken}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Invalid or expired reset link');
+          return res.json();
+        })
+        .then(() => {
+          setResetPasswordStatus('ready');
+        })
+        .catch(err => {
+          console.error('Error verifying reset token:', err);
+          setResetPasswordStatus('error');
+          setResetPasswordError(err.message || 'Invalid or expired reset link');
+        });
+    }
+  }, [isPasswordReset, resetToken]);
+
+  // Handle password reset submission
+  const onResetPasswordSubmit = (values: ResetPasswordFormValues) => {
+    if (!resetToken) return;
+    
+    setResetPasswordStatus('loading');
+    
+    // Submit new password
+    fetch('/api/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: resetToken, password: values.password })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to reset password');
+      return res.json();
+    })
+    .then(() => {
+      setResetPasswordStatus('success');
+      // Auto-redirect to login after delay
+      setTimeout(() => {
+        navigate('/auth');
+      }, 3000);
+    })
+    .catch(err => {
+      console.error('Error resetting password:', err);
+      setResetPasswordStatus('error');
+      setResetPasswordError(err.message || 'Failed to reset password. Please try again.');
+    });
+  };
+
+  // Render password reset UI
+  if (isPasswordReset) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="h-8 w-8 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor"/>
+                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="text-2xl font-bold">BuildPortal</span>
+            </div>
+            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <CardDescription>
+              {resetPasswordStatus === 'loading' || resetPasswordStatus === 'verifying'
+                ? 'Verifying your reset link...'
+                : resetPasswordStatus === 'ready'
+                  ? 'Please enter a new password for your account.'
+                  : resetPasswordStatus === 'success'
+                    ? 'Your password has been reset successfully!'
+                    : 'Reset link verification failed'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(resetPasswordStatus === 'loading' || resetPasswordStatus === 'verifying') && (
+              <div className="flex flex-col items-center py-8">
+                <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+                <p className="text-center text-muted-foreground">
+                  Please wait while we verify your reset link...
+                </p>
+              </div>
+            )}
+            
+            {resetPasswordStatus === 'ready' && (
+              <Form {...resetPasswordForm}>
+                <form onSubmit={resetPasswordForm.handleSubmit(onResetPasswordSubmit)} className="space-y-4">
+                  <FormField
+                    control={resetPasswordForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter your new password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={resetPasswordForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm New Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Confirm your new password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full">Reset Password</Button>
+                </form>
+              </Form>
+            )}
+            
+            {resetPasswordStatus === 'success' && (
+              <>
+                <Alert className="bg-green-50 text-green-800 border-green-200">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <div className="ml-3">
+                    <AlertDescription className="text-green-700 font-medium">
+                      Your password has been reset successfully!
+                    </AlertDescription>
+                    <p className="text-sm mt-1">Redirecting you to login page...</p>
+                  </div>
+                </Alert>
+                <div className="text-center mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate("/auth")}
+                    className="mx-auto"
+                  >
+                    Go to Login
+                  </Button>
+                </div>
+              </>
+            )}
+            
+            {resetPasswordStatus === 'error' && (
+              <>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <AlertDescription className="ml-2">
+                    {resetPasswordError || "There was an error verifying your reset link"}
+                  </AlertDescription>
+                </Alert>
+                <div className="text-center mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate("/auth")}
+                    className="mx-auto"
+                  >
+                    Return to Login
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Render magic link verification UI if in magic link mode
   if (isMagicLink) {

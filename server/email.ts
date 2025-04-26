@@ -55,16 +55,54 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 /**
  * Send a magic link invitation email to a user
  */
-export async function sendMagicLinkEmail(
-  email: string, 
-  firstName: string, 
-  magicLink: string, 
-  isNewUser: boolean
-): Promise<boolean> {
-  const subject = isNewUser 
-    ? 'Welcome to Construction Client Portal - Activate Your Account' 
-    : 'Access Your Construction Client Portal Account';
+export async function sendMagicLinkEmail({
+  email, 
+  firstName, 
+  token,
+  resetPassword = false
+}: {
+  email: string;
+  firstName: string;
+  token: string;
+  resetPassword?: boolean;
+}): Promise<boolean> {
+  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
   
+  // Determine the correct path based on the purpose
+  const path = resetPassword 
+    ? `/reset-password/${token}` 
+    : `/magic-link/${token}`;
+  
+  const magicLink = `${baseUrl}${path}`;
+  const isNewUser = !resetPassword && token.includes('new-user');
+  
+  const subject = resetPassword
+    ? 'Reset Your Construction Client Portal Password'
+    : isNewUser 
+      ? 'Welcome to Construction Client Portal - Activate Your Account' 
+      : 'Access Your Construction Client Portal Account';
+  
+  // Determine the message content based on the purpose
+  let contentHtml, contentText, buttonText;
+  
+  if (resetPassword) {
+    contentHtml = `<p>We received a request to reset your password for the Construction Client Portal.</p>
+      <p>If you did not make this request, you can safely ignore this email.</p>
+      <p>Please click the button below to reset your password:</p>`;
+    contentText = 'We received a request to reset your password for the Construction Client Portal. If you did not make this request, you can safely ignore this email.';
+    buttonText = 'Reset Password';
+  } else if (isNewUser) {
+    contentHtml = `<p>Welcome to the Construction Client Portal! We've created an account for you to access your project information.</p>
+      <p>Please click the button below to set up your account:</p>`;
+    contentText = 'Welcome to the Construction Client Portal! We\'ve created an account for you to access your project information.';
+    buttonText = 'Activate My Account';
+  } else {
+    contentHtml = `<p>You've requested access to your Construction Client Portal account.</p>
+      <p>Please click the button below to sign in:</p>`;
+    contentText = 'You\'ve requested access to your Construction Client Portal account.';
+    buttonText = 'Sign In';
+  }
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background-color: #3d4f52; padding: 20px; text-align: center;">
@@ -73,17 +111,12 @@ export async function sendMagicLinkEmail(
       <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
         <p>Hello ${firstName},</p>
         
-        ${isNewUser 
-          ? `<p>Welcome to the Construction Client Portal! We've created an account for you to access your project information.</p>` 
-          : `<p>You've requested access to your Construction Client Portal account.</p>`
-        }
-        
-        <p>Please click the button below to ${isNewUser ? 'set up your account' : 'sign in'}:</p>
+        ${contentHtml}
         
         <div style="text-align: center; margin: 30px 0;">
           <a href="${magicLink}" 
              style="background-color: #d8973c; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-            ${isNewUser ? 'Activate My Account' : 'Sign In'}
+            ${buttonText}
           </a>
         </div>
         
@@ -105,12 +138,9 @@ export async function sendMagicLinkEmail(
   const text = `
 Hello ${firstName},
 
-${isNewUser 
-  ? 'Welcome to the Construction Client Portal! We\'ve created an account for you to access your project information.' 
-  : 'You\'ve requested access to your Construction Client Portal account.'
-}
+${contentText}
 
-Please use the following link to ${isNewUser ? 'set up your account' : 'sign in'}:
+Please use the following link to ${resetPassword ? 'reset your password' : (isNewUser ? 'set up your account' : 'sign in')}:
 ${magicLink}
 
 This link will expire in 24 hours for security reasons.

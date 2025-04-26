@@ -29,6 +29,9 @@ function Router() {
       <Route path="/auth/magic-link/:token">
         {() => <AuthPage isMagicLink={true} />}
       </Route>
+      <Route path="/reset-password/:token">
+        {() => <AuthPage isPasswordReset={true} />}
+      </Route>
       <ProtectedRoute path="/setup-profile" component={SetupProfile} />
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/projects" component={Projects} />

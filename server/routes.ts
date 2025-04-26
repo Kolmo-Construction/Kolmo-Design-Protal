@@ -38,7 +38,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
   
-  // Password reset request endpoint
+  // Password reset endpoints
+  // 1. Request a password reset link
   app.post("/api/password-reset-request", async (req, res) => {
     try {
       const { email } = req.body;
@@ -83,6 +84,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({ 
         message: "If an account exists with that email, a password reset link has been sent." 
       });
+    }
+  });
+  
+  // 2. Verify a password reset token
+  app.get("/api/verify-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Token is required" });
+      }
+      
+      // Find user with this token
+      const user = await storage.getUserByMagicLinkToken(token);
+      
+      // Check if user exists and token is not expired
+      if (!user || !user.magicLinkExpiry || new Date(user.magicLinkExpiry) < new Date()) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+      
+      // Token is valid
+      res.status(200).json({ 
+        message: "Token is valid",
+        userId: user.id
+      });
+    } catch (error) {
+      console.error("Error verifying reset token:", error);
+      res.status(500).json({ message: "Failed to verify token" });
+    }
+  });
+  
+  // 3. Reset password with token
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+      
+      // Find user with this token
+      const user = await storage.getUserByMagicLinkToken(token);
+      
+      // Check if user exists and token is not expired
+      if (!user || !user.magicLinkExpiry || new Date(user.magicLinkExpiry) < new Date()) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+      
+      // Hash the new password
+      const salt = randomBytes(16).toString("hex");
+      const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+      const hashedPassword = `${buf.toString("hex")}.${salt}`;
+      
+      // Update user's password and clear the token
+      await storage.updateUser(user.id, { 
+        password: hashedPassword
+      });
+      
+      // Clear the magic link token
+      await storage.updateUserMagicLinkToken(user.id, null, null);
+      
+      res.status(200).json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 
