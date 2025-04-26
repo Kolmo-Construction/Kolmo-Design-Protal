@@ -127,7 +127,12 @@ const dailyLogRouter = Router({ mergeParams: true });
 const punchListRouter = Router({ mergeParams: true });
 
 // Define interfaces for request params
-interface ProjectParams {
+// Define a type for params dictionary
+interface ParamsDictionary {
+  [key: string]: string;
+}
+
+interface ProjectParams extends ParamsDictionary {
   projectId: string;
 }
 
@@ -199,7 +204,7 @@ taskRouter.get("/:taskId", async (req: Request<TaskParams>, res) => {
 });
 
 // POST create a new task
-taskRouter.post("/", async (req, res) => {
+taskRouter.post("/", async (req: Request<ProjectParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {
@@ -236,7 +241,7 @@ taskRouter.post("/", async (req, res) => {
 });
 
 // PUT update a task
-taskRouter.put("/:taskId", async (req, res) => {
+taskRouter.put("/:taskId", async (req: Request<TaskParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const taskId = parseInt(req.params.taskId);
@@ -289,7 +294,7 @@ taskRouter.put("/:taskId", async (req, res) => {
 });
 
 // DELETE a task
-taskRouter.delete("/:taskId", async (req, res) => {
+taskRouter.delete("/:taskId", async (req: Request<TaskParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const taskId = parseInt(req.params.taskId);
@@ -330,7 +335,7 @@ taskRouter.delete("/:taskId", async (req, res) => {
 
 // Daily Log Router Implementation
 // GET all daily logs for a project
-dailyLogRouter.get("/", async (req, res) => {
+dailyLogRouter.get("/", async (req: Request<ProjectParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {
@@ -351,7 +356,7 @@ dailyLogRouter.get("/", async (req, res) => {
 });
 
 // GET a single daily log
-dailyLogRouter.get("/:logId", async (req, res) => {
+dailyLogRouter.get("/:logId", async (req: Request<DailyLogParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const logId = parseInt(req.params.logId);
@@ -458,7 +463,7 @@ dailyLogRouter.post("/", upload.array('photos', 5), async (req, res) => {
 });
 
 // PUT update a daily log
-dailyLogRouter.put("/:logId", async (req, res) => {
+dailyLogRouter.put("/:logId", async (req: Request<DailyLogParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const logId = parseInt(req.params.logId);
@@ -514,7 +519,7 @@ dailyLogRouter.put("/:logId", async (req, res) => {
 });
 
 // DELETE a daily log
-dailyLogRouter.delete("/:logId", async (req, res) => {
+dailyLogRouter.delete("/:logId", async (req: Request<DailyLogParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const logId = parseInt(req.params.logId);
@@ -555,7 +560,7 @@ dailyLogRouter.delete("/:logId", async (req, res) => {
 
 // Punch List Router Implementation
 // GET all punch list items for a project
-punchListRouter.get("/", async (req, res) => {
+punchListRouter.get("/", async (req: Request<ProjectParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {
@@ -576,7 +581,7 @@ punchListRouter.get("/", async (req, res) => {
 });
 
 // GET a single punch list item
-punchListRouter.get("/:itemId", async (req, res) => {
+punchListRouter.get("/:itemId", async (req: Request<PunchListItemParams>, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const itemId = parseInt(req.params.itemId);
