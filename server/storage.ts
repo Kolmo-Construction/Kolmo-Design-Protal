@@ -1,6 +1,6 @@
 import { users, projects, clientProjects, documents, invoices, payments, messages, progressUpdates, updateMedia, milestones, selections } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, gte, lt } from "drizzle-orm";
+import { eq, and, desc, gte, lt, or, ilike } from "drizzle-orm"; // Added or, ilike
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -38,54 +38,58 @@ export interface IStorage {
   updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<User>;
   deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
-  
+  getAllProjectManagers(): Promise<User[]>; // Added based on usage in routes
+  getAllClients(): Promise<User[]>; // Added based on usage in routes
+  getClientsNotInProject(projectId: number): Promise<User[]>; // Added based on usage in routes
+  searchClients(query: string): Promise<User[]>; // Added for client search
+
   // Project methods
   getProject(id: number): Promise<Project | undefined>;
   getAllProjects(): Promise<Project[]>;
   getClientProjects(clientId: number): Promise<Project[]>;
   getProjectManagerProjects(projectManagerId: number): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
-  updateProject(id: number, project: InsertProject): Promise<Project | undefined>;
-  
+  updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined>; // Use Partial<> for update
+
   // Client-Project relationship methods
   assignClientToProject(clientId: number, projectId: number): Promise<ClientProject>;
   clientHasProjectAccess(clientId: number, projectId: number): Promise<boolean>;
   projectManagerHasProjectAccess(projectManagerId: number, projectId: number): Promise<boolean>;
-  
+
   // Document methods
   getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>;
   getProjectDocuments(projectId: number, filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
-  
+
   // Invoice methods
   getProjectInvoices(projectId: number): Promise<Invoice[]>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  
+
   // Payment methods
   getInvoicePayments(invoiceId: number): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
-  
+
   // Message methods
   getProjectMessages(projectId: number): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
-  
+
   // Progress update methods
   getProjectUpdates(projectId: number): Promise<ProgressUpdate[]>;
   createProgressUpdate(update: InsertProgressUpdate): Promise<ProgressUpdate>;
-  
+
   // Update media methods
   getUpdateMedia(updateId: number): Promise<UpdateMedia[]>;
   createUpdateMedia(media: InsertUpdateMedia): Promise<UpdateMedia>;
-  
+
   // Milestone methods
   getProjectMilestones(projectId: number): Promise<Milestone[]>;
   createMilestone(milestone: InsertMilestone): Promise<Milestone>;
-  
+
   // Selection methods
   getProjectSelections(projectId: number): Promise<Selection[]>;
   createSelection(selection: InsertSelection): Promise<Selection>;
   updateSelectionChoice(id: number, selectedOption: string): Promise<Selection | undefined>;
-  
+
   // Session store
   sessionStore: any; // Using any type for sessionStore to avoid typing issues
 }
@@ -94,8 +98,8 @@ export class DatabaseStorage implements IStorage {
   sessionStore: any; // Using any type for sessionStore
 
   constructor() {
-    this.sessionStore = new PostgresSessionStore({ 
-      pool, 
+    this.sessionStore = new PostgresSessionStore({
+      pool,
       createTableIfMissing: true,
       tableName: 'session'
     });
@@ -126,17 +130,17 @@ export class DatabaseStorage implements IStorage {
     const [newUser] = await db.insert(users).values(user).returning();
     return newUser;
   }
-  
+
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User> {
     const [updatedUser] = await db
       .update(users)
       .set(userData)
       .where(eq(users.id, id))
       .returning();
-    
+
     return updatedUser;
   }
-  
+
   async updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<User> {
     const [updatedUser] = await db
       .update(users)
@@ -146,52 +150,75 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(users.id, id))
       .returning();
-    
+
     return updatedUser;
   }
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users);
   }
-  
+
   // Get all project managers
   async getAllProjectManagers(): Promise<User[]> {
     return await db.select().from(users).where(eq(users.role, "projectManager"));
   }
-  
+
   // Get all clients
   async getAllClients(): Promise<User[]> {
     return await db.select().from(users).where(eq(users.role, "client"));
   }
-  
+
   // Get clients not assigned to a specific project
   async getClientsNotInProject(projectId: number): Promise<User[]> {
     // First get all clients
     const allClients = await this.getAllClients();
-    
+
     // Get all client IDs already assigned to this project
     const clientProjectAssignments = await db
       .select({ clientId: clientProjects.clientId })
       .from(clientProjects)
       .where(eq(clientProjects.projectId, projectId));
-    
+
     const assignedClientIds = new Set(clientProjectAssignments.map(cp => cp.clientId));
-    
+
     // Filter out clients that are already assigned to this project
     return allClients.filter(client => !assignedClientIds.has(client.id));
   }
-  
+
   async deleteUser(id: number): Promise<void> {
     // Delete all client-project associations first
     await db
       .delete(clientProjects)
       .where(eq(clientProjects.clientId, id));
-      
+
     // Now delete the user
     await db
       .delete(users)
       .where(eq(users.id, id));
   }
+
+  // --- NEW: Client search method ---
+  async searchClients(query: string): Promise<User[]> {
+    if (!query) {
+      return [];
+    }
+    const searchTerm = `%${query.toLowerCase()}%`;
+    // Search by first name, last name, or email, only for users with 'client' role
+    return await db.select()
+      .from(users)
+      .where(
+        and(
+          eq(users.role, "client"),
+          or(
+            ilike(users.firstName, searchTerm),
+            ilike(users.lastName, searchTerm),
+            ilike(users.email, searchTerm)
+          )
+        )
+      )
+      .limit(10); // Limit results for performance
+  }
+  // --- END NEW ---
 
   // Project methods
   async getProject(id: number): Promise<Project | undefined> {
@@ -211,22 +238,62 @@ export class DatabaseStorage implements IStorage {
       .from(clientProjects)
       .innerJoin(projects, eq(clientProjects.projectId, projects.id))
       .where(eq(clientProjects.clientId, clientId));
-    
+
     return result.map(r => r.project);
   }
 
-  async createProject(project: InsertProject): Promise<Project> {
-    const [newProject] = await db.insert(projects).values(project).returning();
+  // --- FIXED createProject ---
+  async createProject(projectData: InsertProject): Promise<Project> {
+    // Convert date strings (if they exist and are strings) back to Date objects for Drizzle
+    const dataToInsert = {
+      ...projectData,
+      startDate: projectData.startDate && typeof projectData.startDate === 'string'
+                   ? new Date(projectData.startDate)
+                   : projectData.startDate, // Pass if already Date or undefined
+      estimatedCompletionDate: projectData.estimatedCompletionDate && typeof projectData.estimatedCompletionDate === 'string'
+                                 ? new Date(projectData.estimatedCompletionDate)
+                                 : projectData.estimatedCompletionDate, // Pass if already Date or undefined
+      actualCompletionDate: projectData.actualCompletionDate && typeof projectData.actualCompletionDate === 'string'
+                              ? new Date(projectData.actualCompletionDate)
+                              : projectData.actualCompletionDate, // Pass if already Date or undefined
+      // Ensure totalBudget is number (should be handled by frontend validation + parsing)
+      totalBudget: typeof projectData.totalBudget === 'string'
+                     ? parseFloat(projectData.totalBudget) // Assume it's clean numeric string
+                     : projectData.totalBudget,
+    };
+
+    // Now insert the data with Date objects (or undefined)
+    const [newProject] = await db.insert(projects).values(dataToInsert).returning();
     return newProject;
   }
 
-  async updateProject(id: number, project: InsertProject): Promise<Project | undefined> {
+  // --- FIXED updateProject ---
+  async updateProject(id: number, projectData: Partial<InsertProject>): Promise<Project | undefined> {
+     // Convert date strings (if they exist and are strings) back to Date objects for Drizzle
+     const dataToSet = {
+      ...projectData,
+      // Only convert if the field is present in the partial update AND is a string
+      startDate: (projectData.startDate && typeof projectData.startDate === 'string')
+                   ? new Date(projectData.startDate)
+                   : projectData.startDate, // Pass original if Date/undefined/not present
+      estimatedCompletionDate: (projectData.estimatedCompletionDate && typeof projectData.estimatedCompletionDate === 'string')
+                                 ? new Date(projectData.estimatedCompletionDate)
+                                 : projectData.estimatedCompletionDate,
+      actualCompletionDate: (projectData.actualCompletionDate && typeof projectData.actualCompletionDate === 'string')
+                              ? new Date(projectData.actualCompletionDate)
+                              : projectData.actualCompletionDate,
+       // Ensure totalBudget is number if present
+       totalBudget: (projectData.totalBudget !== undefined && typeof projectData.totalBudget === 'string')
+                      ? parseFloat(projectData.totalBudget) // Assume it's clean numeric string
+                      : projectData.totalBudget,
+    };
+
     const [updatedProject] = await db
       .update(projects)
-      .set(project)
+      .set(dataToSet) // Use the object with potentially converted Date objects
       .where(eq(projects.id, id))
       .returning();
-    
+
     return updatedProject;
   }
 
@@ -236,7 +303,7 @@ export class DatabaseStorage implements IStorage {
       .insert(clientProjects)
       .values({ clientId, projectId })
       .returning();
-    
+
     return clientProject;
   }
 
@@ -250,10 +317,10 @@ export class DatabaseStorage implements IStorage {
           eq(clientProjects.projectId, projectId)
         )
       );
-    
+
     return !!result;
   }
-  
+
   async getProjectManagerProjects(projectManagerId: number): Promise<Project[]> {
     // Find all projects where the user is assigned as project manager
     return await db
@@ -261,7 +328,7 @@ export class DatabaseStorage implements IStorage {
       .from(projects)
       .where(eq(projects.projectManagerId, projectManagerId));
   }
-  
+
   async projectManagerHasProjectAccess(projectManagerId: number, projectId: number): Promise<boolean> {
     // Check if the user is assigned as a project manager for this project
     const [project] = await db
@@ -273,7 +340,7 @@ export class DatabaseStorage implements IStorage {
           eq(projects.projectManagerId, projectManagerId)
         )
       );
-      
+
     return !!project;
   }
 
@@ -281,15 +348,15 @@ export class DatabaseStorage implements IStorage {
   async getAllDocuments(filters?: { startDate?: Date; endDate?: Date }): Promise<Document[]> {
     // Apply filters in JavaScript to avoid complex SQL queries
     const allDocs = await db.select().from(documents).orderBy(desc(documents.createdAt));
-    
+
     if (!filters || (!filters.startDate && !filters.endDate)) {
       return allDocs;
     }
-    
+
     // Filter documents by date range in JavaScript
     return allDocs.filter(doc => {
       const docDate = new Date(doc.createdAt);
-      
+
       // Filter by start date if provided
       if (filters.startDate) {
         const startDate = new Date(filters.startDate);
@@ -297,7 +364,7 @@ export class DatabaseStorage implements IStorage {
           return false;
         }
       }
-      
+
       // Filter by end date if provided
       if (filters.endDate) {
         const endDate = new Date(filters.endDate);
@@ -307,13 +374,13 @@ export class DatabaseStorage implements IStorage {
           return false;
         }
       }
-      
+
       return true;
     });
   }
-  
+
   async getProjectDocuments(
-    projectId: number, 
+    projectId: number,
     filters?: { startDate?: Date; endDate?: Date }
   ): Promise<Document[]> {
     // First get all documents for the project
@@ -322,15 +389,15 @@ export class DatabaseStorage implements IStorage {
       .from(documents)
       .where(eq(documents.projectId, projectId))
       .orderBy(desc(documents.createdAt));
-    
+
     if (!filters || (!filters.startDate && !filters.endDate)) {
       return projectDocs;
     }
-    
+
     // Filter documents by date range in JavaScript
     return projectDocs.filter(doc => {
       const docDate = new Date(doc.createdAt);
-      
+
       // Filter by start date if provided
       if (filters.startDate) {
         const startDate = new Date(filters.startDate);
@@ -338,7 +405,7 @@ export class DatabaseStorage implements IStorage {
           return false;
         }
       }
-      
+
       // Filter by end date if provided
       if (filters.endDate) {
         const endDate = new Date(filters.endDate);
@@ -348,7 +415,7 @@ export class DatabaseStorage implements IStorage {
           return false;
         }
       }
-      
+
       return true;
     });
   }
@@ -358,7 +425,7 @@ export class DatabaseStorage implements IStorage {
       .insert(documents)
       .values(document)
       .returning();
-    
+
     return newDocument;
   }
 
@@ -375,7 +442,7 @@ export class DatabaseStorage implements IStorage {
       .insert(invoices)
       .values(invoice)
       .returning();
-    
+
     return newInvoice;
   }
 
@@ -392,7 +459,7 @@ export class DatabaseStorage implements IStorage {
       .insert(payments)
       .values(payment)
       .returning();
-    
+
     return newPayment;
   }
 
@@ -409,7 +476,7 @@ export class DatabaseStorage implements IStorage {
       .insert(messages)
       .values(message)
       .returning();
-    
+
     return newMessage;
   }
 
@@ -426,7 +493,7 @@ export class DatabaseStorage implements IStorage {
       .insert(progressUpdates)
       .values(update)
       .returning();
-    
+
     return newUpdate;
   }
 
@@ -443,7 +510,7 @@ export class DatabaseStorage implements IStorage {
       .insert(updateMedia)
       .values(media)
       .returning();
-    
+
     return newMedia;
   }
 
@@ -460,7 +527,7 @@ export class DatabaseStorage implements IStorage {
       .insert(milestones)
       .values(milestone)
       .returning();
-    
+
     return newMilestone;
   }
 
@@ -477,20 +544,20 @@ export class DatabaseStorage implements IStorage {
       .insert(selections)
       .values(selection)
       .returning();
-    
+
     return newSelection;
   }
 
   async updateSelectionChoice(id: number, selectedOption: string): Promise<Selection | undefined> {
     const [updatedSelection] = await db
       .update(selections)
-      .set({ 
-        selectedOption, 
+      .set({
+        selectedOption,
         status: "selected"
       })
       .where(eq(selections.id, id))
       .returning();
-    
+
     return updatedSelection;
   }
 }

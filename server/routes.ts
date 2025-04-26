@@ -2,19 +2,21 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { 
-  insertProjectSchema, 
-  insertDocumentSchema, 
-  insertInvoiceSchema, 
-  insertMessageSchema, 
+import {
+  insertProjectSchema,
+  insertDocumentSchema,
+  insertInvoiceSchema,
+  insertMessageSchema,
   insertProgressUpdateSchema,
   insertMilestoneSchema,
-  insertSelectionSchema
+  insertSelectionSchema,
+  User // Added User type import
 } from "@shared/schema";
 import { z } from "zod";
 import { isEmailServiceConfigured, sendMagicLinkEmail } from "./email";
 import { randomBytes, scrypt } from "crypto";
 import { promisify } from "util";
+import { ilike, or } from "drizzle-orm"; // Added ilike, or imports
 
 const scryptAsync = promisify(scrypt);
 
@@ -37,11 +39,11 @@ function isAdmin(req: Request, res: Response, next: Function) {
 // Helper function to check project access based on user role
 async function checkProjectAccess(req: Request, res: Response, projectId: number): Promise<boolean> {
   const user = req.user!;
-  
+
   // Admins can access any project
   if (user.role === "admin") {
     return true;
-  } 
+  }
   // Project managers can only access projects they're assigned to
   else if (user.role === "projectManager") {
     const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
@@ -49,7 +51,7 @@ async function checkProjectAccess(req: Request, res: Response, projectId: number
       res.status(403).json({ message: "You don't have access to this project" });
       return false;
     }
-  } 
+  }
   // Clients can only access projects they're assigned to
   else if (user.role === "client") {
     const hasAccess = await storage.clientHasProjectAccess(user.id, projectId);
@@ -58,37 +60,37 @@ async function checkProjectAccess(req: Request, res: Response, projectId: number
       return false;
     }
   }
-  
+
   return true;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
-  
+
   // Password reset endpoints
   // 1. Request a password reset link
   app.post("/api/password-reset-request", async (req, res) => {
     try {
       const { email } = req.body;
-      
+
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
       }
-      
+
       // Find user by email
       const user = await storage.getUserByEmail(email);
-      
+
       // If user exists, send reset email
       if (user) {
         // Generate token and expiry
         const token = randomBytes(32).toString('hex');
         const expiry = new Date();
         expiry.setHours(expiry.getHours() + 24); // Token valid for 24 hours
-        
+
         // Save token to user record
         await storage.updateUserMagicLinkToken(user.id, token, expiry);
-        
+
         // Send reset email with magic link
         if (isEmailServiceConfigured()) {
           await sendMagicLinkEmail({
@@ -101,39 +103,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[DEV] Password reset link: /reset-password/${token}`);
         }
       }
-      
+
       // Always return success for security, even if user doesn't exist
-      res.status(200).json({ 
-        message: "If an account exists with that email, a password reset link has been sent." 
+      res.status(200).json({
+        message: "If an account exists with that email, a password reset link has been sent."
       });
     } catch (error) {
       console.error("Error requesting password reset:", error);
       // Still return success for security
-      res.status(200).json({ 
-        message: "If an account exists with that email, a password reset link has been sent." 
+      res.status(200).json({
+        message: "If an account exists with that email, a password reset link has been sent."
       });
     }
   });
-  
+
   // 2. Verify a password reset token
   app.get("/api/verify-reset-token/:token", async (req, res) => {
     try {
       const { token } = req.params;
-      
+
       if (!token) {
         return res.status(400).json({ message: "Token is required" });
       }
-      
+
       // Find user with this token
       const user = await storage.getUserByMagicLinkToken(token);
-      
+
       // Check if user exists and token is not expired
       if (!user || !user.magicLinkExpiry || new Date(user.magicLinkExpiry) < new Date()) {
         return res.status(400).json({ message: "Invalid or expired token" });
       }
-      
+
       // Token is valid
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Token is valid",
         userId: user.id
       });
@@ -142,37 +144,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to verify token" });
     }
   });
-  
+
   // 3. Reset password with token
   app.post("/api/reset-password", async (req, res) => {
     try {
       const { token, password } = req.body;
-      
+
       if (!token || !password) {
         return res.status(400).json({ message: "Token and password are required" });
       }
-      
+
       // Find user with this token
       const user = await storage.getUserByMagicLinkToken(token);
-      
+
       // Check if user exists and token is not expired
       if (!user || !user.magicLinkExpiry || new Date(user.magicLinkExpiry) < new Date()) {
         return res.status(400).json({ message: "Invalid or expired token" });
       }
-      
+
       // Hash the new password
       const salt = randomBytes(16).toString("hex");
       const buf = (await scryptAsync(password, salt, 64)) as Buffer;
       const hashedPassword = `${buf.toString("hex")}.${salt}`;
-      
+
       // Update user's password and clear the token
-      await storage.updateUser(user.id, { 
+      await storage.updateUser(user.id, {
         password: hashedPassword
       });
-      
+
       // Clear the magic link token
       await storage.updateUserMagicLinkToken(user.id, null, null);
-      
+
       res.status(200).json({ message: "Password has been reset successfully" });
     } catch (error) {
       console.error("Error resetting password:", error);
@@ -197,32 +199,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tokenExpiry: user.magicLinkExpiry,
             resetLink: `/reset-password/${user.magicLinkToken}`
           }));
-        
+
         res.json(resetTokens);
       } catch (error) {
         console.error("Error fetching reset tokens:", error);
         res.status(500).json({ message: "Error fetching reset tokens" });
       }
     });
-    
+
     // Route to create an admin user
     app.post("/api/dev/create-admin", async (req, res) => {
       try {
         // Hash password
         const crypto = await import('crypto');
         const scrypt = (await import('util')).promisify(crypto.scrypt);
-        
+
         // Generate salt and hash password
         const salt = crypto.randomBytes(16).toString("hex");
         const buf = (await scrypt("admin123", salt, 64)) as Buffer;
         const hashedPassword = `${buf.toString("hex")}.${salt}`;
-        
+
         // Check if admin user already exists
         const existingAdmin = await storage.getUserByUsername("admin");
-        
+
         if (existingAdmin) {
-          return res.status(200).json({ 
-            message: "Admin user already exists", 
+          return res.status(200).json({
+            message: "Admin user already exists",
             user: {
               id: existingAdmin.id,
               username: existingAdmin.username,
@@ -231,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
         }
-        
+
         // Create admin user
         const adminUser = await storage.createUser({
           username: "admin",
@@ -244,7 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           magicLinkExpiry: null,
           isActivated: true
         });
-        
+
         // Return success response without sensitive data
         res.status(201).json({
           message: "Admin user created successfully",
@@ -267,7 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user!;
       let projects;
-      
+
       if (user.role === "admin") {
         // Admins can see all projects
         projects = await storage.getAllProjects();
@@ -278,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Clients can only see their assigned projects
         projects = await storage.getClientProjects(user.id);
       }
-      
+
       res.json(projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
@@ -323,12 +325,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // --- MODIFIED: Create Project Route ---
   app.post("/api/projects", isAdmin, async (req, res) => {
     try {
       console.log("Received project data:", req.body);
-      const projectData = insertProjectSchema.parse(req.body);
-      console.log("Validated project data:", projectData);
+      // The schema now includes optional clientIds
+      const projectDataWithClients = insertProjectSchema.parse(req.body);
+      console.log("Validated project data:", projectDataWithClients);
+
+      // Separate clientIds from project data for insertion
+      const { clientIds, ...projectData } = projectDataWithClients;
+
+      // Create the project first
       const newProject = await storage.createProject(projectData);
+
+      // If clientIds are provided and the project was created, assign clients
+      if (clientIds && clientIds.length > 0 && newProject) {
+        try {
+          for (const clientId of clientIds) {
+            // Check if the user is actually a client before assigning
+            const clientUser = await storage.getUser(clientId);
+            if (clientUser && clientUser.role === 'client') {
+               await storage.assignClientToProject(clientId, newProject.id);
+            } else {
+               console.warn(`Attempted to assign non-client user ID ${clientId} to project ${newProject.id}`);
+            }
+          }
+          console.log(`Assigned ${clientIds.length} clients to project ${newProject.id}`);
+        } catch (assignError) {
+          console.error(`Error assigning clients to project ${newProject.id}:`, assignError);
+          // Decide if you want to return an error or just warn and continue
+          // For now, we'll return the project but maybe add a warning later
+        }
+      }
+
       res.status(201).json(newProject);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -339,6 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create project" });
     }
   });
+  // --- END MODIFIED ---
 
   app.put("/api/projects/:id", isAdmin, async (req, res) => {
     try {
@@ -348,15 +379,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("Received edit project data:", req.body);
-      const projectData = insertProjectSchema.parse(req.body);
+      // Use the schema to parse, but remember clientIds might not be editable here directly
+      const { clientIds, ...projectData } = insertProjectSchema.parse(req.body);
       console.log("Validated edit project data:", projectData);
-      
+
       const updatedProject = await storage.updateProject(projectId, projectData);
-      
+
       if (!updatedProject) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
+      // Note: Client assignment editing is handled separately for now.
+
       res.json(updatedProject);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -372,11 +406,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/client-projects", isAdmin, async (req, res) => {
     try {
       const { clientId, projectId } = req.body;
-      
+
       if (!clientId || !projectId) {
         return res.status(400).json({ message: "Client ID and Project ID are required" });
       }
-      
+
       const clientProject = await storage.assignClientToProject(clientId, projectId);
       res.status(201).json(clientProject);
     } catch (error) {
@@ -384,23 +418,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to assign client to project" });
     }
   });
-  
+
   // Client-project association routes (for project managers)
   app.post("/api/projects/:projectId/clients/:clientId", isAuthenticated, async (req, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const clientId = parseInt(req.params.clientId);
       const user = req.user!;
-      
+
       if (isNaN(projectId) || isNaN(clientId)) {
         return res.status(400).json({ message: "Invalid project or client ID" });
       }
-      
+
       // Check if the user is a project manager or admin
       if (user.role !== "projectManager" && user.role !== "admin") {
         return res.status(403).json({ message: "Only project managers or admins can assign clients" });
       }
-      
+
       // If the user is a project manager, verify they have access to this project
       if (user.role === "projectManager") {
         const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
@@ -408,26 +442,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "You don't have access to this project" });
         }
       }
-      
+
       // Check if the client exists and has the client role
       const client = await storage.getUser(clientId);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
+
       if (client.role !== "client") {
         return res.status(400).json({ message: "User is not a client" });
       }
-      
+
       // Check if the project exists
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       // Create client-project association
       const clientProject = await storage.assignClientToProject(clientId, projectId);
-      
+
       res.status(201).json({
         message: "Client assigned to project successfully",
         clientProject
@@ -478,9 +512,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const user = req.user!;
-      
+
       // Check if user has permission to upload documents for this project
       if (user.role === "client") {
         return res.status(403).json({ message: "Clients cannot upload documents" });
@@ -498,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId,
         uploadedById: user.id
       });
-      
+
       const newDocument = await storage.createDocument(documentData);
       res.status(201).json(newDocument);
     } catch (error) {
@@ -542,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         projectId
       });
-      
+
       const newInvoice = await storage.createInvoice(invoiceData);
       res.status(201).json(newInvoice);
     } catch (error) {
@@ -592,7 +626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId,
         senderId: req.user!.id
       });
-      
+
       const newMessage = await storage.createMessage(messageData);
       res.status(201).json(newMessage);
     } catch (error) {
@@ -631,9 +665,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const user = req.user!;
-      
+
       // Check if user has permission to create updates for this project
       if (user.role === "client") {
         return res.status(403).json({ message: "Clients cannot create progress updates" });
@@ -651,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId,
         createdById: user.id
       });
-      
+
       const newUpdate = await storage.createProgressUpdate(updateData);
       res.status(201).json(newUpdate);
     } catch (error) {
@@ -690,9 +724,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const user = req.user!;
-      
+
       // Check if user has permission to create milestones for this project
       if (user.role === "client") {
         return res.status(403).json({ message: "Clients cannot create milestones" });
@@ -709,7 +743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         projectId
       });
-      
+
       const newMilestone = await storage.createMilestone(milestoneData);
       res.status(201).json(newMilestone);
     } catch (error) {
@@ -748,9 +782,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const user = req.user!;
-      
+
       // Check if user has permission to create selections for this project
       if (user.role === "client") {
         return res.status(403).json({ message: "Clients cannot create selections" });
@@ -767,7 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         projectId
       });
-      
+
       const newSelection = await storage.createSelection(selectionData);
       res.status(201).json(newSelection);
     } catch (error) {
@@ -783,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.projectId);
       const selectionId = parseInt(req.params.id);
-      
+
       if (isNaN(projectId) || isNaN(selectionId)) {
         return res.status(400).json({ message: "Invalid project or selection ID" });
       }
@@ -802,7 +836,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedSelection) {
         return res.status(404).json({ message: "Selection not found" });
       }
-      
+
       res.json(updatedSelection);
     } catch (error) {
       console.error("Error updating selection:", error);
@@ -815,60 +849,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user!;
       let documents = [];
-      
+
       // Parse date filters from query params if provided
       const filters: { startDate?: Date; endDate?: Date } = {};
-      
+
       if (req.query.startDate) {
         filters.startDate = new Date(req.query.startDate as string);
       }
-      
+
       if (req.query.endDate) {
         filters.endDate = new Date(req.query.endDate as string);
       }
-      
+
       if (user.role === "admin") {
         // Admins can see all documents
         documents = await storage.getAllDocuments(filters);
       } else if (user.role === "projectManager") {
         // Project managers can only see documents from projects they're assigned to
         const pmProjects = await storage.getProjectManagerProjects(user.id);
-        
+
         if (pmProjects.length === 0) {
           return res.json([]);
         }
-        
+
         // Fetch documents for each project the project manager has access to
         const projectDocuments = await Promise.all(
           pmProjects.map(project => storage.getProjectDocuments(project.id, filters))
         );
-        
+
         // Flatten the array of document arrays
         documents = projectDocuments.flat();
       } else {
         // Clients can only see documents from projects they have access to
         const clientProjects = await storage.getClientProjects(user.id);
-        
+
         if (clientProjects.length === 0) {
           return res.json([]);
         }
-        
+
         // Fetch documents for each project the client has access to
         const projectDocuments = await Promise.all(
           clientProjects.map(project => storage.getProjectDocuments(project.id, filters))
         );
-        
+
         // Flatten the array of document arrays
         documents = projectDocuments.flat();
       }
-      
+
       res.json(documents);
     } catch (error) {
       console.error("Error fetching all documents:", error);
       res.status(500).json({ message: "Failed to fetch documents" });
     }
   });
-  
+
+  // --- NEW: Client Search Route ---
+  app.get("/api/admin/clients/search", isAdmin, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.json([]);
+      }
+      const clients = await storage.searchClients(query);
+      // Sanitize results before sending
+      const sanitizedClients = clients.map(user => {
+         const { password, magicLinkToken, magicLinkExpiry, ...clientData } = user;
+         return clientData;
+      });
+      res.json(sanitizedClients);
+    } catch (error) {
+      console.error("Error searching clients:", error);
+      res.status(500).json({ message: "Failed to search clients" });
+    }
+  });
+  // --- END NEW ---
+
   // User management routes (admin only)
   app.get("/api/users", isAdmin, async (req, res) => {
     try {
@@ -879,7 +934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
-  
+
   // Get all project managers (admin only)
   app.get("/api/project-managers", isAdmin, async (req, res) => {
     try {
@@ -910,17 +965,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = `${buf.toString("hex")}.${salt}`;
 
       // Update the user's password
-      const user = await storage.updateUser(userId, { 
-        password: hashedPassword 
+      const user = await storage.updateUser(userId, {
+        password: hashedPassword
       });
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      res.json({ 
-        success: true, 
-        message: "Password reset successful" 
+      res.json({
+        success: true,
+        message: "Password reset successful"
       });
     } catch (error) {
       console.error("Error resetting password:", error);
@@ -950,31 +1005,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Delete the user
       await storage.deleteUser(userId);
 
-      res.json({ 
-        success: true, 
-        message: "User deleted successfully" 
+      res.json({
+        success: true,
+        message: "User deleted successfully"
       });
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
-  
+
   // Get client-project assignments - admin only
   // Check email service configuration status - admin only
   app.get("/api/admin/email-config", isAdmin, (req, res) => {
     res.json({ configured: isEmailServiceConfigured() });
   });
-  
+
   // Project manager specific routes
   app.get("/api/project-manager/projects", isAuthenticated, async (req, res) => {
     try {
       const user = req.user!;
-      
+
       if (user.role !== "projectManager" && user.role !== "admin") {
         return res.status(403).json({ message: "Only project managers can access this endpoint" });
       }
-      
+
       let projects;
       if (user.role === "admin") {
         // Admins can see all projects
@@ -983,35 +1038,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Project managers can only see their assigned projects
         projects = await storage.getProjectManagerProjects(user.id);
       }
-      
+
       res.json(projects);
     } catch (error) {
       console.error("Error fetching project manager projects:", error);
       res.status(500).json({ message: "Failed to fetch projects" });
     }
   });
-  
+
   // Get available clients to assign to a project (for project managers)
   app.get("/api/projects/:projectId/available-clients", isAuthenticated, async (req, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const user = req.user!;
-      
+
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       // Check if the user is a project manager or admin
       if (user.role !== "projectManager" && user.role !== "admin") {
         return res.status(403).json({ message: "Only project managers or admins can access this endpoint" });
       }
-      
+
       // Check if the project exists
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       // If user is a project manager, verify they have access to this project
       if (user.role === "projectManager") {
         const hasAccess = await storage.projectManagerHasProjectAccess(user.id, projectId);
@@ -1019,10 +1074,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "You don't have access to this project" });
         }
       }
-      
+
       // Get clients not yet assigned to this project
       const availableClients = await storage.getClientsNotInProject(projectId);
-      
+
       res.json(availableClients);
     } catch (error) {
       console.error("Error fetching available clients:", error);
@@ -1036,18 +1091,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(clientId)) {
         return res.status(400).json({ message: "Invalid client ID" });
       }
-      
+
       // Check if client exists
       const client = await storage.getUser(clientId);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
+
       // Only get projects for users with client role
       if (client.role !== "client") {
         return res.status(400).json({ message: "User is not a client" });
       }
-      
+
       const projects = await storage.getClientProjects(clientId);
       res.json(projects);
     } catch (error) {
@@ -1055,7 +1110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch client projects" });
     }
   });
-  
+
   // Assign project manager to project
   app.post("/api/admin/projects/:projectId/project-manager", isAdmin, async (req, res) => {
     try {
@@ -1063,38 +1118,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const { projectManagerId } = req.body;
       if (!projectManagerId || isNaN(parseInt(projectManagerId))) {
         return res.status(400).json({ message: "Valid project manager ID is required" });
       }
-      
+
       // Check if project exists
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
+
       // Check if project manager exists and has the correct role
       const projectManager = await storage.getUser(parseInt(projectManagerId));
       if (!projectManager) {
         return res.status(404).json({ message: "Project manager not found" });
       }
-      
+
       if (projectManager.role !== "projectManager" && projectManager.role !== "admin") {
         return res.status(400).json({ message: "User is not a project manager" });
       }
-      
+
       // Update the project with the new project manager
       const updatedProject = await storage.updateProject(projectId, {
         ...project,
         projectManagerId: parseInt(projectManagerId)
       });
-      
+
       if (!updatedProject) {
         return res.status(500).json({ message: "Failed to assign project manager" });
       }
-      
+
       res.status(200).json({
         message: "Project manager assigned successfully",
         project: updatedProject

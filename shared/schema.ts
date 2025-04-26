@@ -163,14 +163,17 @@ export const insertProjectSchema = createInsertSchema(projects)
   })
   .extend({
     // Allow strings for ISO dates to be converted to Date objects
-    startDate: z.union([z.string().datetime(), z.date()]).optional(),
-    estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional(),
-    actualCompletionDate: z.union([z.string().datetime(), z.date()]).optional(),
+    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(), // Allow nullable for optional dates
+    estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+    actualCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
     // Allow numbers or strings for budget to handle different formats
     totalBudget: z.union([
-      z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))),
-      z.number()
-    ])
+      z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Budget must be a positive number" }),
+      z.number().min(1, "Budget must be a positive number")
+    ]),
+    // --- NEW: Add clientIds for frontend validation ---
+    clientIds: z.array(z.number()).optional(),
+    // --- END NEW ---
   });
 
 export const insertClientProjectSchema = createInsertSchema(clientProjects).omit({

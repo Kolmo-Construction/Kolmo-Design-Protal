@@ -1,11 +1,11 @@
-import { useState } from "react";
+import React, { useState } from "react"; // Added React import
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
-import { 
-  Project, 
-  InsertProject, 
+import {
+  Project,
+  InsertProject,
   User,
   insertProjectSchema
 } from "@shared/schema";
@@ -25,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
 import {
   Dialog,
   DialogContent,
@@ -34,7 +33,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
 import {
   Card,
   CardContent,
@@ -42,7 +40,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
 import {
   Form,
   FormControl,
@@ -52,7 +49,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-
 import {
   Select,
   SelectContent,
@@ -60,13 +56,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-
 import {
   Building2,
   CalendarIcon,
@@ -76,33 +70,46 @@ import {
   RotateCw,
   Search,
   Users,
-  X
+  X,
+  Check, // Added Check
+  ChevronsUpDown // Added ChevronsUpDown
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+// --- NEW --- Import Command components
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+// --- END NEW ---
 
 // Extend the project schema for form validation
 const projectFormSchema = insertProjectSchema
   .extend({
-    startDate: z.union([z.date(), z.string()]).optional(),
-    estimatedCompletionDate: z.union([z.date(), z.string()]).optional(),
-    actualCompletionDate: z.union([z.date(), z.string()]).optional(),
+    startDate: z.union([z.date(), z.string()]).optional().nullable(), // Made nullable for optional
+    estimatedCompletionDate: z.union([z.date(), z.string()]).optional().nullable(), // Made nullable for optional
+    actualCompletionDate: z.union([z.date(), z.string()]).optional().nullable(), // Made nullable for optional
     totalBudget: z.union([
       z.string().min(1, "Budget is required").refine(
-        (val) => !isNaN(Number(val)) && Number(val) > 0,
+        (val) => !isNaN(parseFloat(val.replace(/[^0-9.]/g, ''))) && parseFloat(val.replace(/[^0-9.]/g, '')) > 0,
         { message: "Budget must be a positive number" }
       ),
       z.number().min(1, "Budget must be a positive number")
     ]),
     projectManagerId: z.union([
       z.number().positive("Project manager ID must be positive"),
-      z.string().transform((val) => val === "" ? undefined : parseInt(val, 10)),
+      z.string().transform((val) => val === "" || val === "none" ? undefined : parseInt(val, 10)).refine(val => val === undefined || !isNaN(val), { message: "Invalid number" }), // Handle "none" and empty string
       z.undefined()
     ]).optional(),
     description: z.string().optional().or(z.literal('')),
     imageUrl: z.string().optional().or(z.literal('')),
     progress: z.number().optional().default(0),
+    clientIds: z.array(z.number()).optional(), // Added clientIds
   });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
@@ -117,6 +124,11 @@ export default function ProjectManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [, navigate] = useLocation();
+
+  // --- NEW --- State for client combobox
+  const [clientSearchQuery, setClientSearchQuery] = React.useState("");
+  const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
+  // --- END NEW ---
 
   // Redirect if not an admin
   if (user && user.role !== "admin") {
@@ -144,6 +156,21 @@ export default function ProjectManagement() {
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
+  // --- NEW --- Fetch clients based on search query
+  const { data: searchedClients = [], isLoading: isLoadingSearchedClients } = useQuery<User[]>({
+    queryKey: ["/api/admin/clients/search", clientSearchQuery],
+    queryFn: async ({ queryKey }) => {
+      const [, query] = queryKey;
+      if (!query) return [];
+      const res = await apiRequest("GET", `/api/admin/clients/search?q=${encodeURIComponent(query as string)}`);
+      return res.json();
+    },
+    enabled: !!clientSearchQuery && clientPopoverOpen, // Only run query when popover is open and there's a search term
+    staleTime: 300000, // Cache results for 5 minutes
+  });
+  // --- END NEW ---
+
+
   // Create project mutation
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectFormValues) => {
@@ -157,7 +184,7 @@ export default function ProjectManagement() {
         title: "Project created",
         description: "New project has been successfully created.",
       });
-    },
+     },
     onError: (error: Error) => {
       toast({
         title: "Failed to create project",
@@ -170,7 +197,9 @@ export default function ProjectManagement() {
   // Edit project mutation
   const editProjectMutation = useMutation({
     mutationFn: async (data: { id: number; project: ProjectFormValues }) => {
-      const res = await apiRequest("PUT", `/api/projects/${data.id}`, data.project);
+       // Exclude clientIds from the payload sent for editing if it's not meant to be edited here
+       const { clientIds, ...projectDataToUpdate } = data.project;
+      const res = await apiRequest("PUT", `/api/projects/${data.id}`, projectDataToUpdate);
       return await res.json();
     },
     onSuccess: () => {
@@ -206,8 +235,9 @@ export default function ProjectManagement() {
       progress: 0,
       projectManagerId: undefined,
       imageUrl: "",
+      clientIds: [], // Added default value
     },
-  });
+   });
 
   // Edit project form
   const editForm = useForm<ProjectFormValues>({
@@ -224,13 +254,13 @@ export default function ProjectManagement() {
       progress: 0,
       projectManagerId: undefined,
       imageUrl: "",
-    },
+      clientIds: [], // Added default value
+     },
   });
 
   // Open edit project dialog
   const handleEditProject = (project: Project) => {
     setSelectedProject(project);
-    
     // Set form values
     editForm.reset({
       name: project.name,
@@ -240,15 +270,15 @@ export default function ProjectManagement() {
       state: project.state,
       zipCode: project.zipCode,
       status: project.status,
-      totalBudget: project.totalBudget.toString(),
+      totalBudget: project.totalBudget?.toString() || "", // Ensure it's a string for the form
       progress: project.progress || 0,
       imageUrl: project.imageUrl || "",
       startDate: project.startDate ? new Date(project.startDate) : undefined,
       estimatedCompletionDate: project.estimatedCompletionDate ? new Date(project.estimatedCompletionDate) : undefined,
       actualCompletionDate: project.actualCompletionDate ? new Date(project.actualCompletionDate) : undefined,
       projectManagerId: project.projectManagerId || undefined,
+      clientIds: [], // Populate this if client assignments are fetched for editing
     });
-    
     setIsEditDialogOpen(true);
   };
 
@@ -265,46 +295,40 @@ export default function ProjectManagement() {
       actualCompletionDate: values.actualCompletionDate ? new Date(values.actualCompletionDate).toISOString() : undefined,
       // Ensure optional projectManagerId is number or undefined
       projectManagerId: values.projectManagerId ? Number(values.projectManagerId) : undefined,
+      clientIds: values.clientIds || [], // Include clientIds
     };
-    
+
     // Validate the formatted number just in case
     if (isNaN(formattedValues.totalBudget) || formattedValues.totalBudget <= 0) {
       createForm.setError("totalBudget", { type: "manual", message: "Invalid budget amount." });
       return;
     }
-    
-    console.log("Submitting formatted values:", formattedValues); // Log formatted values
+
+    console.log("Submitting formatted values with clients:", formattedValues); // Log formatted values
     createProjectMutation.mutate(formattedValues); // Submit cleaned data
   };
 
   // Handle edit project submission
   const onEditSubmit = (values: ProjectFormValues) => {
     if (!selectedProject) return;
-    
     // Clean and format data BEFORE submitting
+    const { clientIds, ...restValues } = values; // Exclude clientIds if not editing assignments here
     const formattedValues = {
-      ...values,
-      // Remove '$', ',', spaces and convert to number
-      totalBudget: parseFloat(String(values.totalBudget).replace(/[^0-9.]/g, '')),
-      // Format dates to ISO strings (or ensure they are Date objects if backend handles them)
-      startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
-      estimatedCompletionDate: values.estimatedCompletionDate ? new Date(values.estimatedCompletionDate).toISOString() : undefined,
-      actualCompletionDate: values.actualCompletionDate ? new Date(values.actualCompletionDate).toISOString() : undefined,
-      // Ensure optional projectManagerId is number or undefined
-      projectManagerId: values.projectManagerId ? Number(values.projectManagerId) : undefined,
+        ...restValues,
+        totalBudget: parseFloat(String(values.totalBudget).replace(/[^0-9.]/g, '')),
+        startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
+        estimatedCompletionDate: values.estimatedCompletionDate ? new Date(values.estimatedCompletionDate).toISOString() : undefined,
+        actualCompletionDate: values.actualCompletionDate ? new Date(values.actualCompletionDate).toISOString() : undefined,
+        projectManagerId: values.projectManagerId ? Number(values.projectManagerId) : undefined,
     };
-    
-    // Validate the formatted number just in case
     if (isNaN(formattedValues.totalBudget) || formattedValues.totalBudget <= 0) {
-      editForm.setError("totalBudget", { type: "manual", message: "Invalid budget amount." });
-      return;
+        editForm.setError("totalBudget", { type: "manual", message: "Invalid budget amount." });
+        return;
     }
-    
-    console.log("Submitting edited values:", formattedValues); // Log formatted values
-    
+    console.log("Submitting edited values:", formattedValues);
     editProjectMutation.mutate({
-      id: selectedProject.id,
-      project: formattedValues // Submit cleaned data
+        id: selectedProject.id,
+        project: formattedValues // Submit cleaned data
     });
   };
 
@@ -318,18 +342,17 @@ export default function ProjectManagement() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "planning":
-        return <Badge className="bg-accent-600">{getStatusLabel(status)}</Badge>;
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">{getStatusLabel(status)}</Badge>;
       case "in_progress":
-        return <Badge className="bg-primary-600">{getStatusLabel(status)}</Badge>;
+        return <Badge variant="outline" className="bg-primary-100 text-primary-800 border-primary-300">{getStatusLabel(status)}</Badge>;
       case "on_hold":
-        return <Badge className="bg-yellow-500">{getStatusLabel(status)}</Badge>;
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">{getStatusLabel(status)}</Badge>;
       case "completed":
-        return <Badge className="bg-green-600">{getStatusLabel(status)}</Badge>;
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">{getStatusLabel(status)}</Badge>;
       default:
         return <Badge>{getStatusLabel(status)}</Badge>;
     }
   };
-
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "planning":
@@ -344,17 +367,15 @@ export default function ProjectManagement() {
         return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
-
   // Filter projects based on status and search query
   const filteredProjects = projects.filter(project => {
     const matchesStatus = statusFilter === "all" || project.status === statusFilter;
-    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           project.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           project.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           project.state.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
-
   return (
     <div className="flex h-screen bg-slate-50">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
@@ -365,15 +386,15 @@ export default function ProjectManagement() {
           <div>
             <h1 className="text-2xl font-bold text-slate-800 mb-2">Project Management</h1>
             <p className="text-slate-600">Create, edit and manage construction projects</p>
-          </div>
-          <Button 
+           </div>
+          <Button
             onClick={() => {
               createForm.reset();
               setIsCreateDialogOpen(true);
             }}
             className="gap-2"
           >
-            <PlusCircle className="h-4 w-4" />
+             <PlusCircle className="h-4 w-4" />
             Create Project
           </Button>
         </div>
@@ -382,58 +403,58 @@ export default function ProjectManagement() {
         <Card className="mb-6">
           <CardContent className="p-4 lg:p-6 flex flex-col sm:flex-row gap-4 items-end">
             <div className="w-full sm:w-1/3">
-              <label className="text-sm font-medium text-slate-500 mb-1 block">Status</label>
+               <label className="text-sm font-medium text-slate-500 mb-1 block">Status</label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
+                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
+                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="on_hold">On Hold</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
+                 </SelectContent>
               </Select>
             </div>
             <div className="w-full sm:w-2/3 relative">
-              <label className="text-sm font-medium text-slate-500 mb-1 block">Search</label>
+               <label className="text-sm font-medium text-slate-500 mb-1 block">Search</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   type="text"
                   placeholder="Search projects by name or address"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
-              </div>
+               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Project List */}
-        <Card>
+         <Card>
           <CardHeader className="px-6">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Projects</CardTitle>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+               <Button
+                variant="outline"
+                size="sm"
                 className="gap-2"
                 onClick={() => refetchProjects()}
               >
-                <RotateCw className="h-4 w-4" />
+                 <RotateCw className="h-4 w-4" />
                 Refresh
               </Button>
             </div>
             <CardDescription>
               All construction and renovation projects
             </CardDescription>
-          </CardHeader>
+           </CardHeader>
           <CardContent className="px-6">
             {projectsLoading ? (
               <div className="flex justify-center py-8">
@@ -446,227 +467,237 @@ export default function ProjectManagement() {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
+                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Budget</TableHead>
-                    <TableHead>Project Manager</TableHead>
+                     <TableHead>Project Manager</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProjects.length > 0 ? (
+                 {filteredProjects.length > 0 ? (
                     filteredProjects.map((project) => (
                       <TableRow key={project.id}>
                         <TableCell className="font-medium">{project.name}</TableCell>
-                        <TableCell>
+                         <TableCell>
                           {project.city}, {project.state}
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(project.status)}
+                           {getStatusBadge(project.status)}
                         </TableCell>
                         <TableCell>
                           ${Number(project.totalBudget).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </TableCell>
+                       </TableCell>
                         <TableCell>
-                          {project.projectManagerId ? (
-                            <Badge variant="outline" className="bg-slate-100">
-                              Assigned
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-slate-50 text-slate-400">
-                              Unassigned
-                            </Badge>
-                          )}
+                          {(() => {
+                            // Find the manager in the fetched list using the ID from the project
+                             const manager = projectManagers?.find(
+                              (pm) => pm.id === project.projectManagerId
+                            );
+                             if (manager) {
+                              // Display the manager's name if found
+                              return `${manager.firstName} ${manager.lastName}`;
+                             } else if (project.projectManagerId) {
+                              // If ID exists but manager not found (e.g., still loading managers)
+                              return <span className="text-slate-400 italic">Loading...</span>;
+                             } else {
+                              // If no projectManagerId is set
+                              return <span className="text-slate-400">Unassigned</span>;
+                             }
+                          })()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
+                           <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleEditProject(project)}
-                            className="gap-1"
+                             className="gap-1"
                           >
                             <PencilIcon className="h-3.5 w-3.5" />
-                            Edit
+                             Edit
                           </Button>
                         </TableCell>
                       </TableRow>
                     ))
-                  ) : (
+                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                         No projects found. Create a new project to get started.
-                      </TableCell>
+                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             )}
-          </CardContent>
+           </CardContent>
         </Card>
       </main>
 
       {/* Create Project Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+          if (!open) createForm.reset(); // Reset form on close
+          setIsCreateDialogOpen(open);
+        }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
             <DialogDescription>
-              Add a new construction or renovation project to the system.
+               Add a new construction or renovation project to the system.
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-6">
+            <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-6 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Project Name */}
-                <FormField
+                 <FormField
                   control={createForm.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project Name*</FormLabel>
+                       <FormLabel>Project Name*</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter project name" {...field} />
                       </FormControl>
-                      <FormMessage />
+                     <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Status */}
-                <FormField
+                 <FormField
                   control={createForm.control}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status*</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
+                       <FormLabel>Status*</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
                         defaultValue={field.value}
-                      >
+                       >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
+                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="planning">Planning</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
+                           <SelectItem value="in_progress">In Progress</SelectItem>
                           <SelectItem value="on_hold">On Hold</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
-                      </Select>
+                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-              
+               </div>
+
               {/* Description */}
               <FormField
                 control={createForm.control}
                 name="description"
                 render={({ field }) => (
-                  <FormItem>
+                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Enter project description" 
-                        {...field} 
+                      <Textarea
+                        placeholder="Enter project description"
+                        {...field}
                         rows={3}
                       />
                     </FormControl>
-                    <FormMessage />
+                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <Separator />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Address */}
                 <FormField
                   control={createForm.control}
                   name="address"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Street Address*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter street address" {...field} />
+                         <Input placeholder="Enter street address" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* City */}
                 <FormField
                   control={createForm.control}
                   name="city"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>City*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter city" {...field} />
+                         <Input placeholder="Enter city" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* State */}
                 <FormField
                   control={createForm.control}
                   name="state"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>State*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter state" {...field} />
+                         <Input placeholder="Enter state" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* Zip Code */}
                 <FormField
                   control={createForm.control}
                   name="zipCode"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Zip Code*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter zip code" {...field} />
+                         <Input placeholder="Enter zip code" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                 />
               </div>
-              
+
               <Separator />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Start Date */}
+                 {/* Start Date */}
                 <FormField
                   control={createForm.control}
                   name="startDate"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                     <FormItem className="flex flex-col">
                       <FormLabel>Start Date</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
-                            <Button
+                             <Button
                               variant={"outline"}
                               className={cn(
-                                "pl-3 text-left font-normal",
+                                 "pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
                               )}
-                            >
+                               >
                               {field.value ? (
                                 format(new Date(field.value), "PPP")
                               ) : (
@@ -674,38 +705,38 @@ export default function ProjectManagement() {
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
-                          </FormControl>
+                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
-                            mode="single"
+                             mode="single"
                             selected={field.value ? new Date(field.value) : undefined}
                             onSelect={field.onChange}
                             initialFocus
                           />
-                        </PopoverContent>
+                         </PopoverContent>
                       </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* Estimated Completion Date */}
                 <FormField
                   control={createForm.control}
                   name="estimatedCompletionDate"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Estimated Completion Date</FormLabel>
                       <Popover>
-                        <PopoverTrigger asChild>
+                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant={"outline"}
-                              className={cn(
+                               className={cn(
                                 "pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
-                              )}
+                               )}
                             >
                               {field.value ? (
                                 format(new Date(field.value), "PPP")
@@ -714,307 +745,385 @@ export default function ProjectManagement() {
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
-                          </FormControl>
+                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
-                            mode="single"
+                             mode="single"
                             selected={field.value ? new Date(field.value) : undefined}
                             onSelect={field.onChange}
                             initialFocus
                           />
-                        </PopoverContent>
+                         </PopoverContent>
                       </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* Total Budget */}
                 <FormField
                   control={createForm.control}
                   name="totalBudget"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Total Budget*</FormLabel>
                       <FormControl>
-                        <div className="relative">
+                         <div className="relative">
                           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
                             $
                           </span>
-                          <Input 
-                            placeholder="Enter budget amount" 
-                            {...field} 
-                            className="pl-7"
+                           <Input
+                            placeholder="Enter budget amount"
+                            {...field}
+                             className="pl-7"
                           />
                         </div>
                       </FormControl>
-                      <FormMessage />
+                     <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Project Manager */}
-                <FormField
+                 <FormField
                   control={createForm.control}
                   name="projectManagerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project Manager</FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(value === "" ? null : parseInt(value))} 
-                        defaultValue={field.value?.toString() || ""}
+                       <FormLabel>Project Manager</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                        defaultValue={field.value?.toString() || "none"}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select project manager" />
+                             <SelectValue placeholder="Select project manager" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                           <SelectItem value="none">None</SelectItem>
                           {projectManagers.map((manager) => (
                             <SelectItem key={manager.id} value={manager.id.toString()}>
                               {manager.firstName} {manager.lastName}
-                            </SelectItem>
+                           </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>
+                       <FormDescription>
                         Optional: Assign a project manager to this project
+                      </FormDescription>
+                      <FormMessage />
+                     </FormItem>
+                  )}
+                />
+
+                 {/* --- NEW: Client Assignment Combobox --- */}
+                <FormField
+                  control={createForm.control}
+                  name="clientIds"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Assign Clients (Optional)</FormLabel>
+                      <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value?.length && "text-muted-foreground"
+                              )}
+                            >
+                               {field.value && field.value.length > 0
+                                ? `${field.value.length} client(s) selected`
+                                : "Select client(s)..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[300px] overflow-y-auto p-0">
+                          <Command shouldFilter={false}> {/* We handle filtering via API */}
+                            <CommandInput
+                              placeholder="Search client name or email..."
+                              value={clientSearchQuery}
+                              onValueChange={setClientSearchQuery} // Update search query state
+                            />
+                             <CommandList>
+                                <CommandEmpty>
+                                  {isLoadingSearchedClients ? "Searching..." : "No clients found."}
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {searchedClients.map((client) => (
+                                    <CommandItem
+                                      value={`${client.firstName} ${client.lastName} (${client.email})`} // Unique value for CMDK
+                                      key={client.id}
+                                      onSelect={() => {
+                                        const currentIds = field.value || [];
+                                        const newIds = currentIds.includes(client.id)
+                                            ? currentIds.filter(id => id !== client.id)
+                                            : [...currentIds, client.id];
+                                        field.onChange(newIds); // Update RHF field value
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          (field.value || []).includes(client.id)
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {client.firstName} {client.lastName} ({client.email})
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                             </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        Select clients to assign to this project upon creation.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+                {/* --- END NEW --- */}
+
+
                 {/* Image URL */}
                 <FormField
-                  control={createForm.control}
+                   control={createForm.control}
                   name="imageUrl"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Image URL</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter image URL" 
-                          {...field} 
+                       <FormControl>
+                        <Input
+                          placeholder="Enter image URL"
+                           {...field}
                         />
                       </FormControl>
                       <FormDescription>
                         Optional: URL to project image
-                      </FormDescription>
+                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Progress */}
                 <FormField
                   control={createForm.control}
                   name="progress"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Progress (%)</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          max="100" 
-                          placeholder="Enter progress percentage" 
-                          {...field} 
+                        <Input
+                           type="number"
+                          min="0"
+                          max="100"
+                           placeholder="Enter progress percentage"
+                          {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         />
-                      </FormControl>
+                       </FormControl>
                       <FormDescription>
                         Optional: Percentage of project completed (0-100)
-                      </FormDescription>
+                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-              
-              <DialogFooter>
+               </div>
+
+              <DialogFooter className="pt-4">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
+                   onClick={() => setIsCreateDialogOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit"
-                  disabled={createProjectMutation.isPending}
+                   disabled={createProjectMutation.isPending}
                 >
                   {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Project
                 </Button>
-              </DialogFooter>
+               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
       {/* Edit Project Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          if (!open) setSelectedProject(null); // Clear selected project on close
+          setIsEditDialogOpen(open);
+        }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
-            <DialogDescription>
+             <DialogDescription>
               Update the details of an existing project.
-            </DialogDescription>
+             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Project Name */}
                 <FormField
-                  control={editForm.control}
+                   control={editForm.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Project Name*</FormLabel>
-                      <FormControl>
+                       <FormControl>
                         <Input placeholder="Enter project name" {...field} />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
+                     </FormItem>
                   )}
                 />
-                
+
                 {/* Status */}
                 <FormField
-                  control={editForm.control}
+                   control={editForm.control}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status*</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                       <Select
+                        onValueChange={field.onChange}
+                        value={field.value} // Use value instead of defaultValue for controlled component
                       >
-                        <FormControl>
+                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
+                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="planning">Planning</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
+                           <SelectItem value="in_progress">In Progress</SelectItem>
                           <SelectItem value="on_hold">On Hold</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
-                      </Select>
+                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-              
+
               {/* Description */}
               <FormField
                 control={editForm.control}
                 name="description"
                 render={({ field }) => (
-                  <FormItem>
+                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Enter project description" 
-                        {...field} 
+                      <Textarea
+                        placeholder="Enter project description"
+                         {...field}
                         rows={3}
                       />
                     </FormControl>
-                    <FormMessage />
+                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <Separator />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Address */}
                 <FormField
                   control={editForm.control}
                   name="address"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Street Address*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter street address" {...field} />
+                         <Input placeholder="Enter street address" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* City */}
                 <FormField
                   control={editForm.control}
                   name="city"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>City*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter city" {...field} />
+                         <Input placeholder="Enter city" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* State */}
                 <FormField
                   control={editForm.control}
                   name="state"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>State*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter state" {...field} />
+                         <Input placeholder="Enter state" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* Zip Code */}
                 <FormField
                   control={editForm.control}
                   name="zipCode"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Zip Code*</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter zip code" {...field} />
+                         <Input placeholder="Enter zip code" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                 />
               </div>
-              
+
               <Separator />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Start Date */}
-                <FormField
+                 <FormField
                   control={editForm.control}
                   name="startDate"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                     <FormItem className="flex flex-col">
                       <FormLabel>Start Date</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
-                            <Button
+                             <Button
                               variant={"outline"}
                               className={cn(
-                                "pl-3 text-left font-normal",
+                                 "pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
                               )}
-                            >
+                               >
                               {field.value ? (
                                 format(new Date(field.value), "PPP")
                               ) : (
@@ -1022,51 +1131,51 @@ export default function ProjectManagement() {
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
-                          </FormControl>
+                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
-                            mode="single"
+                             mode="single"
                             selected={field.value ? new Date(field.value) : undefined}
                             onSelect={field.onChange}
                             initialFocus
                           />
-                          {field.value && (
+                           {field.value && (
                             <div className="p-2 border-t border-border">
                               <Button
-                                variant="ghost"
+                                 variant="ghost"
                                 size="sm"
                                 className="w-full justify-start text-destructive gap-2"
-                                onClick={() => field.onChange(undefined)}
+                                 onClick={() => field.onChange(undefined)}
                               >
                                 <X className="h-4 w-4" />
-                                Clear date
+                                 Clear date
                               </Button>
                             </div>
                           )}
-                        </PopoverContent>
+                         </PopoverContent>
                       </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* Estimated Completion Date */}
                 <FormField
                   control={editForm.control}
-                  name="estimatedCompletionDate"
+                   name="estimatedCompletionDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Estimated Completion Date</FormLabel>
                       <Popover>
-                        <PopoverTrigger asChild>
+                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant={"outline"}
-                              className={cn(
+                               className={cn(
                                 "pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
-                              )}
+                               )}
                             >
                               {field.value ? (
                                 format(new Date(field.value), "PPP")
@@ -1075,51 +1184,51 @@ export default function ProjectManagement() {
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
-                          </FormControl>
+                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
-                            mode="single"
+                             mode="single"
                             selected={field.value ? new Date(field.value) : undefined}
                             onSelect={field.onChange}
                             initialFocus
                           />
-                          {field.value && (
+                           {field.value && (
                             <div className="p-2 border-t border-border">
                               <Button
-                                variant="ghost"
+                                 variant="ghost"
                                 size="sm"
                                 className="w-full justify-start text-destructive gap-2"
-                                onClick={() => field.onChange(undefined)}
+                                 onClick={() => field.onChange(undefined)}
                               >
                                 <X className="h-4 w-4" />
-                                Clear date
+                                 Clear date
                               </Button>
                             </div>
                           )}
-                        </PopoverContent>
+                         </PopoverContent>
                       </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* Actual Completion Date */}
                 <FormField
                   control={editForm.control}
-                  name="actualCompletionDate"
+                   name="actualCompletionDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Actual Completion Date</FormLabel>
                       <Popover>
-                        <PopoverTrigger asChild>
+                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant={"outline"}
-                              className={cn(
+                               className={cn(
                                 "pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
-                              )}
+                               )}
                             >
                               {field.value ? (
                                 format(new Date(field.value), "PPP")
@@ -1128,159 +1237,159 @@ export default function ProjectManagement() {
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
-                          </FormControl>
+                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
-                            mode="single"
+                             mode="single"
                             selected={field.value ? new Date(field.value) : undefined}
                             onSelect={field.onChange}
                             initialFocus
                           />
-                          {field.value && (
+                           {field.value && (
                             <div className="p-2 border-t border-border">
                               <Button
-                                variant="ghost"
+                                 variant="ghost"
                                 size="sm"
                                 className="w-full justify-start text-destructive gap-2"
-                                onClick={() => field.onChange(undefined)}
+                                 onClick={() => field.onChange(undefined)}
                               >
                                 <X className="h-4 w-4" />
-                                Clear date
+                                 Clear date
                               </Button>
                             </div>
                           )}
-                        </PopoverContent>
+                         </PopoverContent>
                       </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                
+                 />
+
                 {/* Total Budget */}
                 <FormField
                   control={editForm.control}
                   name="totalBudget"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Total Budget*</FormLabel>
                       <FormControl>
-                        <div className="relative">
+                         <div className="relative">
                           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
                             $
                           </span>
-                          <Input 
-                            placeholder="Enter budget amount" 
-                            {...field} 
-                            className="pl-7"
+                           <Input
+                            placeholder="Enter budget amount"
+                            {...field}
+                             className="pl-7"
                           />
                         </div>
                       </FormControl>
-                      <FormMessage />
+                     <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Project Manager */}
-                <FormField
+                 <FormField
                   control={editForm.control}
                   name="projectManagerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project Manager</FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(value === "" ? null : parseInt(value))} 
-                        value={field.value?.toString() || ""}
+                       <FormLabel>Project Manager</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                        value={field.value?.toString() || "none"} // Ensure value is string or undefined
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select project manager" />
+                             <SelectValue placeholder="Select project manager" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                           <SelectItem value="none">None</SelectItem>
                           {projectManagers.map((manager) => (
                             <SelectItem key={manager.id} value={manager.id.toString()}>
                               {manager.firstName} {manager.lastName}
-                            </SelectItem>
+                           </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>
+                       <FormDescription>
                         Optional: Assign a project manager to this project
                       </FormDescription>
                       <FormMessage />
-                    </FormItem>
+                     </FormItem>
                   )}
                 />
-                
+
                 {/* Image URL */}
                 <FormField
-                  control={editForm.control}
+                   control={editForm.control}
                   name="imageUrl"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Image URL</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter image URL" 
-                          {...field} 
+                       <FormControl>
+                        <Input
+                          placeholder="Enter image URL"
+                           {...field}
                           value={field.value || ""}
                         />
                       </FormControl>
                       <FormDescription>
                         Optional: URL to project image
-                      </FormDescription>
+                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Progress */}
                 <FormField
                   control={editForm.control}
                   name="progress"
-                  render={({ field }) => (
+                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Progress (%)</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          max="100" 
-                          placeholder="Enter progress percentage" 
-                          {...field} 
+                        <Input
+                           type="number"
+                          min="0"
+                          max="100"
+                           placeholder="Enter progress percentage"
+                          {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         />
-                      </FormControl>
+                       </FormControl>
                       <FormDescription>
                         Optional: Percentage of project completed (0-100)
                       </FormDescription>
-                      <FormMessage />
+                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-              
-              <DialogFooter>
-                <Button
+
+              <DialogFooter className="pt-4">
+                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
                     setIsEditDialogOpen(false);
-                    setSelectedProject(null);
+                     setSelectedProject(null);
                   }}
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit"
-                  disabled={editProjectMutation.isPending}
+                   disabled={editProjectMutation.isPending}
                 >
                   {editProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Update Project
                 </Button>
-              </DialogFooter>
+               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
