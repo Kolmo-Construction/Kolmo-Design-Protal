@@ -7,7 +7,7 @@ import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetails from "@/pages/ProjectDetails";
-import ProjectManagement from "@/pages/project-management";
+import ProjectManagement from "@/pages/ProjectManagement";
 import Documents from "@/pages/documents";
 import Financials from "@/pages/financials";
 import Messages from "@/pages/messages";
