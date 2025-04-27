@@ -554,71 +554,115 @@ dailyLogRouter.get("/:logId", async (req: Request<DailyLogParams>, res) => {
 
 // POST create a new daily log
 dailyLogRouter.post("/", upload.array('photos', 5), async (req, res) => {
+  console.log("Received POST request to create daily log");
+  console.log("Project ID from params:", req.params.projectId);
+  console.log("Request body:", req.body);
+  console.log("Files:", req.files);
+  
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {
+      console.log("Invalid project ID:", req.params.projectId);
       return res.status(400).json({ message: "Invalid project ID" });
     }
 
     // Check if user has access to this project (only admins and project managers can create logs)
     const user = req.user as User;
+    console.log("User from session:", user ? `ID: ${user.id}, Role: ${user.role}` : "No user");
+    
     if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      console.log("Permission denied: User role not admin or projectManager");
       return res.status(403).json({ message: "Only project managers and admins can create daily logs" });
     }
 
     if (!(await checkProjectAccess(req, res, projectId))) {
+      console.log("User doesn't have access to project:", projectId);
       return; // checkProjectAccess handles response
     }
 
-    // The body will be form data due to file uploads, so we need to parse it differently
-    const logData = insertDailyLogSchema.parse({
+    // Log the data before validation
+    console.log("Data before validation:", {
       ...req.body,
-      projectId, // Ensure projectId matches URL param
-      createdById: user.id, // Set the creator to the current user
-      logDate: req.body.logDate ? new Date(req.body.logDate) : new Date() // Parse date
+      projectId,
+      createdById: user.id,
+      logDate: req.body.logDate ? new Date(req.body.logDate) : new Date()
     });
 
-    // Create the daily log
-    const newDailyLog = await storage.createDailyLog(logData);
+    // The body will be form data due to file uploads, so we need to parse it differently
+    try {
+      const logData = insertDailyLogSchema.parse({
+        ...req.body,
+        projectId, // Ensure projectId matches URL param
+        createdById: user.id, // Set the creator to the current user
+        logDate: req.body.logDate ? new Date(req.body.logDate) : new Date() // Parse date
+      });
+      
+      console.log("Validated log data:", logData);
+      
+      // Create the daily log
+      const newDailyLog = await storage.createDailyLog(logData);
+      console.log("Created daily log:", newDailyLog);
 
-    // Handle photo uploads if any
-    const uploadedPhotos = [];
-    if (req.files && Array.isArray(req.files)) {
-      for (const file of req.files) {
-        try {
-          // Upload the file to R2 or your storage service
-          const photoUrl = await uploadToR2(
-            projectId,
-            file.buffer,
-            file.originalname,
-            file.mimetype
-          );
+      // Handle photo uploads if any
+      const uploadedPhotos = [];
+      if (req.files && Array.isArray(req.files)) {
+        console.log(`Processing ${req.files.length} photo uploads`);
+        
+        for (const file of req.files) {
+          try {
+            console.log(`Uploading photo: ${file.originalname}`);
+            // Upload the file to R2 or your storage service
+            const photoUrl = await uploadToR2(
+              projectId,
+              file.buffer,
+              file.originalname,
+              file.mimetype
+            );
+            console.log(`Photo uploaded successfully to: ${photoUrl}`);
 
-          // Create a record for the photo
-          const photo = await storage.addDailyLogPhoto({
-            dailyLogId: newDailyLog.id,
-            photoUrl,
-            caption: file.originalname, // Use filename as caption or get from form
-            uploadedById: user.id
-          });
+            // Create a record for the photo
+            const photo = await storage.addDailyLogPhoto({
+              dailyLogId: newDailyLog.id,
+              photoUrl,
+              caption: file.originalname, // Use filename as caption or get from form
+              uploadedById: user.id
+            });
+            console.log(`Photo record created:`, photo);
 
-          uploadedPhotos.push(photo);
-        } catch (uploadError) {
-          console.error("Error uploading photo:", uploadError);
-          // Continue with other photos even if one fails
+            uploadedPhotos.push(photo);
+          } catch (uploadError) {
+            console.error("Error uploading photo:", uploadError);
+            // Continue with other photos even if one fails
+          }
         }
+      } else {
+        console.log("No photos to upload");
       }
-    }
 
-    res.status(201).json({
-      dailyLog: newDailyLog,
-      photos: uploadedPhotos
-    });
+      const responseData = {
+        dailyLog: newDailyLog,
+        photos: uploadedPhotos
+      };
+      console.log("Sending success response:", responseData);
+      
+      res.status(201).json(responseData);
+    } catch (validationError) {
+      console.error("Validation error:", validationError);
+      if (validationError instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid daily log data", 
+          errors: validationError.errors 
+        });
+      }
+      throw validationError; // Re-throw if not a Zod error
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error("Zod validation error:", error.errors);
       return res.status(400).json({ message: "Invalid daily log data", errors: error.errors });
     }
     if (error instanceof multer.MulterError) {
+      console.error("Multer error:", error);
       return res.status(400).json({ message: "File upload error", error: error.message });
     }
     console.error("Error creating daily log:", error);
