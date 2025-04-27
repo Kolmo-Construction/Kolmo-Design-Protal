@@ -21,6 +21,7 @@ import {
   dailyLogPhotos as dailyLogPhotosTable,
   punchListItems as punchListItemsTable,
   insertTaskSchema,
+  insertTaskDependencySchema,
   insertDailyLogSchema,
   insertPunchListItemSchema
   // --- END ADDED ---
@@ -330,6 +331,136 @@ taskRouter.delete("/:taskId", async (req: Request<TaskParams>, res) => {
   } catch (error) {
     console.error("Error deleting task:", error);
     res.status(500).json({ message: "Failed to delete task" });
+  }
+});
+
+// GET task dependencies
+taskRouter.get("/:taskId/dependencies", async (req: Request<TaskParams>, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const taskId = parseInt(req.params.taskId);
+    
+    if (isNaN(projectId) || isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid project ID or task ID" });
+    }
+
+    // Check if user has access to this project
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Check if the task exists and belongs to this project
+    const existingTask = await storage.getTask(taskId);
+    if (!existingTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    if (existingTask.projectId !== projectId) {
+      return res.status(404).json({ message: "Task not found in this project" });
+    }
+
+    const dependencies = await storage.getTaskDependencies(taskId);
+    res.json(dependencies);
+  } catch (error) {
+    console.error("Error fetching task dependencies:", error);
+    res.status(500).json({ message: "Failed to fetch task dependencies" });
+  }
+});
+
+// POST create a task dependency
+taskRouter.post("/:taskId/dependencies", async (req: Request<TaskParams>, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const taskId = parseInt(req.params.taskId);
+    
+    if (isNaN(projectId) || isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid project ID or task ID" });
+    }
+
+    // Check if user has access (only admins and project managers can create dependencies)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can manage task dependencies" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Check if the successor task exists and belongs to this project
+    const successorTask = await storage.getTask(taskId);
+    if (!successorTask) {
+      return res.status(404).json({ message: "Successor task not found" });
+    }
+    
+    if (successorTask.projectId !== projectId) {
+      return res.status(404).json({ message: "Successor task not found in this project" });
+    }
+
+    // Validate dependency data
+    const dependencyData = insertTaskDependencySchema.parse(req.body);
+    
+    // Ensure the successor ID matches the URL parameter
+    if (dependencyData.successorId !== taskId) {
+      return res.status(400).json({ message: "The successorId must match the task ID in the URL" });
+    }
+    
+    // Check if the predecessor task exists and belongs to the same project
+    const predecessorId = dependencyData.predecessorId;
+    const predecessorTask = await storage.getTask(predecessorId);
+    
+    if (!predecessorTask) {
+      return res.status(404).json({ message: "Predecessor task not found" });
+    }
+    
+    if (predecessorTask.projectId !== projectId) {
+      return res.status(404).json({ message: "Predecessor task not found in this project" });
+    }
+    
+    // Prevent creating a dependency where a task depends on itself
+    if (predecessorId === taskId) {
+      return res.status(400).json({ message: "A task cannot depend on itself" });
+    }
+
+    // Create the dependency
+    const newDependency = await storage.createTaskDependency(dependencyData);
+    res.status(201).json(newDependency);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid dependency data", errors: error.errors });
+    }
+    console.error("Error creating task dependency:", error);
+    res.status(500).json({ message: "Failed to create task dependency" });
+  }
+});
+
+// DELETE a task dependency
+taskRouter.delete("/dependencies/:dependencyId", async (req: Request<ProjectParams & { dependencyId: string }>, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const dependencyId = parseInt(req.params.dependencyId);
+    
+    if (isNaN(projectId) || isNaN(dependencyId)) {
+      return res.status(400).json({ message: "Invalid project ID or dependency ID" });
+    }
+
+    // Check if user has access (only admins and project managers can delete dependencies)
+    const user = req.user as User;
+    if (!user || (user.role !== "admin" && user.role !== "projectManager")) {
+      return res.status(403).json({ message: "Only project managers and admins can manage task dependencies" });
+    }
+
+    if (!(await checkProjectAccess(req, res, projectId))) {
+      return; // checkProjectAccess handles response
+    }
+
+    // Delete the dependency
+    await storage.deleteTaskDependency(dependencyId);
+    
+    res.status(200).json({ message: "Task dependency deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting task dependency:", error);
+    res.status(500).json({ message: "Failed to delete task dependency" });
   }
 });
 
