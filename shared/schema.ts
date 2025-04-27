@@ -250,6 +250,19 @@ export const userRelations = relations(users, ({ many }) => ({
   uploadedUpdateMedia: many(updateMedia),
 }));
 
+// Add missing relation for progress updates
+export const progressUpdateRelations = relations(progressUpdates, ({ one, many }) => ({
+  project: one(projects, { fields: [progressUpdates.projectId], references: [projects.id] }),
+  creator: one(users, { fields: [progressUpdates.createdById], references: [users.id] }),
+  media: many(updateMedia),
+}));
+
+// Add missing relation for update media
+export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
+  update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
+  uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
+}));
+
 export const taskRelations = relations(tasks, ({ one, many }) => ({
   project: one(projects, { fields: [tasks.projectId], references: [projects.id] }),
   assignee: one(users, { fields: [tasks.assigneeId], references: [users.id], relationName: 'Assignee' }),

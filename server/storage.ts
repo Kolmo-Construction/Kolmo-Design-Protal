@@ -584,52 +584,52 @@ export class DatabaseStorage implements IStorage {
 
   // --- ADDED: Daily Log Methods ---
   async getProjectDailyLogs(projectId: number): Promise<DailyLog[]> { // Return basic log first
-    return await db.query.dailyLogsTable.findMany({
-        where: eq(dailyLogsTable.projectId, projectId),
-        orderBy: desc(dailyLogsTable.logDate),
+    return await db.query.dailyLogs.findMany({
+        where: eq(dailyLogs.projectId, projectId),
+        orderBy: desc(dailyLogs.logDate),
         // with: { photos: true, creator: true } // Use 'with' to fetch related photos/creator later
     });
   }
 
   // Example of fetching with photos
   async getProjectDailyLogsWithPhotos(projectId: number): Promise<DailyLogWithPhotos[]> {
-    return await db.query.dailyLogsTable.findMany({
-        where: eq(dailyLogsTable.projectId, projectId),
-        orderBy: desc(dailyLogsTable.logDate),
+    return await db.query.dailyLogs.findMany({
+        where: eq(dailyLogs.projectId, projectId),
+        orderBy: desc(dailyLogs.logDate),
         with: { photos: true }
     });
   }
 
 
   async getDailyLog(logId: number): Promise<DailyLog | undefined> { // Consider with photos
-    return await db.query.dailyLogsTable.findFirst({
-        where: eq(dailyLogsTable.id, logId),
+    return await db.query.dailyLogs.findFirst({
+        where: eq(dailyLogs.id, logId),
         // with: { photos: true, creator: true } // Fetch related data if needed
     });
   }
 
   async createDailyLog(logData: InsertDailyLog): Promise<DailyLog> {
-    const [newLog] = await db.insert(dailyLogsTable).values(logData).returning();
+    const [newLog] = await db.insert(dailyLogs).values(logData).returning();
     return newLog;
   }
 
   async updateDailyLog(logId: number, logData: Partial<InsertDailyLog>): Promise<DailyLog | undefined> {
       // Cannot update 'createdAt' or 'createdById', filter them out if present
       const { createdAt, createdById, ...updateData } = logData;
-      const [updatedLog] = await db.update(dailyLogsTable)
+      const [updatedLog] = await db.update(dailyLogs)
           .set(updateData) // No automatic updatedAt here, add if needed in schema/logic
-          .where(eq(dailyLogsTable.id, logId))
+          .where(eq(dailyLogs.id, logId))
           .returning();
       return updatedLog;
   }
 
   async deleteDailyLog(logId: number): Promise<void> {
     // Schema uses onDelete: 'cascade' for photos, so deleting log deletes photos
-    await db.delete(dailyLogsTable).where(eq(dailyLogsTable.id, logId));
+    await db.delete(dailyLogs).where(eq(dailyLogs.id, logId));
   }
 
   async addDailyLogPhoto(photoData: InsertDailyLogPhoto): Promise<DailyLogPhoto> {
-    const [newPhoto] = await db.insert(dailyLogPhotosTable).values(photoData).returning();
+    const [newPhoto] = await db.insert(dailyLogPhotos).values(photoData).returning();
     return newPhoto;
   }
   // --- END Daily Log Methods ---
@@ -637,22 +637,22 @@ export class DatabaseStorage implements IStorage {
 
   // --- ADDED: Punch List Methods ---
   async getProjectPunchListItems(projectId: number): Promise<PunchListItem[]> {
-    return await db.query.punchListItemsTable.findMany({
-        where: eq(punchListItemsTable.projectId, projectId),
-        orderBy: desc(punchListItemsTable.createdAt),
+    return await db.query.punchListItems.findMany({
+        where: eq(punchListItems.projectId, projectId),
+        orderBy: desc(punchListItems.createdAt),
         // with: { assignee: true, creator: true } // Fetch related data later if needed
     });
   }
 
   async getPunchListItem(itemId: number): Promise<PunchListItem | undefined> {
-     return await db.query.punchListItemsTable.findFirst({
-         where: eq(punchListItemsTable.id, itemId),
+     return await db.query.punchListItems.findFirst({
+         where: eq(punchListItems.id, itemId),
          // with: { assignee: true, creator: true } // Fetch related data if needed
      });
   }
 
   async createPunchListItem(itemData: InsertPunchListItem): Promise<PunchListItem> {
-     const [newItem] = await db.insert(punchListItemsTable).values(itemData).returning();
+     const [newItem] = await db.insert(punchListItems).values(itemData).returning();
      return newItem;
   }
 
@@ -662,19 +662,16 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(), // Always update timestamp
           resolvedAt: itemData.status === 'resolved' || itemData.status === 'verified' ? new Date() : undefined // Set resolvedAt if status indicates resolution
       };
-      // Remove fields that shouldn't be updated directly if necessary
-      delete dataToSet.createdAt;
-      delete dataToSet.createdById;
 
-      const [updatedItem] = await db.update(punchListItemsTable)
+      const [updatedItem] = await db.update(punchListItems)
           .set(dataToSet)
-          .where(eq(punchListItemsTable.id, itemId))
+          .where(eq(punchListItems.id, itemId))
           .returning();
       return updatedItem;
   }
 
   async deletePunchListItem(itemId: number): Promise<void> {
-      await db.delete(punchListItemsTable).where(eq(punchListItemsTable.id, itemId));
+      await db.delete(punchListItems).where(eq(punchListItems.id, itemId));
   }
   // --- END Punch List Methods ---
 
