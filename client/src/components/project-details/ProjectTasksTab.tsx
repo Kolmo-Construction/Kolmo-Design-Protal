@@ -1,11 +1,13 @@
-import React, { useState, useMemo, useCallback } from 'react'; // Added useCallback
+import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Task, InsertTask } from "@shared/schema"; // Import Task and InsertTask types
-import { getQueryFn, apiRequest } from "@/lib/queryClient"; // Import query helpers
+// Use query helpers from queryClient 
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
+// Import Task, InsertTask, and NEW TaskDependency types
+import { Task, InsertTask, TaskDependency } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton"; // For loading state
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // For error state
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -15,89 +17,69 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // Import Alert Dialog for delete confirmation
+} from "@/components/ui/alert-dialog";
 import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast"; // Assuming useToast is set up
-import { CreateTaskDialog } from "./CreateTaskDialog"; // Import the Create dialog
-import { EditTaskDialog } from "./EditTaskDialog"; // Import the Edit dialog
+import { toast } from "@/hooks/use-toast";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { EditTaskDialog } from "./EditTaskDialog";
 
 // Import the Gantt library and its CSS
-// Note: 'Task' alias from Gantt conflicts with schema Task, be mindful or rename schema import
-import { Gantt, Task as GanttTask, EventOption } from "wx-react-gantt"; // Alias Gantt's Task, import EventOption
-import "wx-react-gantt/dist/gantt.css"; // Import its CSS
+import { Gantt, Task as GanttTask } from "wx-react-gantt";
+import "wx-react-gantt/dist/gantt.css";
 
-// Define ViewMode constants since they're not exported from the library
-const ViewMode = {
-  Day: "Day",
-  Week: "Week",
-  Month: "Month"
-};
+// Define ViewMode constants
+const ViewMode = { Day: "Day", Week: "Week", Month: "Month" };
 
-// Define payload for task date update mutation
-type UpdateTaskDatePayload = {
-    taskId: number;
-    startDate: Date;
-    dueDate: Date;
-};
+// Define payload types for mutations
+type UpdateTaskDatePayload = { taskId: number; startDate: Date; dueDate: Date; };
+type UpdateTaskProgressPayload = { taskId: number; progress: number; }; // New payload type
+type CreateDependencyPayload = { predecessorId: number; successorId: number; type?: string }; // New payload type
 
 interface ProjectTasksTabProps {
   projectId: number;
 }
 
-// Helper to format tasks for the Gantt library (handles potentially null dates)
-const formatTasksForGantt = (tasks: Task[]): GanttTask[] => {
+// Helper to format tasks for the Gantt library
+// NOW includes progress and dependencies
+const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[] = []): GanttTask[] => {
+  // Create a map for quick lookup of dependencies for each task (successor)
+  const successorDependenciesMap = new Map<number, number[]>();
+  dependencies.forEach(dep => {
+      const successors = successorDependenciesMap.get(dep.successorId) ?? [];
+      successors.push(dep.predecessorId);
+      successorDependenciesMap.set(dep.successorId, successors);
+  });
+
   return tasks.map(task => {
-    let progress = 0;
-    if (task.status === 'done') {
-      progress = 100;
-    } else if (task.status === 'in_progress') {
-      // TODO: Consider calculating progress based on actual vs estimated hours if available
-      progress = 50; // Placeholder for in-progress
-    } // 'todo', 'blocked', 'cancelled' remain 0
+    // Use the progress field from the task data
+    const progress = task.progress ?? 0; // Use actual progress, default to 0
 
-    const type: "task" | "milestone" | "project" = "task"; // Could enhance if task schema supports type
+    const type: "task" | "milestone" | "project" = "task"; // Default type
 
-    // Handle potentially null dates: Fallback needed, but might skew visualization.
-    // Gantt libraries usually *require* valid start/end dates.
+    // --- Date Handling (same logic as before) ---
     let startDate: Date;
     let endDate: Date;
+    if (task.startDate) { startDate = new Date(task.startDate); }
+    else { startDate = new Date(); } // Fallback (consider logging warnings)
+    if (task.dueDate) { endDate = new Date(task.dueDate); }
+    else { endDate = new Date(startDate.getTime() + 86400000); } // Fallback
+    if (endDate < startDate) { endDate = new Date(startDate.getTime() + 86400000); } // Adjust if end < start
+    // --- End Date Handling ---
 
-    if (task.startDate) {
-        startDate = new Date(task.startDate);
-    } else {
-        // Fallback: Use creation date or today? Requires careful consideration.
-        // Forcing a date might be visually misleading. Maybe filter out tasks without dates?
-        console.warn(`Task ${task.id} ('${task.title}') missing start date for Gantt.`);
-        startDate = new Date(); // Using 'now' as a shaky fallback
-    }
-
-    if (task.dueDate) {
-        endDate = new Date(task.dueDate);
-    } else {
-        // Fallback: Default duration (e.g., 1 day) if no due date?
-        console.warn(`Task ${task.id} ('${task.title}') missing due date for Gantt.`);
-        endDate = new Date(startDate.getTime() + 86400000); // 1 day after start as fallback
-    }
-
-    // Ensure end date is not before start date
-    if (endDate < startDate) {
-        console.warn(`Task ${task.id} ('${task.title}') has due date before start date. Adjusting end date for Gantt.`);
-        endDate = new Date(startDate.getTime() + 86400000); // Adjust to 1 day duration minimum
-    }
+    // Get dependencies for this task (where this task is the successor)
+    const taskDependencies = successorDependenciesMap.get(task.id)?.map(String) ?? []; // Convert IDs to strings
 
     return {
-      id: task.id.toString(), // Gantt library usually expects string IDs
+      id: task.id.toString(),
       start: startDate,
       end: endDate,
-      text: task.title, // Use 'text' for wx-react-gantt task name display
-      progress: progress,
+      text: task.title,
+      progress: progress, // Use the actual progress value
       type: type,
-      // dependencies: task.dependencies?.map(dep => dep.predecessorId.toString()) || [], // Map dependencies if fetched & available
-      // project: projectId.toString(), // Associate with a project ID if library supports it
-      // Add custom data if needed and library supports it
-      // _original: task, // Keep reference to original task data if useful
+      dependencies: taskDependencies, // Add formatted dependencies
+      // _original: task, // Optional: Keep original data reference
     };
-  }).filter(gt => gt.start && gt.end); // Ensure tasks have valid dates after formatting/fallbacks
+  }).filter(gt => !isNaN(gt.start.getTime()) && !isNaN(gt.end.getTime())); // Ensure valid dates
 };
 
 
@@ -110,247 +92,323 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Fetch tasks for the project
-  const tasksQueryKey = [`/api/projects/${projectId}/tasks`];
+  const tasksQueryKey = ['projects', projectId, 'tasks']; // Use array key
   const {
     data: tasks = [],
-    isLoading,
-    error,
-    isError,
+    isLoading: isLoadingTasks,
+    error: errorTasks,
+    isError: isErrorTasks,
   } = useQuery<Task[]>({
     queryKey: tasksQueryKey,
-    queryFn: getQueryFn({ on401: "throw" }),
-    enabled: !!projectId, // Ensure projectId is valid
+    queryFn: getQueryFn(`/api/projects/${projectId}/tasks`),
+    enabled: !!projectId,
   });
 
-  // Memoize the formatted tasks for the Gantt chart
-  const formattedGanttTasks = useMemo(() => formatTasksForGantt(tasks), [tasks]);
+  // --- NEW: Fetch Task Dependencies ---
+  const dependenciesQueryKey = ['projects', projectId, 'tasks', 'dependencies'];
+  const {
+      data: dependencies = [],
+      isLoading: isLoadingDeps,
+      error: errorDeps,
+      isError: isErrorDeps,
+  } = useQuery<TaskDependency[]>({
+      queryKey: dependenciesQueryKey,
+      queryFn: getQueryFn(`/api/projects/${projectId}/tasks/dependencies`),
+      enabled: !!projectId && !isLoadingTasks, // Fetch after tasks are loaded
+  });
 
-  // --- Create Task Mutation ---
+  // Memoize the formatted tasks for the Gantt chart (now includes dependencies)
+  const formattedGanttTasks = useMemo(() => formatTasksForGantt(tasks, dependencies), [tasks, dependencies]);
+
+  // Loading state considers both tasks and dependencies
+  const isLoading = isLoadingTasks || isLoadingDeps;
+  const isError = isErrorTasks || isErrorDeps;
+  const error = errorTasks || errorDeps;
+
+  // --- Mutations ---
+
+  // Create Task Mutation
   const createTaskMutation = useMutation({
     mutationFn: (newTaskData: InsertTask) => {
-       // API expects data without projectId in body for this route
-      const { projectId: _pid, ...restData } = newTaskData;
-      // Ensure dates are ISO strings if needed by backend API (apiRequest should handle Date objects)
-      return apiRequest<Task>('POST', `/api/projects/${projectId}/tasks`, restData);
+        const { projectId: _pid, ...restData } = newTaskData;
+        return apiRequest(`/api/projects/${projectId}/tasks`, {
+            method: 'POST',
+            data: restData
+        });
     },
     onSuccess: (newTask) => {
       toast({ title: "Success", description: "Task created successfully." });
-      // Update cache immediately instead of just invalidating
-      queryClient.setQueryData<Task[]>(tasksQueryKey, (oldTasks = []) => [...oldTasks, newTask]);
+      queryClient.invalidateQueries({ queryKey: tasksQueryKey }); // Invalidate instead of manual update
       setIsCreateDialogOpen(false);
     },
-    onError: (err) => {
-       toast({ title: "Error Creating Task", description: err instanceof Error ? err.message : "An unknown error occurred.", variant: "destructive" });
+    onError: (err: Error) => {
+       toast({ title: "Error Creating Task", description: err.message, variant: "destructive" });
     },
   });
 
-  // --- Delete Task Mutation ---
+   // Delete Task Mutation
    const deleteTaskMutation = useMutation({
     mutationFn: (taskId: number) => {
-      return apiRequest('DELETE', `/api/projects/${projectId}/tasks/${taskId}`);
+        return apiRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
     },
     onSuccess: (_, taskId) => {
       toast({ title: "Success", description: `Task #${taskId} deleted.` });
-      // Optimistic update or invalidation
       queryClient.invalidateQueries({ queryKey: tasksQueryKey });
-      // queryClient.setQueryData<Task[]>(tasksQueryKey, (oldTasks = []) =>
-      //    oldTasks.filter(task => task.id !== taskId)
-      // );
-      setIsDeleteDialogOpen(false); // Close confirmation dialog
-      setTaskToDelete(null); // Clear the task targeted for deletion
+      queryClient.invalidateQueries({ queryKey: dependenciesQueryKey }); // Dependencies might change
+      setIsDeleteDialogOpen(false);
+      setTaskToDelete(null);
     },
-     onError: (err, taskId) => {
+    onError: (err: Error, taskId) => {
       console.error(`Error deleting task ${taskId}:`, err);
-      toast({
-        title: "Error Deleting Task",
-        description: err instanceof Error ? err.message : "An unknown error occurred.",
-        variant: "destructive",
-      });
+      toast({ title: "Error Deleting Task", description: err.message, variant: "destructive" });
       setIsDeleteDialogOpen(false);
       setTaskToDelete(null);
     },
   });
 
-  // --- **NEW**: Mutation for Updating Task Dates from Gantt ---
+  // Update Task Dates Mutation
   const updateTaskDateMutation = useMutation({
       mutationFn: ({ taskId, startDate, dueDate }: UpdateTaskDatePayload) => {
-          const updateData: Partial<InsertTask> = {
-              startDate: startDate, // Pass Date objects directly if apiRequest handles them
-              dueDate: dueDate,
-              // Convert to ISO string if backend expects string:
-              // startDate: startDate.toISOString(),
-              // dueDate: dueDate.toISOString(),
-          };
-          return apiRequest<Task>('PUT', `/api/projects/${projectId}/tasks/${taskId}`, updateData);
+          const updateData: Partial<InsertTask> = { startDate, dueDate };
+          return apiRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
+                method: 'PUT',
+                data: updateData
+          });
       },
-      onSuccess: (updatedTask) => {
+      onSuccess: (updatedTask: Task) => {
           toast({ title: "Task Updated", description: `Dates updated for task "${updatedTask.title}".` });
-          // Update the specific task in the query cache for a smoother UX
           queryClient.setQueryData<Task[]>(tasksQueryKey, (oldTasks = []) =>
               oldTasks.map(task => task.id === updatedTask.id ? updatedTask : task)
           );
-          // Optionally invalidate the specific task query if you have one
-          // queryClient.invalidateQueries({ queryKey: [...tasksQueryKey, updatedTask.id] });
       },
-      onError: (err, variables) => {
+      onError: (err: Error, variables) => {
           console.error(`Error updating dates for task ${variables.taskId}:`, err);
-          toast({
-              title: "Error Updating Task Dates",
-              description: err instanceof Error ? err.message : "Could not save date changes.",
-              variant: "destructive",
-          });
-          // Invalidate to refetch and revert optimistic changes if any were made
+          toast({ title: "Error Updating Task Dates", description: err.message, variant: "destructive" });
           queryClient.invalidateQueries({ queryKey: tasksQueryKey });
       },
   });
 
-  // --- Handlers ---
-  const handleAddTaskClick = () => {
-    setIsCreateDialogOpen(true);
-  };
+  // --- NEW: Mutation for Updating Task Progress ---
+   const updateTaskProgressMutation = useMutation({
+      mutationFn: ({ taskId, progress }: UpdateTaskProgressPayload) => {
+          const updateData: Partial<InsertTask> = { progress };
+          return apiRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
+                method: 'PUT',
+                data: updateData
+          });
+      },
+      onSuccess: (updatedTask: Task) => {
+          toast({ title: "Task Updated", description: `Progress updated for task "${updatedTask.title}".` });
+          // Update cache optimistically
+          queryClient.setQueryData<Task[]>(tasksQueryKey, (oldTasks = []) =>
+              oldTasks.map(task => task.id === updatedTask.id ? updatedTask : task)
+          );
+      },
+      onError: (err: Error, variables) => {
+          console.error(`Error updating progress for task ${variables.taskId}:`, err);
+          toast({ title: "Error Updating Task Progress", description: err.message, variant: "destructive" });
+          queryClient.invalidateQueries({ queryKey: tasksQueryKey }); // Revert on error
+      },
+  });
 
-  // Handler for clicking a task bar in the Gantt chart
+   // --- NEW: Mutations for Task Dependencies ---
+    const createDependencyMutation = useMutation({
+        mutationFn: ({ predecessorId, successorId, type = "FS" }: CreateDependencyPayload) => {
+            console.log(`Create dependency from ${predecessorId} to ${successorId}`);
+            // POST /api/projects/:projectId/tasks/:taskId/dependencies
+            // where :taskId is the successorId
+            return apiRequest(`/api/projects/${projectId}/tasks/${successorId}/dependencies`, {
+                method: 'POST',
+                data: { predecessorId, type } // Backend expects predecessorId in body
+            });
+        },
+        onSuccess: () => {
+            toast({ title: "Dependency Added", description: "Task dependency created." });
+            queryClient.invalidateQueries({ queryKey: dependenciesQueryKey });
+            // Optionally invalidate tasksQueryKey if dependencies affect task display/logic
+        },
+        onError: (err: Error) => {
+            console.error("Error creating dependency:", err);
+            toast({ title: "Error Creating Dependency", description: err.message, variant: "destructive" });
+        },
+    });
+
+    const deleteDependencyMutation = useMutation({
+        mutationFn: (dependencyId: number) => {
+            console.log(`Delete dependency ID ${dependencyId}`);
+            // DELETE /api/projects/:projectId/tasks/dependencies/:dependencyId
+            return apiRequest(`/api/projects/${projectId}/tasks/dependencies/${dependencyId}`, {
+                method: 'DELETE'
+            });
+        },
+        onSuccess: () => {
+            toast({ title: "Dependency Removed", description: "Task dependency deleted." });
+            queryClient.invalidateQueries({ queryKey: dependenciesQueryKey });
+            // Optionally invalidate tasksQueryKey
+        },
+        onError: (err: Error) => {
+            console.error("Error deleting dependency:", err);
+            toast({ title: "Error Deleting Dependency", description: err.message, variant: "destructive" });
+        },
+    });
+
+  // --- Handlers ---
+  const handleAddTaskClick = () => setIsCreateDialogOpen(true);
+
   const handleTaskClick = useCallback((ganttTask: GanttTask) => {
     console.log("Gantt Task Clicked:", ganttTask);
-    // Find the original Task data based on the ID from the Gantt task
     const originalTask = tasks.find(t => t.id.toString() === ganttTask.id);
     if (originalTask) {
       setTaskToEdit(originalTask);
       setIsEditDialogOpen(true);
     } else {
-      console.warn(`Original task data not found for Gantt task ID: ${ganttTask.id}`);
       toast({ title: "Error", description: "Could not find task details.", variant: "destructive" });
     }
-  }, [tasks]); // Dependency: tasks array
+  }, [tasks]);
 
-  // Handler to initiate deletion process (can be triggered from Edit dialog or elsewhere)
   const handleDeleteTrigger = useCallback((task: Task) => {
       setTaskToDelete(task);
       setIsDeleteDialogOpen(true);
-  }, []); // No dependencies needed
+  }, []);
 
-  // Handler for confirming deletion
   const confirmDelete = useCallback(() => {
-      if (taskToDelete) {
-          deleteTaskMutation.mutate(taskToDelete.id);
-      }
-  }, [taskToDelete, deleteTaskMutation]); // Dependencies
+      if (taskToDelete) { deleteTaskMutation.mutate(taskToDelete.id); }
+  }, [taskToDelete, deleteTaskMutation]);
 
-  // --- **NEW**: Handler for Gantt Date Changes (Drag/Resize) ---
   const handleDateChange = useCallback((ganttTask: GanttTask, newStartDate: Date, newEndDate: Date) => {
       console.log(`Gantt Date Change: Task ID ${ganttTask.id}, Start: ${newStartDate}, End: ${newEndDate}`);
-
-      const taskId = parseInt(ganttTask.id); // Convert string ID back to number
-      if (isNaN(taskId)) {
-          console.error("Invalid task ID from Gantt:", ganttTask.id);
-          toast({ title: "Error", description: "Invalid task ID encountered.", variant: "destructive" });
-          return;
-      }
-
-      // Optional: Add validation if needed (e.g., prevent end date being before start date)
-      if (newEndDate < newStartDate) {
-          console.warn("End date cannot be before start date. Reverting change.");
-          toast({ title: "Invalid Dates", description: "End date cannot be before start date.", variant: "warning" });
-          // Optionally force a refetch to reset the Gantt view
+      const taskId = parseInt(ganttTask.id);
+      if (isNaN(taskId) || newEndDate < newStartDate) {
+          toast({ title: "Invalid Dates", description: "Invalid task ID or end date before start date.", variant: "warning" });
           queryClient.invalidateQueries({ queryKey: tasksQueryKey });
           return;
       }
+      updateTaskDateMutation.mutate({ taskId, startDate: newStartDate, dueDate: newEndDate });
+  }, [updateTaskDateMutation, queryClient, tasksQueryKey]);
 
-      // Call the mutation to update the task dates
-      updateTaskDateMutation.mutate({
-          taskId: taskId,
-          startDate: newStartDate,
-          dueDate: newEndDate,
-      });
+   // --- NEW: Handler for Gantt Progress Changes ---
+   const handleProgressChange = useCallback((ganttTask: GanttTask, progress: number) => {
+        console.log(`Gantt Progress Change: Task ID ${ganttTask.id}, Progress: ${progress}`);
+        const taskId = parseInt(ganttTask.id);
+        if (isNaN(taskId)) {
+            toast({ title: "Error", description: "Invalid task ID encountered.", variant: "destructive" });
+            return;
+        }
+        // Ensure progress is within bounds
+        const validProgress = Math.max(0, Math.min(100, Math.round(progress)));
 
-  }, [updateTaskDateMutation, queryClient, tasksQueryKey]); // Dependencies
+        updateTaskProgressMutation.mutate({ taskId, progress: validProgress });
+   }, [updateTaskProgressMutation]);
+
+    // --- NEW: Placeholder Handlers for Dependency Linking/Unlinking ---
+    // NOTE: The `wx-react-gantt` library might not expose specific events for dependency
+    // manipulation via dragging. These are placeholders assuming such events exist
+    // or could be triggered by other UI elements.
+    const handleDependencyLink = useCallback((fromTaskIdStr: string, toTaskIdStr: string) => {
+        console.log(`Placeholder: Link from task ${fromTaskIdStr} to ${toTaskIdStr}`);
+        const predecessorId = parseInt(fromTaskIdStr);
+        const successorId = parseInt(toTaskIdStr);
+        if (!isNaN(predecessorId) && !isNaN(successorId)) {
+             // Basic check to prevent self-linking (if needed)
+            if (predecessorId === successorId) {
+                toast({ title: "Invalid Link", description: "Cannot link a task to itself.", variant: "warning" });
+                return;
+            }
+            createDependencyMutation.mutate({ predecessorId, successorId });
+        } else {
+             toast({ title: "Error", description: "Invalid task IDs for dependency.", variant: "destructive" });
+        }
+    }, [createDependencyMutation]);
+
+    const handleDependencyUnlink = useCallback((dependencyId: number) => {
+        // This handler would likely be called from a different UI element
+        // or event, as the Gantt chart might not directly provide the dependency ID on unlink.
+         console.log(`Placeholder: Unlink dependency ID ${dependencyId}`);
+         deleteDependencyMutation.mutate(dependencyId);
+    }, [deleteDependencyMutation]);
 
 
   // --- Render Logic ---
   const renderContent = () => {
     if (isLoading) {
-      return (
-        <div className="space-y-4 p-4">
-          <Skeleton className="h-8 w-1/4" />
-          <Skeleton className="h-[500px] w-full" /> {/* Placeholder for Gantt chart */}
-        </div>
-      );
+      return ( /* ... Skeleton ... */
+         <div className="space-y-4 p-4">
+             <Skeleton className="h-8 w-1/4" />
+             <Skeleton className="h-[500px] w-full" />
+         </div>
+       );
     }
 
-    if (isError || error) {
-      return (
-         <Alert variant="destructive" className="m-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error Loading Tasks</AlertTitle>
-            <AlertDescription>
-              {error instanceof Error ? error.message : "An unknown error occurred."}
-            </AlertDescription>
-          </Alert>
-      );
+    if (isError) {
+      return ( /* ... Error Alert ... */
+          <Alert variant="destructive" className="m-4">
+             <AlertTriangle className="h-4 w-4" />
+             <AlertTitle>Error Loading Data</AlertTitle>
+             <AlertDescription>
+                {error instanceof Error ? error.message : "Could not load tasks or dependencies."}
+             </AlertDescription>
+           </Alert>
+       );
     }
 
-     // Filter tasks without valid dates before checking length for empty state
+     // Display message if tasks exist but have date issues preventing display
      const displayableTasks = formattedGanttTasks.length > 0;
-
      if (!displayableTasks && tasks.length > 0) {
-         return (
+         return ( /* ... Warning Alert for missing dates ... */
              <Alert variant="warning" className="m-4">
                  <AlertTriangle className="h-4 w-4" />
                  <AlertTitle>Tasks Cannot Be Displayed</AlertTitle>
                  <AlertDescription>
-                     Some tasks are missing start or due dates required for the schedule view. Please edit the tasks to add dates.
+                    Some tasks are missing start or due dates required for the schedule view. Please edit the tasks to add dates.
                  </AlertDescription>
              </Alert>
-         );
+          );
      }
 
-
      if (tasks.length === 0) {
-        return (
-             <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg mt-4">
-                <div className="rounded-full bg-muted p-4 mb-4">
-                  <ClipboardList className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-1">No Tasks Created Yet</h3>
-                <p className="text-muted-foreground mb-4">Add the first task for this project's schedule.</p>
-                 <Button size="sm" onClick={handleAddTaskClick} className="gap-1">
-                   <PlusCircle className="h-4 w-4" />
-                   Add First Task
-                </Button>
-            </div>
-        );
+        return ( /* ... Empty state ... */
+            <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg mt-4">
+                 <div className="rounded-full bg-muted p-4 mb-4"><ClipboardList className="h-8 w-8 text-muted-foreground" /></div>
+                 <h3 className="text-lg font-semibold mb-1">No Tasks Created Yet</h3>
+                 <p className="text-muted-foreground mb-4">Add the first task for this project's schedule.</p>
+                 <Button size="sm" onClick={handleAddTaskClick} className="gap-1"><PlusCircle className="h-4 w-4" />Add First Task</Button>
+             </div>
+         );
      }
 
     // --- Render Gantt Chart ---
     return (
-        // Container needs defined height for Gantt chart to render correctly
         <div className="h-[600px] w-full overflow-auto border rounded-md bg-background relative">
-            {updateTaskDateMutation.isPending && (
+            {(updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending || createDependencyMutation.isPending || deleteDependencyMutation.isPending) && (
                  <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <span className="ml-2">Saving date changes...</span>
+                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="ml-2">Saving changes...</span>
                  </div>
             )}
             <Gantt
                 tasks={formattedGanttTasks}
-                viewMode={ViewMode.Week} // Default view mode (Day, Week, Month)
-                // --- ADDED: Event handlers ---
+                viewMode={ViewMode.Week}
                 onClick={handleTaskClick}
-                onDateChange={handleDateChange} // Handle drag/resize updates
-                // onProgressChange={(task, progress) => console.log('Progress Change:', task, progress)} // Future: Handle progress updates
-                // onViewChange={(viewMode) => console.log('View Mode Change:', viewMode)}
-                // --- Customize appearance ---
-                listCellWidth={"180px"} // Adjust width of the task list column
-                columnWidth={65} // Adjust width of timeline columns (pixels for day width in week/day view)
-                rowHeight={40} // Adjust task row height
-                ganttHeight={580} // Adjust internal chart height (leave space for headers)
-                locale="en-US" // Set locale if needed
-                // Optional: Disable interactions while mutation is pending
-                barProgressColor={updateTaskDateMutation.isPending ? '#cccccc' : undefined} // Example: Gray out progress during update
-                barProgressSelectedColor={updateTaskDateMutation.isPending ? '#cccccc' : undefined}
-                // Consider disabling drag/resize if needed, though optimistic updates are usually preferred
-                // readonly={updateTaskDateMutation.isPending} // Check if library supports readonly prop
+                onDateChange={handleDateChange}
+                onProgressChange={handleProgressChange} // Pass the new handler
+                // onDependencyLink={handleDependencyLink} // Pass dependency handler (if prop exists)
+                // onDependencyUnlink={handleDependencyUnlink} // Pass dependency handler (if prop exists)
+                // --- Customize appearance (same as before) ---
+                listCellWidth={"180px"}
+                columnWidth={65}
+                rowHeight={40}
+                ganttHeight={580}
+                locale="en-US"
+                // Consider readonly or visual disabling based on mutation states if needed
+                // readonly={updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending}
             />
+            {/* Dependency Note: If Gantt doesn't support drag-drop links, */}
+            {/* you might need buttons/modals to trigger handleDependencyLink/handleDependencyUnlink */}
+             <div className="p-2 text-xs text-muted-foreground border-t">
+                 Note: Dependency linking might require separate UI elements if not supported by direct Gantt interaction. Progress can be updated by dragging the progress handle within a task bar.
+             </div>
         </div>
     );
   };
@@ -361,62 +419,49 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Project Tasks & Schedule</CardTitle>
-          <CardDescription>Visualize and manage project tasks. Drag or resize bars to adjust dates.</CardDescription>
+          <CardDescription>Visualize tasks, update dates (drag/resize) and progress (drag handle).</CardDescription>
         </div>
         <Button size="sm" onClick={handleAddTaskClick} className="gap-1" disabled={isLoading}>
-           <PlusCircle className="h-4 w-4" />
-           Add Task
+           <PlusCircle className="h-4 w-4" /> Add Task
         </Button>
       </CardHeader>
       <CardContent>
          {renderContent()}
       </CardContent>
 
-      {/* Render the Create Task Dialog */}
+      {/* Render Dialogs (same as before) */}
       <CreateTaskDialog
         isOpen={isCreateDialogOpen}
         setIsOpen={setIsCreateDialogOpen}
         projectId={projectId}
-        onSubmit={(values) => {
-          createTaskMutation.mutate(values);
-        }}
+        onSubmit={(values) => createTaskMutation.mutate(values)}
         isPending={createTaskMutation.isPending}
       />
-
-       {/* Render the Edit Task Dialog */}
        <EditTaskDialog
          isOpen={isEditDialogOpen}
          setIsOpen={setIsEditDialogOpen}
          taskToEdit={taskToEdit}
          projectId={projectId}
-         // --- Pass delete handler (optional, can be triggered from edit dialog) ---
-         onDeleteRequest={handleDeleteTrigger} // Pass handler to trigger deletion process
+         onDeleteRequest={handleDeleteTrigger}
        />
-
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the task
-                    <span className="font-medium"> "{taskToDelete?.title}"</span>.
-                </AlertDialogDescription>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the task <span className="font-medium">"{taskToDelete?.title}"</span> and potentially its dependencies.
+                    </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                    onClick={confirmDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    disabled={deleteTaskMutation.isPending}
-                >
-                     {deleteTaskMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                     ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
-                      )}
-                    Yes, delete task
-                </AlertDialogAction>
+                    <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={confirmDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deleteTaskMutation.isPending}
+                    >
+                         {deleteTaskMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        Yes, delete task
+                    </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
