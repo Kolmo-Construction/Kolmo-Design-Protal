@@ -1,3 +1,5 @@
+// shared/schema.ts
+
 import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -149,6 +151,8 @@ export const selections = pgTable("selections", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// --- Tasks Table ---
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }), // Cascade delete tasks if project is deleted
@@ -159,14 +163,14 @@ export const tasks = pgTable("tasks", {
   startDate: timestamp("start_date"),
   dueDate: timestamp("due_date"),
   assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }), // Set assignee to null if user deleted
-  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }),
-  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }),
+  estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }), // DECIMAL column
+  actualHours: decimal("actual_hours", { precision: 5, scale: 2 }), // DECIMAL column
   progress: integer("progress").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Task dependencies table (many-to-many relationship on tasks)
+// --- Task dependencies table ---
 export const taskDependencies = pgTable("task_dependencies", {
   id: serial("id").primaryKey(),
   predecessorId: integer("predecessor_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
@@ -175,7 +179,7 @@ export const taskDependencies = pgTable("task_dependencies", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Daily Logs table for field reporting
+// --- Daily Logs table ---
 export const dailyLogs = pgTable("daily_logs", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
@@ -190,7 +194,7 @@ export const dailyLogs = pgTable("daily_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Daily Log Photos (one-to-many relationship with dailyLogs)
+// --- Daily Log Photos table ---
 export const dailyLogPhotos = pgTable("daily_log_photos", {
   id: serial("id").primaryKey(),
   dailyLogId: integer("daily_log_id").notNull().references(() => dailyLogs.id, { onDelete: 'cascade' }),
@@ -200,7 +204,7 @@ export const dailyLogPhotos = pgTable("daily_log_photos", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Punch List Items table
+// --- Punch List Items table ---
 export const punchListItems = pgTable("punch_list_items", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
@@ -216,6 +220,8 @@ export const punchListItems = pgTable("punch_list_items", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
 });
+
+// --- Relations ---
 export const projectRelations = relations(projects, ({ many, one }) => ({
   tasks: many(tasks),
   dailyLogs: many(dailyLogs),
@@ -223,7 +229,7 @@ export const projectRelations = relations(projects, ({ many, one }) => ({
   projectManager: one(users, {
       fields: [projects.projectManagerId],
       references: [users.id],
-      relationName: 'ProjectManager', // Added relation name if needed
+      relationName: 'ProjectManager',
   }),
   clientProjects: many(clientProjects),
   documents: many(documents),
@@ -236,13 +242,13 @@ export const projectRelations = relations(projects, ({ many, one }) => ({
 
 export const userRelations = relations(users, ({ many }) => ({
   assignedTasks: many(tasks, { relationName: 'Assignee' }),
-  createdTasks: many(tasks, { relationName: 'Creator' }), // Need creatorId in tasks if tracking
+  // createdTasks: many(tasks, { relationName: 'Creator' }), // Need creatorId in tasks if tracking
   createdDailyLogs: many(dailyLogs),
   uploadedDailyLogPhotos: many(dailyLogPhotos),
   createdPunchListItems: many(punchListItems),
   assignedPunchListItems: many(punchListItems, { relationName: 'PunchListAssignee' }),
-  clientProjects: many(clientProjects), // Added relation for clients' projects
-  managedProjects: many(projects, { relationName: 'ProjectManager' }), // Added relation for PMs' projects
+  clientProjects: many(clientProjects),
+  managedProjects: many(projects, { relationName: 'ProjectManager' }),
   uploadedDocuments: many(documents),
   sentMessages: many(messages, { relationName: 'Sender' }),
   receivedMessages: many(messages, { relationName: 'Recipient' }),
@@ -250,17 +256,49 @@ export const userRelations = relations(users, ({ many }) => ({
   uploadedUpdateMedia: many(updateMedia),
 }));
 
-// Add missing relation for progress updates
+export const clientProjectRelations = relations(clientProjects, ({ one }) => ({
+    client: one(users, { fields: [clientProjects.clientId], references: [users.id] }),
+    project: one(projects, { fields: [clientProjects.projectId], references: [projects.id] }),
+}));
+
+export const documentRelations = relations(documents, ({ one }) => ({
+    project: one(projects, { fields: [documents.projectId], references: [projects.id] }),
+    uploader: one(users, { fields: [documents.uploadedById], references: [users.id] }),
+}));
+
+export const invoiceRelations = relations(invoices, ({ one, many }) => ({
+    project: one(projects, { fields: [invoices.projectId], references: [projects.id] }),
+    document: one(documents, { fields: [invoices.documentId], references: [documents.id] }),
+    payments: many(payments),
+}));
+
+export const paymentRelations = relations(payments, ({ one }) => ({
+    invoice: one(invoices, { fields: [payments.invoiceId], references: [invoices.id] }),
+}));
+
+export const messageRelations = relations(messages, ({ one }) => ({
+    project: one(projects, { fields: [messages.projectId], references: [projects.id] }),
+    sender: one(users, { fields: [messages.senderId], references: [users.id], relationName: 'Sender' }),
+    recipient: one(users, { fields: [messages.recipientId], references: [users.id], relationName: 'Recipient' }),
+}));
+
 export const progressUpdateRelations = relations(progressUpdates, ({ one, many }) => ({
   project: one(projects, { fields: [progressUpdates.projectId], references: [projects.id] }),
   creator: one(users, { fields: [progressUpdates.createdById], references: [users.id] }),
   media: many(updateMedia),
 }));
 
-// Add missing relation for update media
 export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
   update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
   uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
+}));
+
+export const milestoneRelations = relations(milestones, ({ one }) => ({
+    project: one(projects, { fields: [milestones.projectId], references: [projects.id] }),
+}));
+
+export const selectionRelations = relations(selections, ({ one }) => ({
+    project: one(projects, { fields: [selections.projectId], references: [projects.id] }),
 }));
 
 export const taskRelations = relations(tasks, ({ one, many }) => ({
@@ -292,6 +330,8 @@ export const punchListItemRelations = relations(punchListItems, ({ one }) => ({
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
 }));
 
+// --- Insert Schemas (with Zod validations) ---
+
 // Create insert schemas for each table
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -306,18 +346,14 @@ export const insertProjectSchema = createInsertSchema(projects)
     updatedAt: true
   })
   .extend({
-    // Allow strings for ISO dates to be converted to Date objects
-    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(), // Allow nullable for optional dates
+    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
     estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
     actualCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-    // Allow numbers or strings for budget to handle different formats
     totalBudget: z.union([
       z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n > 0, { message: "Budget must be a positive number" }),
       z.number().min(1, "Budget must be a positive number")
     ]),
-    // --- NEW: Add clientIds for frontend validation ---
     clientIds: z.array(z.number()).optional(),
-    // --- END NEW ---
   });
 
 export const insertClientProjectSchema = createInsertSchema(clientProjects).omit({
@@ -367,8 +403,69 @@ export const insertSelectionSchema = createInsertSchema(selections).omit({
   updatedAt: true
 });
 
+// --- MODIFIED Task Insert Schema ---
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+    // Allow strings for ISO dates
+    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+    dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+    // Allow estimatedHours and actualHours to be either number or string
+    estimatedHours: z.union([
+        z.number().positive("Estimated hours must be positive").optional().nullable(),
+        // Allow string, attempt parse, check if result is number
+        z.string().refine((val) => val === "" || val === null || !isNaN(parseFloat(val)), {
+            message: "Estimated hours must be a valid number"
+        }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable() // transform valid string to number
+    ]),
+    actualHours: z.union([
+        z.number().positive("Actual hours must be positive").optional().nullable(),
+        // Allow string, attempt parse, check if result is number
+        z.string().refine((val) => val === "" || val === null || !isNaN(parseFloat(val)), {
+            message: "Actual hours must be a valid number"
+        }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable() // transform valid string to number
+    ]),
+    // Ensure progress is within 0-100
+    progress: z.number().int().min(0).max(100).default(0).optional(), // Adding optional if you don't always provide it
+});
+// --- END MODIFIED Task Insert Schema ---
 
-// Export types for use in the application
+export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDailyLogSchema = createInsertSchema(dailyLogs).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+    logDate: z.union([z.string().datetime(), z.date()]), // Make required
+    // Allow temperature to be number or string, transform string to number
+    temperature: z.union([
+        z.number().optional().nullable(),
+        z.string().refine((val) => val === "" || val === null || !isNaN(parseFloat(val)), {
+             message: "Temperature must be a valid number"
+        }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable()
+    ]),
+});
+
+export const insertDailyLogPhotoSchema = createInsertSchema(dailyLogPhotos).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPunchListItemSchema = createInsertSchema(punchListItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedAt: true, // Usually set when status changes
+}).extend({
+  dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+});
+
+// --- Export Types ---
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -401,59 +498,36 @@ export type Milestone = typeof milestones.$inferSelect;
 
 export type InsertSelection = z.infer<typeof insertSelectionSchema>;
 export type Selection = typeof selections.$inferSelect;
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-    // Allow strings for ISO dates
-    startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-    dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-});
+
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 
-export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({
-  id: true,
-  createdAt: true,
-});
 export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
 export type TaskDependency = typeof taskDependencies.$inferSelect;
 
-export const insertDailyLogSchema = createInsertSchema(dailyLogs).omit({
-  id: true,
-  createdAt: true,
-}).extend({
-    // Allow strings for ISO dates
-    logDate: z.union([z.string().datetime(), z.date()]), // Make required
-    temperature: z.union([z.number(), z.string(), z.null()]).optional().transform(val => 
-      val === null || val === undefined || val === '' ? null :
-      typeof val === 'string' ? parseFloat(val) : val
-    ),
-});
 export type InsertDailyLog = z.infer<typeof insertDailyLogSchema>;
 export type DailyLog = typeof dailyLogs.$inferSelect;
 
-export const insertDailyLogPhotoSchema = createInsertSchema(dailyLogPhotos).omit({
-  id: true,
-  createdAt: true,
-});
 export type InsertDailyLogPhoto = z.infer<typeof insertDailyLogPhotoSchema>;
 export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 
-export const insertPunchListItemSchema = createInsertSchema(punchListItems).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  resolvedAt: true, // Usually set when status changes
-}).extend({
-  // Allow strings for ISO dates
-  dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-});
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
 
-// You might want to export combined types too, e.g.,
-export type DailyLogWithPhotos = DailyLog & { photos: DailyLogPhoto[] };
-export type TaskWithAssignee = Task & { assignee: User | null }; // Assuming User type exists
-export type PunchListItemWithAssignee = PunchListItem & { assignee: User | null };
+// --- Export Combined Types ---
+export type DailyLogWithDetails = DailyLog & {
+    creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+    photos?: DailyLogPhoto[];
+};
+export type TaskWithAssignee = Task & { assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null };
+export type PunchListItemWithDetails = PunchListItem & {
+    assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+    creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+};
+export type ProjectWithDetails = Project & {
+    projectManager?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+    clients?: Pick<User, 'id' | 'firstName' | 'lastName'>[]; // Assuming clients are fetched separately and merged
+};
+export type DocumentWithUploader = Document & {
+    uploader?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+};

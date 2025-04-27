@@ -221,7 +221,7 @@ taskRouter.post("/", async (req: Request<ProjectParams>, res) => {
     if (!(await checkProjectAccess(req, res, projectId))) {
       return; // checkProjectAccess handles response
     }
-
+    const taskBodyData = createTaskBodySchema.parse(req.body);
     // Validate the task data
     const taskData = insertTaskSchema.parse(req.body);
 
@@ -273,6 +273,9 @@ taskRouter.put("/:taskId", async (req: Request<TaskParams>, res) => {
 
     // Validate update data
     const updateData = insertTaskSchema.partial().parse(req.body);
+    const createTaskBodySchema = insertTaskSchema.omit({
+      projectId: true // Exclude projectId from body validation
+    });
 
     // Update the task
     const updatedTask = await storage.updateTask(taskId, {

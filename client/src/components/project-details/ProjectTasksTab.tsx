@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// Use query helpers from queryClient 
+// Use query helpers from queryClient
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 // Import Task, InsertTask, and NEW TaskDependency types
 import { Task, InsertTask, TaskDependency } from "@shared/schema";
@@ -22,7 +22,6 @@ import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2 } from "lucid
 import { toast } from "@/hooks/use-toast";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { EditTaskDialog } from "./EditTaskDialog";
-
 // Import the Gantt library and its CSS
 import { Gantt, Task as GanttTask } from "wx-react-gantt";
 import "wx-react-gantt/dist/gantt.css";
@@ -56,13 +55,14 @@ const formatTasksForGantt = (tasks: Task[], dependencies: TaskDependency[] = [])
 
     const type: "task" | "milestone" | "project" = "task"; // Default type
 
-    // --- Date Handling (same logic as before) ---
+    // --- Date Handling ---
     let startDate: Date;
     let endDate: Date;
     if (task.startDate) { startDate = new Date(task.startDate); }
     else { startDate = new Date(); } // Fallback (consider logging warnings)
+
     if (task.dueDate) { endDate = new Date(task.dueDate); }
-    else { endDate = new Date(startDate.getTime() + 86400000); } // Fallback
+    else { endDate = new Date(startDate.getTime() + 86400000); } // Fallback to 1 day duration
     if (endDate < startDate) { endDate = new Date(startDate.getTime() + 86400000); } // Adjust if end < start
     // --- End Date Handling ---
 
@@ -127,16 +127,25 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
 
   // --- Mutations ---
 
-  // Create Task Mutation
+  // Create Task Mutation (CORRECTED)
   const createTaskMutation = useMutation({
     mutationFn: (newTaskData: InsertTask) => {
-        const { projectId: _pid, ...restData } = newTaskData;
-        return apiRequest(`/api/projects/${projectId}/tasks`, {
-            method: 'POST',
-            data: restData
-        });
+        // Include the project ID explicitly rather than stripping it out
+        // since the server route expects it in the body
+        const updatedData = { 
+          ...newTaskData,
+          projectId: projectId // Make sure projectId is set correctly
+        };
+
+        // --- CORRECTION: Call apiRequest with METHOD first, then URL, then DATA ---
+        return apiRequest(
+            'POST', // Method
+            `/api/projects/${projectId}/tasks`, // URL
+            updatedData // Data payload with correct projectId
+        );
+        // --- END CORRECTION ---
     },
-    onSuccess: (newTask) => {
+    onSuccess: (newTask) => { // Assuming API returns the created task object
       toast({ title: "Success", description: "Task created successfully." });
       queryClient.invalidateQueries({ queryKey: tasksQueryKey }); // Invalidate instead of manual update
       setIsCreateDialogOpen(false);
@@ -146,12 +155,15 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     },
   });
 
-   // Delete Task Mutation
+  // Delete Task Mutation
    const deleteTaskMutation = useMutation({
     mutationFn: (taskId: number) => {
-        return apiRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
-            method: 'DELETE'
-        });
+        // --- CORRECTION: Call apiRequest with METHOD first, then URL ---
+        return apiRequest(
+            'DELETE', // Method
+            `/api/projects/${projectId}/tasks/${taskId}` // URL
+        );
+        // --- END CORRECTION ---
     },
     onSuccess: (_, taskId) => {
       toast({ title: "Success", description: `Task #${taskId} deleted.` });
@@ -172,10 +184,13 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
   const updateTaskDateMutation = useMutation({
       mutationFn: ({ taskId, startDate, dueDate }: UpdateTaskDatePayload) => {
           const updateData: Partial<InsertTask> = { startDate, dueDate };
-          return apiRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
-                method: 'PUT',
-                data: updateData
-          });
+          // --- CORRECTION: Call apiRequest with METHOD first, then URL, then DATA ---
+          return apiRequest(
+                'PUT', // Method
+                `/api/projects/${projectId}/tasks/${taskId}`, // URL
+                updateData // Data
+          );
+          // --- END CORRECTION ---
       },
       onSuccess: (updatedTask: Task) => {
           toast({ title: "Task Updated", description: `Dates updated for task "${updatedTask.title}".` });
@@ -186,7 +201,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       onError: (err: Error, variables) => {
           console.error(`Error updating dates for task ${variables.taskId}:`, err);
           toast({ title: "Error Updating Task Dates", description: err.message, variant: "destructive" });
-          queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+          queryClient.invalidateQueries({ queryKey: tasksQueryKey }); // Revert on error
       },
   });
 
@@ -194,10 +209,13 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
    const updateTaskProgressMutation = useMutation({
       mutationFn: ({ taskId, progress }: UpdateTaskProgressPayload) => {
           const updateData: Partial<InsertTask> = { progress };
-          return apiRequest(`/api/projects/${projectId}/tasks/${taskId}`, {
-                method: 'PUT',
-                data: updateData
-          });
+          // --- CORRECTION: Call apiRequest with METHOD first, then URL, then DATA ---
+          return apiRequest(
+                'PUT', // Method
+                `/api/projects/${projectId}/tasks/${taskId}`, // URL
+                updateData // Data
+          );
+          // --- END CORRECTION ---
       },
       onSuccess: (updatedTask: Task) => {
           toast({ title: "Task Updated", description: `Progress updated for task "${updatedTask.title}".` });
@@ -213,16 +231,19 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       },
   });
 
-   // --- NEW: Mutations for Task Dependencies ---
+  // --- NEW: Mutations for Task Dependencies ---
     const createDependencyMutation = useMutation({
         mutationFn: ({ predecessorId, successorId, type = "FS" }: CreateDependencyPayload) => {
             console.log(`Create dependency from ${predecessorId} to ${successorId}`);
             // POST /api/projects/:projectId/tasks/:taskId/dependencies
             // where :taskId is the successorId
-            return apiRequest(`/api/projects/${projectId}/tasks/${successorId}/dependencies`, {
-                method: 'POST',
-                data: { predecessorId, type } // Backend expects predecessorId in body
-            });
+            // --- CORRECTION: Call apiRequest with METHOD first, then URL, then DATA ---
+            return apiRequest(
+                'POST', // Method
+                `/api/projects/${projectId}/tasks/${successorId}/dependencies`, // URL
+                { predecessorId, type } // Data (Backend expects predecessorId in body)
+            );
+            // --- END CORRECTION ---
         },
         onSuccess: () => {
             toast({ title: "Dependency Added", description: "Task dependency created." });
@@ -239,9 +260,12 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
         mutationFn: (dependencyId: number) => {
             console.log(`Delete dependency ID ${dependencyId}`);
             // DELETE /api/projects/:projectId/tasks/dependencies/:dependencyId
-            return apiRequest(`/api/projects/${projectId}/tasks/dependencies/${dependencyId}`, {
-                method: 'DELETE'
-            });
+            // --- CORRECTION: Call apiRequest with METHOD first, then URL ---
+            return apiRequest(
+                'DELETE', // Method
+                `/api/projects/${projectId}/tasks/dependencies/${dependencyId}` // URL
+            );
+            // --- END CORRECTION ---
         },
         onSuccess: () => {
             toast({ title: "Dependency Removed", description: "Task dependency deleted." });
@@ -282,7 +306,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       const taskId = parseInt(ganttTask.id);
       if (isNaN(taskId) || newEndDate < newStartDate) {
           toast({ title: "Invalid Dates", description: "Invalid task ID or end date before start date.", variant: "warning" });
-          queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+          queryClient.invalidateQueries({ queryKey: tasksQueryKey }); // Revert visually
           return;
       }
       updateTaskDateMutation.mutate({ taskId, startDate: newStartDate, dueDate: newEndDate });
@@ -307,7 +331,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     // manipulation via dragging. These are placeholders assuming such events exist
     // or could be triggered by other UI elements.
     const handleDependencyLink = useCallback((fromTaskIdStr: string, toTaskIdStr: string) => {
-        console.log(`Placeholder: Link from task ${fromTaskIdStr} to ${toTaskIdStr}`);
+        console.log(`Attempting Link: from task ${fromTaskIdStr} to ${toTaskIdStr}`);
         const predecessorId = parseInt(fromTaskIdStr);
         const successorId = parseInt(toTaskIdStr);
         if (!isNaN(predecessorId) && !isNaN(successorId)) {
@@ -322,18 +346,17 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
         }
     }, [createDependencyMutation]);
 
+    // This handler would likely be called from a different UI element
+    // or event, as the Gantt chart might not directly provide the dependency ID on unlink.
     const handleDependencyUnlink = useCallback((dependencyId: number) => {
-        // This handler would likely be called from a different UI element
-        // or event, as the Gantt chart might not directly provide the dependency ID on unlink.
-         console.log(`Placeholder: Unlink dependency ID ${dependencyId}`);
+         console.log(`Attempting Unlink: dependency ID ${dependencyId}`);
          deleteDependencyMutation.mutate(dependencyId);
     }, [deleteDependencyMutation]);
-
 
   // --- Render Logic ---
   const renderContent = () => {
     if (isLoading) {
-      return ( /* ... Skeleton ... */
+      return ( // Skeleton
          <div className="space-y-4 p-4">
              <Skeleton className="h-8 w-1/4" />
              <Skeleton className="h-[500px] w-full" />
@@ -342,7 +365,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     }
 
     if (isError) {
-      return ( /* ... Error Alert ... */
+      return ( // Error Alert
           <Alert variant="destructive" className="m-4">
              <AlertTriangle className="h-4 w-4" />
              <AlertTitle>Error Loading Data</AlertTitle>
@@ -356,7 +379,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
      // Display message if tasks exist but have date issues preventing display
      const displayableTasks = formattedGanttTasks.length > 0;
      if (!displayableTasks && tasks.length > 0) {
-         return ( /* ... Warning Alert for missing dates ... */
+         return ( // Warning Alert for missing dates
              <Alert variant="warning" className="m-4">
                  <AlertTriangle className="h-4 w-4" />
                  <AlertTitle>Tasks Cannot Be Displayed</AlertTitle>
@@ -368,7 +391,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
      }
 
      if (tasks.length === 0) {
-        return ( /* ... Empty state ... */
+        return ( // Empty state
             <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg mt-4">
                  <div className="rounded-full bg-muted p-4 mb-4"><ClipboardList className="h-8 w-8 text-muted-foreground" /></div>
                  <h3 className="text-lg font-semibold mb-1">No Tasks Created Yet</h3>
@@ -376,43 +399,44 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                  <Button size="sm" onClick={handleAddTaskClick} className="gap-1"><PlusCircle className="h-4 w-4" />Add First Task</Button>
              </div>
          );
-     }
+    }
 
     // --- Render Gantt Chart ---
+    const isMutating = updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending || createDependencyMutation.isPending || deleteDependencyMutation.isPending;
     return (
         <div className="h-[600px] w-full overflow-auto border rounded-md bg-background relative">
-            {(updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending || createDependencyMutation.isPending || deleteDependencyMutation.isPending) && (
+            {isMutating && (
                  <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <span className="ml-2">Saving changes...</span>
+                     <span className="ml-2">Saving changes...</span>
                  </div>
             )}
-            <Gantt
-                tasks={formattedGanttTasks}
-                viewMode={ViewMode.Week}
-                onClick={handleTaskClick}
-                onDateChange={handleDateChange}
-                onProgressChange={handleProgressChange} // Pass the new handler
-                // onDependencyLink={handleDependencyLink} // Pass dependency handler (if prop exists)
-                // onDependencyUnlink={handleDependencyUnlink} // Pass dependency handler (if prop exists)
-                // --- Customize appearance (same as before) ---
-                listCellWidth={"180px"}
-                columnWidth={65}
-                rowHeight={40}
-                ganttHeight={580}
-                locale="en-US"
-                // Consider readonly or visual disabling based on mutation states if needed
-                // readonly={updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending}
-            />
-            {/* Dependency Note: If Gantt doesn't support drag-drop links, */}
-            {/* you might need buttons/modals to trigger handleDependencyLink/handleDependencyUnlink */}
+            {/* Render Gantt only when tasks are formatted and ready */}
+            {formattedGanttTasks.length > 0 && (
+              <Gantt
+                  tasks={formattedGanttTasks}
+                  viewMode={ViewMode.Week} // Default view mode
+                  onClick={handleTaskClick} // Handle task bar clicks -> Edit Dialog
+                  onDateChange={handleDateChange} // Handle dragging/resizing task dates
+                  onProgressChange={handleProgressChange} // Handle progress handle dragging
+                  onRelationChange={handleDependencyLink} // Use the library's prop for creating links
+                  // Assuming there's no direct 'unlink' event from the chart itself
+                  // Unlinking might need a separate UI element (e.g., in EditTaskDialog)
+                  // listCellWidth={"180px"} // Adjust if needed
+                  columnWidth={65}
+                  rowHeight={40}
+                  ganttHeight={580} // Adjust height as needed
+                  locale="en-US"
+                  readonly={isMutating} // Make Gantt read-only during mutations
+              />
+            )}
+            {/* Dependency Note moved or removed if onRelationChange works */}
              <div className="p-2 text-xs text-muted-foreground border-t">
-                 Note: Dependency linking might require separate UI elements if not supported by direct Gantt interaction. Progress can be updated by dragging the progress handle within a task bar.
+                 Note: Edit tasks by clicking on them. Change dates by dragging or resizing bars. Change progress using the handle inside bars. Link tasks by dragging from one task circle to another.
              </div>
         </div>
     );
   };
-
 
   return (
     <Card>
@@ -429,7 +453,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
          {renderContent()}
       </CardContent>
 
-      {/* Render Dialogs (same as before) */}
+      {/* Render Dialogs */}
       <CreateTaskDialog
         isOpen={isCreateDialogOpen}
         setIsOpen={setIsCreateDialogOpen}
@@ -443,13 +467,14 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
          taskToEdit={taskToEdit}
          projectId={projectId}
          onDeleteRequest={handleDeleteTrigger}
+         // You might add handlers here to trigger dependency deletion if needed from Edit dialog
        />
        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the task <span className="font-medium">"{taskToDelete?.title}"</span> and potentially its dependencies.
+                        This action cannot be undone. This will permanently delete the task <span className="font-medium">"{taskToDelete?.title}"</span> and any associated dependencies.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
