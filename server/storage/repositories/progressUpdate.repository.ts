@@ -14,7 +14,7 @@ export interface IProgressUpdateRepository {
     // Transactional method combining update and media creation
     createProgressUpdateWithMedia(
         updateData: schema.InsertProgressUpdate,
-        mediaItemsData: Omit<schema.InsertMedia, 'id' | 'createdAt'>[] // Media data without IDs
+        mediaItemsData: Omit<schema.InsertUpdateMedia, 'id' | 'createdAt'>[] // Media data without IDs
     ): Promise<ProgressUpdateWithDetails | null>;
     // Need method to get keys for R2 deletion before DB deletion
     getProgressUpdateWithMediaKeys(updateId: number): Promise<{ update: schema.ProgressUpdate, keys: string[] } | null>;
@@ -40,13 +40,21 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
                 where: eq(schema.progressUpdates.projectId, projectId),
                 orderBy: [desc(schema.progressUpdates.createdAt)],
                 with: {
-                    author: { columns: { id: true, firstName: true, lastName: true } },
-                    mediaItems: true // Fetch associated media items
+                    creator: { columns: { id: true, firstName: true, lastName: true } },
+                    media: true // Use the correct relation name from schema
                 }
             });
-            // Filter/ensure author exists
-             const validUpdates = updates.filter(u => u.author);
-             return validUpdates as ProgressUpdateWithDetails[];
+            
+            // Filter/ensure creator exists and map to expected structure
+            const validUpdates = updates
+                .filter(u => u.creator)
+                .map(update => ({
+                    ...update,
+                    author: update.creator, // Map creator to author for backwards compatibility
+                    mediaItems: update.media // Map media to mediaItems for backwards compatibility
+                }));
+                
+            return validUpdates as ProgressUpdateWithDetails[];
         } catch (error) {
             console.error(`Error fetching progress updates for project ${projectId}:`, error);
             throw new Error('Database error while fetching progress updates.');
@@ -55,7 +63,7 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
 
     async createProgressUpdateWithMedia(
         updateData: schema.InsertProgressUpdate,
-        mediaItemsData: Omit<schema.InsertMedia, 'id' | 'createdAt'>[]
+        mediaItemsData: Omit<schema.InsertUpdateMedia, 'id' | 'createdAt'>[]
     ): Promise<ProgressUpdateWithDetails | null> {
          // Ensure dbOrTx is the base db instance for transaction
          const baseDb = ('_.isTransaction' in this.dbOrTx && (this.dbOrTx as any)._.isTransaction)
@@ -78,8 +86,7 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
             if (mediaItemsData.length > 0) {
                 const fullMediaData = mediaItemsData.map(m => ({
                     ...m,
-                    progressUpdateId: updateId, // Link media to this update
-                    punchListItemId: null, // Ensure other link is null
+                    updateId: updateId, // Link media to this update
                 }));
                 await txMediaRepo.createMultipleMediaItems(fullMediaData);
             }
@@ -88,13 +95,21 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
             const finalResult = await tx.query.progressUpdates.findFirst({
                 where: eq(schema.progressUpdates.id, updateId),
                 with: {
-                    author: { columns: { id: true, firstName: true, lastName: true } },
-                    mediaItems: true,
+                    creator: { columns: { id: true, firstName: true, lastName: true } },
+                    media: true, // Use the relation name from schema (media, not mediaItems)
                 },
             });
 
-            if (!finalResult || !finalResult.author) throw new Error("Failed to retrieve created progress update with details.");
-            return finalResult as ProgressUpdateWithDetails;
+            if (!finalResult || !finalResult.creator) throw new Error("Failed to retrieve created progress update with details.");
+            
+            // Map the result to match the expected ProgressUpdateWithDetails type
+            const result = {
+                ...finalResult,
+                author: finalResult.creator,
+                mediaItems: finalResult.media 
+            } as ProgressUpdateWithDetails;
+            
+            return result;
         });
     }
 
