@@ -35,14 +35,14 @@ class ProjectRepository implements IProjectRepository {
 
     // Helper moved inside the class or kept separate
     private mapProjectResult(project: any): ProjectWithDetails {
-        const clients = project.projectsToClients?.map((ptc: any) => ptc.client)
+        const clients = project.clientProjects?.map((cp: any) => cp.client)
                                               .filter(Boolean)
                                               .map((c: any) => ({ id: c.id, firstName: c.firstName, lastName: c.lastName, email: c.email })) || [];
         const projectManager = project.projectManager ? {
             id: project.projectManager.id, firstName: project.projectManager.firstName,
             lastName: project.projectManager.lastName, email: project.projectManager.email,
         } : null;
-        const { projectsToClients, ...projectBase } = project; // Exclude join table data
+        const { clientProjects, ...projectBase } = project; // Exclude join table data
         return { ...projectBase, clients, projectManager };
     }
 
@@ -52,7 +52,7 @@ class ProjectRepository implements IProjectRepository {
                 orderBy: [desc(schema.projects.createdAt)],
                 with: {
                     projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
-                    projectsToClients: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
             });
             return projects.map(p => this.mapProjectResult(p)); // Use class method
@@ -66,14 +66,14 @@ class ProjectRepository implements IProjectRepository {
          try {
             const projects = await this.db.query.projects.findMany({
                 where: or(
-                    eq(schema.projects.pmId, userId),
-                    exists(this.db.select({ val: sql`1` }).from(schema.projectsToClients)
-                           .where(and(eq(schema.projectsToClients.projectId, schema.projects.id), eq(schema.projectsToClients.userId, userId))))
+                    eq(schema.projects.projectManagerId, Number(userId)),
+                    exists(this.db.select({ val: sql`1` }).from(schema.clientProjects)
+                           .where(and(eq(schema.clientProjects.projectId, schema.projects.id), eq(schema.clientProjects.clientId, Number(userId)))))
                 ),
                 orderBy: [desc(schema.projects.createdAt)],
                 with: {
                     projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
-                    projectsToClients: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
             });
             return projects.map(p => this.mapProjectResult(p));
@@ -117,8 +117,8 @@ class ProjectRepository implements IProjectRepository {
             });
 
             if (!project) return false;
-            if (project.projectManagerId === userId) return true;
-            if (project.clientProjects?.some(c => c.clientId === userId)) return true;
+            if (project.projectManagerId === Number(userId)) return true;
+            if (project.clientProjects?.some(c => c.clientId === Number(userId))) return true;
 
             return false;
         } catch (error) {
@@ -202,14 +202,14 @@ class ProjectRepository implements IProjectRepository {
     async assignClientToProject(clientId: string | number, projectId: string | number): Promise<any> {
         try {
             // Convert IDs to strings for consistency
-            const clientIdStr = clientId.toString();
+            const clientIdNum = Number(clientId);
             const projectIdNum = Number(projectId);
             
             // Check if association already exists
-            const existing = await this.db.query.projectsToClients.findFirst({
+            const existing = await this.db.query.clientProjects.findFirst({
                 where: and(
-                    eq(schema.projectsToClients.userId, clientIdStr),
-                    eq(schema.projectsToClients.projectId, projectIdNum)
+                    eq(schema.clientProjects.clientId, clientIdNum),
+                    eq(schema.clientProjects.projectId, projectIdNum)
                 )
             });
             
@@ -218,9 +218,9 @@ class ProjectRepository implements IProjectRepository {
             }
             
             // Create new association
-            const result = await this.db.insert(schema.projectsToClients)
+            const result = await this.db.insert(schema.clientProjects)
                 .values({ 
-                    userId: clientIdStr,
+                    clientId: clientIdNum,
                     projectId: projectIdNum 
                 })
                 .returning();
