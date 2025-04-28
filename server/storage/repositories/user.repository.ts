@@ -130,14 +130,21 @@ class UserRepository implements IUserRepository {
 
    async setupUserProfile(userId: string, firstName: string, lastName: string, password: string): Promise<UserProfile | null> {
        try {
-           const passwordHash = await hashPassword(password);
+           const hashedPassword = await hashPassword(password);
            const result = await this.db.update(schema.users)
-                .set({ firstName, lastName, passwordHash, profileComplete: true, updatedAt: new Date() })
+                .set({ firstName, lastName, password: hashedPassword, isActivated: true, updatedAt: new Date() })
                 .where(eq(schema.users.id, userId))
                 .returning({
-                    id: schema.users.id, firstName: schema.users.firstName, lastName: schema.users.lastName,
-                    email: schema.users.email, role: schema.users.role, createdAt: schema.users.createdAt,
-                    updatedAt: schema.users.updatedAt, profileComplete: schema.users.profileComplete,
+                    id: schema.users.id, 
+                    firstName: schema.users.firstName, 
+                    lastName: schema.users.lastName,
+                    email: schema.users.email, 
+                    username: schema.users.username,
+                    role: schema.users.role, 
+                    phone: schema.users.phone,
+                    createdAt: schema.users.createdAt,
+                    updatedAt: schema.users.updatedAt,
+                    isActivated: schema.users.isActivated,
                });
            return result.length > 0 ? result[0] : null;
        } catch (error) {
@@ -149,7 +156,7 @@ class UserRepository implements IUserRepository {
    async storeMagicLinkToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
         try {
             await this.db.update(schema.users)
-                .set({ magicLinkToken: tokenHash, magicLinkExpiresAt: expiresAt, updatedAt: new Date() })
+                .set({ magicLinkToken: tokenHash, magicLinkExpiry: expiresAt, updatedAt: new Date() })
                 .where(eq(schema.users.id, userId));
         } catch (error) {
             console.error(`Error storing magic link token for user ${userId}:`, error);
@@ -159,14 +166,21 @@ class UserRepository implements IUserRepository {
 
     async findUserByMagicLinkToken(tokenHash: string): Promise<{ userId: string, expiresAt: Date } | null> {
          try {
-            const result = await this.db.select({ userId: schema.users.id, expiresAt: schema.users.magicLinkExpiresAt })
-                .from(schema.users)
-                .where(eq(schema.users.magicLinkToken, tokenHash))
-                .limit(1);
+            const result = await this.db.select({ 
+                userId: schema.users.id, 
+                expiresAt: schema.users.magicLinkExpiry 
+            })
+            .from(schema.users)
+            .where(eq(schema.users.magicLinkToken, tokenHash))
+            .limit(1);
 
             if (result.length > 0) {
                 if (!result[0].expiresAt || result[0].expiresAt < new Date()) { return null; } // Expired
-                return result[0];
+                // Convert number ID to string for consistent API
+                return { 
+                    userId: result[0].userId.toString(),
+                    expiresAt: result[0].expiresAt
+                };
             }
             return null;
         } catch (error) {
@@ -178,7 +192,7 @@ class UserRepository implements IUserRepository {
     async deleteMagicLinkToken(tokenHash: string): Promise<void> {
         try {
              await this.db.update(schema.users)
-                .set({ magicLinkToken: null, magicLinkExpiresAt: null, updatedAt: new Date() })
+                .set({ magicLinkToken: null, magicLinkExpiry: null, updatedAt: new Date() })
                 .where(eq(schema.users.magicLinkToken, tokenHash));
         } catch (error) {
             console.error(`Error deleting magic link token hash:`, error);
