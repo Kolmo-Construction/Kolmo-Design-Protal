@@ -17,6 +17,9 @@ export interface IProjectRepository {
     createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null>;
     updateProjectDetailsAndClients(projectId: number, projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>, clientIds?: string[]): Promise<ProjectWithDetails | null>;
     deleteProject(projectId: number): Promise<boolean>;
+    
+    // Method for backward compatibility
+    assignClientToProject(clientId: string | number, projectId: string | number): Promise<any>;
 }
 
 // Implementation
@@ -192,6 +195,40 @@ class ProjectRepository implements IProjectRepository {
         } catch (error) {
             console.error(`Error deleting project ${projectId}:`, error);
             throw new Error('Database error while deleting project.');
+        }
+    }
+    
+    // Method for backward compatibility
+    async assignClientToProject(clientId: string | number, projectId: string | number): Promise<any> {
+        try {
+            // Convert IDs to strings for consistency
+            const clientIdStr = clientId.toString();
+            const projectIdNum = Number(projectId);
+            
+            // Check if association already exists
+            const existing = await this.db.query.projectsToClients.findFirst({
+                where: and(
+                    eq(schema.projectsToClients.userId, clientIdStr),
+                    eq(schema.projectsToClients.projectId, projectIdNum)
+                )
+            });
+            
+            if (existing) {
+                return existing; // Return existing association
+            }
+            
+            // Create new association
+            const result = await this.db.insert(schema.projectsToClients)
+                .values({ 
+                    userId: clientIdStr,
+                    projectId: projectIdNum 
+                })
+                .returning();
+                
+            return result[0];
+        } catch (error) {
+            console.error(`Error assigning client ${clientId} to project ${projectId}:`, error);
+            throw new Error('Database error while assigning client to project.');
         }
     }
 }

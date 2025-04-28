@@ -11,6 +11,11 @@ import { punchListRepository, IPunchListRepository } from './repositories/punchL
 import { mediaRepository, IMediaRepository } from './repositories/media.repository'; // Import Media repo
 
 
+// Import session store types
+import session from 'express-session';
+import connectPg from 'connect-pg-simple';
+import { pool } from '../db';
+
 // Define the shape of the aggregated storage object
 export interface StorageAggregate {
     users: IUserRepository;
@@ -23,8 +28,16 @@ export interface StorageAggregate {
     dailyLogs: IDailyLogRepository;           // Add Daily Log repo interface
     punchLists: IPunchListRepository;         // Add Punch List repo interface
     media: IMediaRepository;                  // Add Media repo interface
+    sessionStore: session.Store;             // Session store for auth
     // ... other repositories
 }
+
+// Create PostgreSQL session store
+const PostgresSessionStore = connectPg(session);
+const sessionStore = new PostgresSessionStore({ 
+    pool, 
+    createTableIfMissing: true 
+});
 
 // Export the aggregated object
 export const storage: StorageAggregate = {
@@ -38,6 +51,7 @@ export const storage: StorageAggregate = {
     dailyLogs: dailyLogRepository,           // Add Daily Log repo instance
     punchLists: punchListRepository,         // Add Punch List repo instance
     media: mediaRepository,                  // Add Media repo instance
+    sessionStore, // Add session store for authentication
     // ... add other repositories here
 };
 

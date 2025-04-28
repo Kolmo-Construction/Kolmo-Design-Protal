@@ -13,11 +13,20 @@ export interface IUserRepository {
     getUserById(userId: string): Promise<schema.User | null>;
     getUserProfileById(userId: string): Promise<UserProfile | null>;
     getAllUsersWithRoleClient(): Promise<ClientInfo[]>;
-    createUser(userData: schema.InsertUser): Promise<UserProfile | null>;
+    createUser(userData: schema.InsertUser): Promise<schema.User>;
     setupUserProfile(userId: string, firstName: string, lastName: string, password: string): Promise<UserProfile | null>;
     storeMagicLinkToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
     findUserByMagicLinkToken(tokenHash: string): Promise<{ userId: string, expiresAt: Date } | null>;
     deleteMagicLinkToken(tokenHash: string): Promise<void>;
+    
+    // Methods needed for backward compatibility with the old storage
+    getUser(id: number): Promise<schema.User | null>;
+    getUserByUsername(username: string): Promise<schema.User | null>;
+    getUserByEmail(email: string): Promise<schema.User | null>;
+    getUserByMagicLinkToken(token: string): Promise<schema.User | null>;
+    updateUser(id: number, userData: Partial<schema.InsertUser>): Promise<schema.User>;
+    updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<schema.User>;
+    getAllUsers(): Promise<schema.User[]>;
 }
 
 // Implementation
@@ -92,22 +101,24 @@ class UserRepository implements IUserRepository {
         }
     }
 
-     async createUser(userData: schema.InsertUser): Promise<UserProfile | null> {
+     async createUser(userData: schema.InsertUser): Promise<schema.User> {
         const emailLower = userData.email.toLowerCase();
         try {
-            const passwordHash = userData.passwordHash ? await hashPassword(userData.passwordHash) : null;
+            // If we have passwordHash, use it, otherwise use the password directly
+            const hashedPassword = userData.password ? await hashPassword(userData.password) : null;
+            
             const result = await this.db.insert(schema.users)
                 .values({
                     ...userData,
                     email: emailLower,
-                    passwordHash: passwordHash,
+                    password: hashedPassword || userData.password,
                 })
-                .returning({
-                    id: schema.users.id, firstName: schema.users.firstName, lastName: schema.users.lastName,
-                    email: schema.users.email, role: schema.users.role, createdAt: schema.users.createdAt,
-                    updatedAt: schema.users.updatedAt, profileComplete: schema.users.profileComplete,
-                });
-            return result.length > 0 ? result[0] : null;
+                .returning();
+                
+            if (result.length === 0) {
+                throw new Error('Failed to create user: no result returned.');
+            }
+            return result[0];
         } catch (error: any) {
             console.error('Error creating user:', error);
             if (error.code === '23505' && error.constraint === 'users_email_unique') {
@@ -172,6 +183,86 @@ class UserRepository implements IUserRepository {
         } catch (error) {
             console.error(`Error deleting magic link token hash:`, error);
             // Log only, don't throw
+        }
+    }
+
+    // Methods for backward compatibility with the old storage
+    async getUser(id: number): Promise<schema.User | null> {
+        return this.getUserById(id.toString());
+    }
+
+    async getUserByUsername(username: string): Promise<schema.User | null> {
+        try {
+            const result = await this.db.query.users.findFirst({
+                where: eq(schema.users.username, username),
+            });
+            return result ?? null;
+        } catch (error) {
+            console.error(`Error getting user by username (${username}):`, error);
+            throw new Error('Database error while getting user by username.');
+        }
+    }
+
+    async getUserByEmail(email: string): Promise<schema.User | null> {
+        return this.findUserByEmail(email);
+    }
+
+    async getUserByMagicLinkToken(token: string): Promise<schema.User | null> {
+        try {
+            const result = await this.db.query.users.findFirst({
+                where: eq(schema.users.magicLinkToken, token),
+            });
+            return result ?? null;
+        } catch (error) {
+            console.error(`Error getting user by magic link token:`, error);
+            throw new Error('Database error while getting user by magic link token.');
+        }
+    }
+
+    async updateUser(id: number, userData: Partial<schema.InsertUser>): Promise<schema.User> {
+        try {
+            const result = await this.db.update(schema.users)
+                .set({ ...userData, updatedAt: new Date() })
+                .where(eq(schema.users.id, id))
+                .returning();
+            
+            if (result.length === 0) {
+                throw new Error(`User with ID ${id} not found.`);
+            }
+            return result[0];
+        } catch (error) {
+            console.error(`Error updating user (${id}):`, error);
+            throw new Error('Database error while updating user.');
+        }
+    }
+
+    async updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<schema.User> {
+        try {
+            const result = await this.db.update(schema.users)
+                .set({ 
+                    magicLinkToken: token, 
+                    magicLinkExpiry: expiry,
+                    updatedAt: new Date() 
+                })
+                .where(eq(schema.users.id, id))
+                .returning();
+            
+            if (result.length === 0) {
+                throw new Error(`User with ID ${id} not found.`);
+            }
+            return result[0];
+        } catch (error) {
+            console.error(`Error updating user magic link token (${id}):`, error);
+            throw new Error('Database error while updating user magic link token.');
+        }
+    }
+
+    async getAllUsers(): Promise<schema.User[]> {
+        try {
+            return await this.db.query.users.findMany();
+        } catch (error) {
+            console.error('Error getting all users:', error);
+            throw new Error('Database error while getting all users.');
         }
     }
 }

@@ -4,7 +4,7 @@ import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { storage } from "@server/storage";
+import { storage } from "@server/storage/index";
 import { User as SelectUser } from "@shared/schema";
 import { sendMagicLinkEmail, isEmailServiceConfigured } from "@server/email";
 import { UserProfile } from "@server/storage/types"; // Import UserProfile
