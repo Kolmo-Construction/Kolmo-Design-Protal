@@ -293,7 +293,7 @@ export const verifyResetToken = async (
     }
     
     // Find user with this reset token
-    const user = await storage.getUserByResetToken(token);
+    const user = await storage.users.findUserByResetToken(token);
     
     if (!user) {
       throw new HttpError(400, 'Invalid or expired reset token');
@@ -330,7 +330,7 @@ export const resetPassword = async (
     const { token, password } = validationResult.data;
     
     // Find user with this reset token
-    const user = await storage.getUserByResetToken(token);
+    const user = await storage.users.findUserByResetToken(token);
     
     if (!user) {
       throw new HttpError(400, 'Invalid or expired reset token');
@@ -345,7 +345,7 @@ export const resetPassword = async (
     const hashedPassword = await hashPassword(password);
     
     // Update the user with new password and clear the reset token
-    await storage.updateUser(user.id, {
+    await storage.users.updateUser(user.id, {
       password: hashedPassword,
       resetToken: null,
       resetTokenExpiry: null
