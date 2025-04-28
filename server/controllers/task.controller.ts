@@ -3,12 +3,10 @@ import { z } from 'zod';
 import { storage } from '../storage';
 import {
   insertTaskSchema,
-  taskStatusEnum,
-  taskPriorityEnum,
   insertTaskDependencySchema,
   User,
 } from '../../shared/schema';
-import { HttpError } from '../errors'; // Assuming custom HttpError exists
+import { HttpError } from '../errors';
 
 // --- Zod Schemas for API Input Validation ---
 
@@ -41,7 +39,7 @@ const taskDependencySchema = z.object({
  * Get all tasks for a specific project.
  * Assumes checkProjectAccess middleware runs before this.
  */
-export const getTasksForProject = async (
+export const getProjectTasks = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -55,8 +53,42 @@ export const getTasksForProject = async (
     }
 
     // checkProjectAccess middleware verified access
-    const tasks = await storage.getTasksForProject(projectIdNum); // Assumes storage.getTasksForProject exists
+    const tasks = await storage.getProjectTasks(projectIdNum);
     res.status(200).json(tasks);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get all task dependencies for a project.
+ * This endpoint fetches all task dependencies involving tasks from this project.
+ */
+export const getProjectTaskDependencies = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectId } = req.params;
+    const projectIdNum = parseInt(projectId, 10);
+
+    if (isNaN(projectIdNum)) {
+      throw new HttpError(400, 'Invalid project ID parameter.');
+    }
+
+    // First get all tasks for this project to get their IDs
+    const tasks = await storage.getProjectTasks(projectIdNum);
+    const taskIds = tasks.map(task => task.id);
+    
+    // If there are no tasks, return empty array
+    if (taskIds.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    // Get all dependencies that involve these tasks
+    const dependencies = await storage.getProjectTaskDependencies(projectIdNum, taskIds);
+    res.status(200).json(dependencies);
   } catch (error) {
     next(error);
   }
@@ -208,20 +240,28 @@ export const deleteTask = async (
  * This implementation assumes the user has implicit rights if they can interact with tasks.
  * A more robust solution would check project access for both tasks involved.
  */
-export const addTaskDependency = async (
+export const createTaskDependency = async (
     req: Request,
     res: Response,
     next: NextFunction
 ): Promise<void> => {
     try {
+        const { projectId, successorId } = req.params;
+        const projectIdNum = parseInt(projectId, 10);
+        const successorIdNum = parseInt(successorId, 10);
+
+        if (isNaN(projectIdNum) || isNaN(successorIdNum)) {
+            throw new HttpError(400, 'Invalid project or successor task ID parameter.');
+        }
+
         // Assuming IDs are sent as numbers in the body
         const validationResult = taskDependencySchema.safeParse(req.body);
         if (!validationResult.success) {
              throw new HttpError(400, 'Invalid dependency data. Expecting { predecessorId: number, successorId: number }.', validationResult.error.flatten());
         }
 
-        const { predecessorId, successorId } = validationResult.data;
-        if (predecessorId === successorId) {
+        const { predecessorId } = validationResult.data;
+        if (predecessorId === successorIdNum) {
              throw new HttpError(400, 'Task cannot depend on itself.');
         }
 
@@ -235,7 +275,11 @@ export const addTaskDependency = async (
         // await checkAccessLogic(req.user, task1Project); // Hypothetical check
         // await checkAccessLogic(req.user, task2Project);
 
-        const dependency = await storage.addTaskDependency(predecessorId, successorId); // Assumes storage.addTaskDependency exists
+        const dependency = await storage.createTaskDependency({
+            predecessorId,
+            successorId: successorIdNum,
+            type: req.body.type || "FS" // Default to Finish-to-Start if not specified
+        });
 
         res.status(201).json(dependency);
 
@@ -247,32 +291,28 @@ export const addTaskDependency = async (
 
 
 /**
- * Remove a dependency between two tasks.
- * NOTE: Authorization needs careful consideration here (see addTaskDependency).
+ * Delete a task dependency by its ID.
+ * NOTE: Authorization needs careful consideration here.
  */
-export const removeTaskDependency = async (
+export const deleteTaskDependency = async (
     req: Request,
     res: Response,
     next: NextFunction
 ): Promise<void> => {
     try {
-         // Assuming IDs are sent as numbers in the body or query params
-         // Let's assume body for consistency
-        const validationResult = taskDependencySchema.safeParse(req.body);
-         if (!validationResult.success) {
-             throw new HttpError(400, 'Invalid dependency data. Expecting { predecessorId: number, successorId: number }.', validationResult.error.flatten());
-        }
-        const { predecessorId, successorId } = validationResult.data;
+        const { projectId, dependencyId } = req.params;
+        const projectIdNum = parseInt(projectId, 10);
+        const dependencyIdNum = parseInt(dependencyId, 10);
 
-        // **AUTHORIZATION NOTE:** See addTaskDependency
-
-        const success = await storage.removeTaskDependency(predecessorId, successorId); // Assumes storage.removeTaskDependency exists
-
-        if (!success) {
-             throw new HttpError(404, 'Dependency not found or could not be removed.');
+        if (isNaN(projectIdNum) || isNaN(dependencyIdNum)) {
+            throw new HttpError(400, 'Invalid project or dependency ID parameter.');
         }
 
-        res.status(204).send();
+        // checkProjectAccess middleware verified access to the project
+
+        await storage.deleteTaskDependency(dependencyIdNum);
+        
+        res.status(204).send(); // No content on successful delete
 
     } catch(error) {
         next(error);
