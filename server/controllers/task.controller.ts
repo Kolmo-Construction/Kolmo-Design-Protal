@@ -35,7 +35,7 @@ const taskDependencySchema = z.object({
 /**
  * Get all tasks for a specific project.
  */
-export const getTasksForProject = async (
+export const getProjectTasks = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -171,7 +171,7 @@ export const deleteTask = async (
 /**
  * Add a dependency between two tasks.
  */
-export const addTaskDependency = async (
+export const createTaskDependency = async (
     req: Request,
     res: Response,
     next: NextFunction
@@ -205,7 +205,7 @@ export const addTaskDependency = async (
 /**
  * Remove a dependency between two tasks.
  */
-export const removeTaskDependency = async (
+export const deleteTaskDependency = async (
     req: Request,
     res: Response,
     next: NextFunction
