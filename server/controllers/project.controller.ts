@@ -49,22 +49,18 @@ export const getProjects = async (
 };
 
 // Get a single project by ID
-// Assumes checkProjectAccess middleware runs *before* this handler
+// Now uses validateIdParam middleware for validation
 export const getProjectById = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { projectId } = req.params;
-    const projectIdNum = parseInt(projectId, 10);
-
-    if (isNaN(projectIdNum)) {
-      throw new HttpError(400, 'Invalid project ID parameter.');
-    }
-
+    // The ID is guaranteed to be valid due to validateIdParam middleware
+    const id = parseInt(req.params.id, 10);
+    
     // Use the nested repository: storage.projects
-    const project = await storage.projects.getProjectById(projectIdNum);
+    const project = await storage.projects.getProjectById(id);
 
     if (!project) {
        throw new HttpError(404, 'Project not found.');
@@ -115,19 +111,15 @@ export const createProject = async (
 };
 
 // Update an existing project (Admin only)
-// Assumes isAdmin middleware runs before this handler
+// Now uses validateIdParam middleware for validation
 export const updateProject = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { projectId } = req.params;
-    const projectIdNum = parseInt(projectId, 10);
-
-    if (isNaN(projectIdNum)) {
-       throw new HttpError(400, 'Invalid project ID parameter.');
-    }
+    // The ID is guaranteed to be valid due to validateIdParam middleware
+    const id = parseInt(req.params.id, 10);
 
     const validationResult = projectUpdateSchema.safeParse(req.body);
 
@@ -152,7 +144,7 @@ export const updateProject = async (
     // Use the nested repository: storage.projects
     // Pass clientIds only if they were included in the request body (clientIds !== undefined)
     const updatedProject = await storage.projects.updateProjectDetailsAndClients(
-        projectIdNum,
+        id,
         updateData,
         clientIds // Pass the array or undefined
     );
@@ -171,22 +163,18 @@ export const updateProject = async (
 };
 
 // Delete a project (Admin only) - Use with caution!
-// Assumes isAdmin middleware runs before this handler
+// Now uses validateIdParam middleware for validation
 export const deleteProject = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { projectId } = req.params;
-    const projectIdNum = parseInt(projectId, 10);
-
-     if (isNaN(projectIdNum)) {
-       throw new HttpError(400, 'Invalid project ID parameter.');
-    }
+    // The ID is guaranteed to be valid due to validateIdParam middleware
+    const id = parseInt(req.params.id, 10);
 
     // Use the nested repository: storage.projects
-    const success = await storage.projects.deleteProject(projectIdNum);
+    const success = await storage.projects.deleteProject(id);
 
     if (!success) {
        throw new HttpError(404, 'Project not found or could not be deleted.');

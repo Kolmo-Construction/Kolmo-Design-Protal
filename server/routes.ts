@@ -8,6 +8,7 @@ import { uploadToR2 } from "@server/r2-upload"; // Updated import
 import { upload } from "@server/middleware/upload.middleware"; // Updated import
 import { isAuthenticated, isAdmin } from "@server/middleware/auth.middleware"; // Updated import
 import { checkProjectAccess } from "@server/middleware/permissions.middleware"; // Updated import
+import { validateProjectId } from "@server/middleware/validation.middleware"; // Import for validating project IDs
 // Import Schemas/Types
 import {
   insertProjectSchema,
@@ -149,9 +150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // --- Mount nested resource routers (Keep definitions here for now) ---
-  app.use("/api/projects/:projectId/tasks", isAuthenticated, taskRouter);
-  app.use("/api/projects/:projectId/daily-logs", isAuthenticated, dailyLogRouter);
-  app.use("/api/projects/:projectId/punch-list", isAuthenticated, punchListRouter);
+  // Use validateProjectId middleware to prevent errors with invalid project IDs
+  app.use("/api/projects/:projectId/tasks", isAuthenticated, validateProjectId, taskRouter);
+  app.use("/api/projects/:projectId/daily-logs", isAuthenticated, validateProjectId, dailyLogRouter);
+  app.use("/api/projects/:projectId/punch-list", isAuthenticated, validateProjectId, punchListRouter);
 
   const httpServer = createServer(app);
   return httpServer;

@@ -89,7 +89,7 @@ class ProjectRepository implements IProjectRepository {
                 where: eq(schema.projects.id, projectId),
                 with: {
                     projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
-                    projectsToClients: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
             });
             return project ? this.mapProjectResult(project) : null;
@@ -112,13 +112,13 @@ class ProjectRepository implements IProjectRepository {
 
             const project = await this.db.query.projects.findFirst({
                 where: eq(schema.projects.id, projectId),
-                columns: { id: true, pmId: true },
-                with: { projectsToClients: { columns: { userId: true } } }
+                columns: { id: true, projectManagerId: true },
+                with: { clientProjects: { columns: { clientId: true } } }
             });
 
             if (!project) return false;
-            if (project.pmId === userId) return true;
-            if (project.projectsToClients?.some(c => c.userId === userId)) return true;
+            if (project.projectManagerId === userId) return true;
+            if (project.clientProjects?.some(c => c.clientId === userId)) return true;
 
             return false;
         } catch (error) {
@@ -137,15 +137,15 @@ class ProjectRepository implements IProjectRepository {
             if (!projectResult || projectResult.length === 0) throw new Error("Failed to insert project.");
             const projectId = projectResult[0].id;
 
-            const clientLinks = clientIds.map(clientId => ({ projectId, userId: clientId }));
-            await tx.insert(schema.projectsToClients).values(clientLinks);
+            const clientLinks = clientIds.map(clientId => ({ projectId, clientId }));
+            await tx.insert(schema.clientProjects).values(clientLinks);
 
             // Use tx instance for query inside transaction
             const finalProject = await tx.query.projects.findFirst({
                 where: eq(schema.projects.id, projectId),
                 with: {
                     projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
-                    projectsToClients: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
             });
             // Map using 'this' which refers to the class instance
@@ -165,16 +165,16 @@ class ProjectRepository implements IProjectRepository {
             }
             if (clientIds !== undefined) {
                 if (clientIds.length === 0) throw new Error("Cannot update project to have zero clients.");
-                await tx.delete(schema.projectsToClients).where(eq(schema.projectsToClients.projectId, projectId));
-                const newClientLinks = clientIds.map(clientId => ({ projectId, userId: clientId }));
-                await tx.insert(schema.projectsToClients).values(newClientLinks);
+                await tx.delete(schema.clientProjects).where(eq(schema.clientProjects.projectId, projectId));
+                const newClientLinks = clientIds.map(clientId => ({ projectId, clientId }));
+                await tx.insert(schema.clientProjects).values(newClientLinks);
             }
 
             const finalProject = await tx.query.projects.findFirst({
                 where: eq(schema.projects.id, projectId),
                  with: {
                     projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
-                    projectsToClients: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
             });
             if (!finalProject) throw new HttpError(404, 'Project not found during update.');
