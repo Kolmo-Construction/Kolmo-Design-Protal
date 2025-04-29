@@ -88,7 +88,7 @@ export class MediaRepository {
   }
 
    // Adjusted to accept an optional transaction object
-  async deleteMediaForUpdate(updateId: number, tx?: PgTransaction<any, any, any>) {
+  async deleteMediaForUpdate(updateId: number, tx?: any) {
     const dbContext = tx || this.dbOrTx;
 
     const mediaToDelete = await dbContext.query.updateMedia.findMany({
@@ -104,7 +104,7 @@ export class MediaRepository {
         return;
     }
 
-    for (const media of mediaToDelete) {
+    for (const media: any of mediaToDelete) {
         try {
             await this.mediaStorage.deleteFile(media.mediaUrl);
             this.logger.log("info", `Deleted media file: ${media.mediaUrl}`);
@@ -114,7 +114,7 @@ export class MediaRepository {
         }
     }
 
-    const mediaIds = mediaToDelete.map(media => media.id);
+    const mediaIds = mediaToDelete.map((media: any) => media.id);
      if (mediaIds.length > 0) {
          await dbContext.delete(updateMedia).where(inArray(updateMedia.id, mediaIds));
          this.logger.log("info", `Deleted ${mediaIds.length} media records for update ID ${updateId}.`);
@@ -122,7 +122,7 @@ export class MediaRepository {
   }
 
    // Adjusted to accept an optional transaction object
-  async deleteMediaForPunchListItem(punchListItemId: number, tx?: PgTransaction<any, any, any>) {
+  async deleteMediaForPunchListItem(punchListItemId: number, tx?: any) {
         const dbContext = tx || this.dbOrTx;
 
         const mediaToDelete = await dbContext.query.updateMedia.findMany({
