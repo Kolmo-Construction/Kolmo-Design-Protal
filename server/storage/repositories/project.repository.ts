@@ -104,9 +104,9 @@ class ProjectRepository implements IProjectRepository {
             // Fetch minimal user role info directly
             const userRoleResult = await this.db.select({ role: schema.users.role })
                                           .from(schema.users)
-                                          .where(eq(schema.users.id, userId))
+                                          .where(eq(schema.users.id, Number(userId)))
                                           .limit(1);
-            if (userRoleResult.length > 0 && userRoleResult[0].role === 'ADMIN') {
+            if (userRoleResult.length > 0 && userRoleResult[0].role.toLowerCase() === 'admin') {
                 return true;
             }
 

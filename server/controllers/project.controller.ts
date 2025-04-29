@@ -34,12 +34,12 @@ export const getProjects = async (
     const user = req.user as User; // isAuthenticated guarantees user exists
 
     let projects;
-    if (user.role === 'ADMIN') {
+    if (user.role.toLowerCase() === 'admin') {
       // Use the nested repository: storage.projects
       projects = await storage.projects.getAllProjects();
     } else {
       // Use the nested repository: storage.projects
-      projects = await storage.projects.getProjectsForUser(user.id);
+      projects = await storage.projects.getProjectsForUser(String(user.id));
     }
 
     res.status(200).json(projects);
