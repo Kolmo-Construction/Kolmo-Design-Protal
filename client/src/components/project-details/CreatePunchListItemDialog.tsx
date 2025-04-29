@@ -50,7 +50,8 @@ type PunchListFormValues = z.infer<typeof insertPunchListItemSchema> & {
 
 interface CreatePunchListItemDialogProps {
   isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
+  setIsOpen?: (open: boolean) => void; // Make optional to support both patterns
+  onClose?: () => void; // Add onClose prop for compatibility
   projectId: number;
   onSuccess?: () => void; // Optional callback
 }
@@ -58,9 +59,17 @@ interface CreatePunchListItemDialogProps {
 export function CreatePunchListItemDialog({
   isOpen,
   setIsOpen,
+  onClose,
   projectId,
   onSuccess
 }: CreatePunchListItemDialogProps) {
+  // Create a handler that works with both patterns
+  const handleClose = (open: boolean) => {
+    if (!open) {
+      if (setIsOpen) setIsOpen(false);
+      if (onClose) onClose();
+    }
+  };
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null); // For image preview
@@ -139,7 +148,8 @@ export function CreatePunchListItemDialog({
     onSuccess: () => {
       toast({ title: "Success", description: "Punch list item added successfully." });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/punch-list`] });
-      setIsOpen(false);
+      if (setIsOpen) setIsOpen(false);
+      if (onClose) onClose();
       onSuccess?.();
     },
     onError: (err) => {
@@ -216,7 +226,7 @@ export function CreatePunchListItemDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Add Punch List Item</DialogTitle>
@@ -404,7 +414,7 @@ export function CreatePunchListItemDialog({
 
             {/* Form Buttons */}
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={createPunchListItemMutation.isPending || isLoadingAssignees}>
