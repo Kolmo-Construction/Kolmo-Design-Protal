@@ -117,23 +117,12 @@ export const progressUpdates = pgTable("progress_updates", {
 // Update media (photos/videos) connected to progress updates OR punch list items
 export const updateMedia = pgTable("update_media", {
   id: serial("id").primaryKey(),
-  updateId: integer("update_id").references(() => progressUpdates.id),
-  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id), // Added punchListItemId
+  updateId: integer("update_id").notNull().references(() => progressUpdates.id),
   mediaUrl: text("media_url").notNull(),
   mediaType: text("media_type").notNull(), // image, video
   caption: text("caption"),
   uploadedById: integer("uploaded_by_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    // Ensure either updateId or punchListItemId is present
-    updateIdOrPunchListItemId: foreignKey(() => progressUpdates.id).onUpdate('cascade').onDelete('set null'),
-    punchListItemId: foreignKey(() => punchListItems.id).onUpdate('cascade').onDelete('set null'),
-    // Add a check constraint to ensure at least one of the foreign keys is not null
-    // This requires raw SQL in Drizzle, which is not directly supported in this format.
-    // A potential workaround is to handle this validation in the application logic
-    // or use a database migration tool that supports check constraints.
-  };
 });
 
 // Milestones for project timeline
@@ -301,7 +290,6 @@ export const progressUpdateRelations = relations(progressUpdates, ({ one, many }
 
 export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
   update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
-  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id] }), // Added relation to punchListItems
   uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
 }));
 
