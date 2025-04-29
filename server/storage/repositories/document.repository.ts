@@ -1,9 +1,12 @@
 // server/storage/repositories/document.repository.ts
-import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless';
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
+
+// Define a generic transaction type
+type PgTransaction = any; // Simplified for now
 // Import shared types if needed for complex return values, though document schema is simpler
 // import { ... } from '../types';
 
@@ -36,7 +39,7 @@ class DocumentRepository implements IDocumentRepository {
                 where: eq(schema.documents.projectId, projectId),
                 orderBy: [desc(schema.documents.createdAt)],
                 with: { // Join with the user who uploaded the document
-                    uploadedBy: {
+                    uploader: {
                         columns: {
                             id: true,
                             firstName: true,
@@ -45,8 +48,14 @@ class DocumentRepository implements IDocumentRepository {
                     }
                 }
             });
-            // Cast to the specific type, ensuring uploadedBy is handled (can be null if user deleted)
-            return documents as DocumentWithUploader[];
+            
+            // Map the results to match our expected interface
+            const docsWithUploader = documents.map((doc: any) => ({
+                ...doc,
+                uploadedBy: doc.uploader
+            })) as DocumentWithUploader[];
+            
+            return docsWithUploader;
         } catch (error) {
             console.error(`Error fetching documents for project ${projectId}:`, error);
             throw new Error('Database error while fetching documents.');
