@@ -66,8 +66,13 @@ export function CreatePunchListItemDialog({
   // Create a handler that works with both patterns
   const handleClose = (open: boolean) => {
     if (!open) {
-      if (setIsOpen) setIsOpen(false);
-      if (onClose) onClose();
+      // Handle both callback patterns
+      if (setIsOpen) {
+        setIsOpen(false);
+      }
+      if (onClose) {
+        onClose();
+      }
     }
   };
   const queryClient = useQueryClient();
@@ -302,7 +307,7 @@ export function CreatePunchListItemDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || 'medium'}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="low">Low</SelectItem>
