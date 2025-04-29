@@ -121,6 +121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // --- Mount Progress Update Router ---
   app.use("/api/projects/:projectId/updates", isAuthenticated, progressUpdateRouter);
   // --- END Mount Progress Update Router ---
+  
+  // --- Mount Task Router ---
+  app.use("/api/projects/:projectId/tasks", isAuthenticated, taskRouterModule);
+  // --- END Mount Task Router ---
 
   // --- REMOVED: Original Progress Update Route Definitions ---
   // app.get("/api/projects/:projectId/updates", isAuthenticated, async (req, res) => { /* ... */ });
