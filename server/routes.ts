@@ -40,6 +40,7 @@ import { projectDocumentRouter, globalDocumentRouter } from "@server/routes/docu
 import invoiceRouter from "@server/routes/invoice.routes"; // Updated import
 import messageRouter from "@server/routes/message.routes"; // Updated import
 import progressUpdateRouter from "@server/routes/progressUpdate.routes"; // Updated import
+import taskRouterModule from "@server/routes/task.routes"; // Added task router
 // --- END ADDED ---
 
 
@@ -151,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // --- Mount nested resource routers (Keep definitions here for now) ---
   // Use validateProjectId middleware to prevent errors with invalid project IDs
-  app.use("/api/projects/:projectId/tasks", isAuthenticated, validateProjectId, taskRouter);
+  app.use("/api/projects/:projectId/tasks", isAuthenticated, validateProjectId, taskRouterModule);
   app.use("/api/projects/:projectId/daily-logs", isAuthenticated, validateProjectId, dailyLogRouter);
   app.use("/api/projects/:projectId/punch-list", isAuthenticated, validateProjectId, punchListRouter);
 
