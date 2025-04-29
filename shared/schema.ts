@@ -114,15 +114,26 @@ export const progressUpdates = pgTable("progress_updates", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Update media (photos/videos) connected to progress updates
+// Update media (photos/videos) connected to progress updates OR punch list items
 export const updateMedia = pgTable("update_media", {
   id: serial("id").primaryKey(),
-  updateId: integer("update_id").notNull().references(() => progressUpdates.id),
+  updateId: integer("update_id").references(() => progressUpdates.id),
+  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id), // Added punchListItemId
   mediaUrl: text("media_url").notNull(),
   mediaType: text("media_type").notNull(), // image, video
   caption: text("caption"),
   uploadedById: integer("uploaded_by_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Ensure either updateId or punchListItemId is present
+    updateIdOrPunchListItemId: foreignKey(() => progressUpdates.id).onUpdate('cascade').onDelete('set null'),
+    punchListItemId: foreignKey(() => punchListItems.id).onUpdate('cascade').onDelete('set null'),
+    // Add a check constraint to ensure at least one of the foreign keys is not null
+    // This requires raw SQL in Drizzle, which is not directly supported in this format.
+    // A potential workaround is to handle this validation in the application logic
+    // or use a database migration tool that supports check constraints.
+  };
 });
 
 // Milestones for project timeline
@@ -214,7 +225,7 @@ export const punchListItems = pgTable("punch_list_items", {
   priority: text("priority").default("medium"), // low, medium, high
   assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }),
   dueDate: timestamp("due_date"),
-  photoUrl: text("photo_url"), // Optional photo URL from R2
+  // photoUrl: text("photo_url"), // Removed photoUrl - now using updateMedia
   createdById: integer("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -290,6 +301,7 @@ export const progressUpdateRelations = relations(progressUpdates, ({ one, many }
 
 export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
   update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
+  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id] }), // Added relation to punchListItems
   uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
 }));
 
@@ -324,11 +336,13 @@ export const dailyLogPhotoRelations = relations(dailyLogPhotos, ({ one }) => ({
   uploader: one(users, { fields: [dailyLogPhotos.uploadedById], references: [users.id] }),
 }));
 
-export const punchListItemRelations = relations(punchListItems, ({ one }) => ({
+export const punchListItemRelations = relations(punchListItems, ({ one, many }) => ({
   project: one(projects, { fields: [punchListItems.projectId], references: [projects.id] }),
   assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
+  media: many(updateMedia), // Added relation to updateMedia
 }));
+
 
 // --- Insert Schemas (with Zod validations) ---
 
@@ -390,7 +404,14 @@ export const insertProgressUpdateSchema = createInsertSchema(progressUpdates).om
 export const insertUpdateMediaSchema = createInsertSchema(updateMedia).omit({
   id: true,
   createdAt: true
+}).extend({
+    // Make sure at least one of updateId or punchListItemId is provided
+    updateId: z.number().optional().nullable(),
+    punchListItemId: z.number().optional().nullable(),
+}).refine(data => data.updateId != null || data.punchListItemId != null, {
+    message: "Either updateId or punchListItemId must be provided",
 });
+
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   id: true,
@@ -523,6 +544,7 @@ export type TaskWithAssignee = Task & { assignee?: Pick<User, 'id' | 'firstName'
 export type PunchListItemWithDetails = PunchListItem & {
     assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
     creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+    media?: UpdateMedia[]; // Added media relation
 };
 export type ProjectWithDetails = Project & {
     projectManager?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;

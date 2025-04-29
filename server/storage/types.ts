@@ -1,8 +1,10 @@
 // server/storage/types.ts
-import * as schema from '../../shared/schema';
+
+// Changed import from '../../shared/schema' to a relative path
+import * as schema from '../../shared/schema'; // Relative path to shared/schema.ts
 
 // Define reusable types for repository return values
-export type UserProfile = Omit<schema.User, 'passwordHash' | 'magicLinkToken' | 'magicLinkExpiresAt'>;
+export type UserProfile = Omit<schema.User, 'password' | 'magicLinkToken' | 'magicLinkExpiry'>; // Corrected field names based on schema
 export type ClientInfo = Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'email'>;
 export type ProjectManagerInfo = Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'email'>;
 
@@ -12,28 +14,29 @@ export type ProjectWithDetails = schema.Project & {
 };
 
 export type TaskWithAssignee = schema.Task & {
-    assignee: ClientInfo | null; // Use ClientInfo for consistency
-    createdBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'>;
+    assignee: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Use Pick for consistency
+    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>; // Use creator based on schema relations
 };
 
 export type MessageWithSender = schema.Message & {
-    sender: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'role'>
+    sender: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'role'>;
+    recipient: Pick<schema.User, 'id' | 'firstName' | 'lastName' | 'role'> | null; // Add recipient based on schema relations
 };
 
 export type ProgressUpdateWithDetails = schema.ProgressUpdate & {
-    // The database schema uses creator, but code expects author
-    author: Pick<schema.User, 'id' | 'firstName' | 'lastName'>,
-    // The database schema uses media, but code expects mediaItems  
-    mediaItems: schema.UpdateMedia[]
+    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>, // Use creator based on schema relations
+    media: schema.UpdateMedia[] // Updated to match schema relation name and type
 };
 
 export type DailyLogWithAuthor = schema.DailyLog & {
-    author: Pick<schema.User, 'id' | 'firstName' | 'lastName'>
+    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>; // Use creator based on schema relations
+    photos: schema.DailyLogPhoto[]; // Include daily log photos based on schema relations
 };
 
 export type PunchListItemWithDetails = schema.PunchListItem & {
-    createdBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'>,
-    mediaItems: schema.MediaItem[]
+    creator: Pick<schema.User, 'id' | 'firstName' | 'lastName'>; // Use creator based on schema relations
+    assignee: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Include assignee based on schema relations
+    media: schema.UpdateMedia[]; // Updated to match schema relation name and type
 };
 
 export type InvoiceWithPayments = schema.Invoice & {

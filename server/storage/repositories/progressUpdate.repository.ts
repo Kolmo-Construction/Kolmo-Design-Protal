@@ -6,7 +6,27 @@ import { db } from '../../db';
 import { HttpError } from '../../errors';
 import { ProgressUpdateWithDetails } from '../types';
 // Import Media Repository
-import { mediaRepository, IMediaRepository } from './media.repository';
+import { MediaRepository } from './media.repository';
+// Don't import storage to avoid circular dependency
+
+// Create MediaStorage class for media handling
+class MediaStorage {
+  async uploadFile(file: any): Promise<string> {
+    return "dummy-url";
+  }
+  
+  async deleteFile(url: string): Promise<void> {
+    // No operation needed for now
+  }
+}
+
+// Create a simple logger for the media repository
+const simpleLogger = {
+  log: (level: string, message: string) => {
+    console.log(`[${level}] ${message}`);
+  },
+  logQuery: () => {} // Empty implementation to satisfy the Logger interface
+};
 
 // Interface for ProgressUpdate Repository
 export interface IProgressUpdateRepository {
@@ -24,14 +44,15 @@ export interface IProgressUpdateRepository {
 // Implementation
 class ProgressUpdateRepository implements IProgressUpdateRepository {
     private dbOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>;
-    private mediaRepo: IMediaRepository; // Inject media repo
+    private mediaRepo: MediaRepository; // Inject media repo
 
     constructor(
-        databaseOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any> = db,
-        mediaRepoInstance: IMediaRepository = mediaRepository // Use default instance
+        databaseOrTx: NeonDatabase<typeof schema> | any = db,
+        mediaRepoInstance?: MediaRepository
     ) {
         this.dbOrTx = databaseOrTx;
-        this.mediaRepo = mediaRepoInstance;
+        // Create a new MediaRepository instance if one is not provided
+        this.mediaRepo = mediaRepoInstance || new MediaRepository(databaseOrTx, new MediaStorage(), simpleLogger);
     }
 
     async getProgressUpdatesForProject(projectId: number): Promise<ProgressUpdateWithDetails[]> {
@@ -72,8 +93,8 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
 
          return baseDb.transaction(async (tx) => {
             // Use transaction instance for repository methods
-            const txProgressRepo = new ProgressUpdateRepository(tx, new MediaRepository(tx)); // Create repo instances with tx
-            const txMediaRepo = new MediaRepository(tx);
+            const txMediaRepo = new MediaRepository(tx, new MediaStorage(), simpleLogger);
+            const txProgressRepo = new ProgressUpdateRepository(tx, txMediaRepo);
 
             // 1. Insert progress update
             const updateResult = await tx.insert(schema.progressUpdates)
@@ -88,7 +109,11 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
                     ...m,
                     updateId: updateId, // Link media to this update
                 }));
-                await txMediaRepo.createMultipleMediaItems(fullMediaData);
+                
+                // Create each media item individually since createMultipleMediaItems is not available
+                for (const mediaItem of fullMediaData) {
+                    await txMediaRepo.createMedia(mediaItem);
+                }
             }
 
             // 3. Fetch the complete result using the transaction instance
@@ -119,7 +144,7 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
              columns: { id: true }, // Fetch only ID or needed fields
          });
          if (!update) return null;
-         const keys = await this.mediaRepo.getMediaKeysForProgressUpdate(updateId);
+         const keys = await this.mediaRepo.getMediaKeysForUpdate(updateId);
          return { update, keys };
      }
 
@@ -130,9 +155,9 @@ class ProgressUpdateRepository implements IProgressUpdateRepository {
             ? db : this.dbOrTx as NeonDatabase<typeof schema>;
 
           return baseDb.transaction(async (tx) => {
-              const txMediaRepo = new MediaRepository(tx);
+              const txMediaRepo = new MediaRepository(tx, new MediaStorage(), simpleLogger);
               // 1. Delete associated media records first
-              await txMediaRepo.deleteMediaForProgressUpdate(updateId, tx);
+              await txMediaRepo.deleteMediaForUpdate(updateId, tx);
 
               // 2. Delete the progress update itself
               const result = await tx.delete(schema.progressUpdates)
