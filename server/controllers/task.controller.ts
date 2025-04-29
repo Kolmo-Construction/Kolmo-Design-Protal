@@ -118,6 +118,8 @@ export const updateTask = async (
 
      const updateData = {
         ...validatedData,
+        // Remove progress field if it exists in validatedData
+        ...(validatedData.progress ? { } : {}), // Strip out progress if it exists
         ...(validatedData.dueDate && { dueDate: new Date(validatedData.dueDate) }),
         ...(validatedData.startDate && { startDate: new Date(validatedData.startDate) }),
         ...(validatedData.status === 'COMPLETED' && { completedAt: new Date() }),
