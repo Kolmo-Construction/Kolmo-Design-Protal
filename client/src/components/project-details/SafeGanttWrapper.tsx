@@ -14,45 +14,66 @@ const addProtectiveOverlayStyles = () => {
     const style = document.createElement('style');
     style.id = 'gantt-protective-styles';
     style.innerHTML = `
-      /* AGGRESSIVE FIX: Completely disable ALL mouse events in the timeline 
-         to prevent the "Cannot read properties of undefined (reading 'type')" error */
+      /* TARGETED FIX: Only disable mouse events in problematic areas */
       
-      /* Disable all mouse interactions globally on the gantt chart */
-      .gantt-safe-wrapper .wx-gantt * {
-        pointer-events: none !important; 
-      }
-      
-      /* Except for specific interactive elements we want to keep working */
-      .gantt-safe-wrapper .wx-gantt-list,
-      .gantt-safe-wrapper .wx-gantt-list *,
-      .gantt-safe-wrapper .wx-gantt-bar,
-      .gantt-safe-wrapper .wx-gantt-bar *,
-      .gantt-safe-wrapper .wx-gantt-progress-handle,
-      .gantt-safe-wrapper .wx-gantt-task-link-control,
-      .gantt-safe-wrapper .wx-gantt-link-point {
-        pointer-events: auto !important;
-      }
-      
-      /* Force hide all tooltips that might cause errors */
-      .gantt-safe-wrapper .wx-gantt-tooltip,
-      .gantt-safe-wrapper [data-tooltip],
-      .gantt-safe-wrapper [class*="tooltip"] {
+      /* Disable tooltips that cause errors */
+      .wx-gantt-tooltip {
         display: none !important;
         opacity: 0 !important;
         visibility: hidden !important;
       }
       
-      /* Improve visual appearance since tooltips are disabled */
-      .gantt-safe-wrapper .wx-gantt-bar {
-        stroke-width: 1px;
-        stroke: #000;
-        filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
+      /* Disable mouse events only in the calendar grid area - this is where the error happens */
+      .wx-gantt-calendar, 
+      .wx-gantt-timeline-area,
+      .wx-gantt-timeline {
+        pointer-events: none !important;
       }
       
-      /* Add a subtle highlight effect on hover to compensate for missing tooltips */
-      .gantt-safe-wrapper .wx-gantt-bar:hover {
-        filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.5));
+      /* But re-enable specific elements we need to interact with */
+      .wx-gantt-bar,
+      .wx-gantt-bar-wrapper,
+      .wx-gantt-bar *,
+      .wx-gantt-progress-handle,
+      .wx-gantt-task-link-control,
+      .wx-gantt-link-point,
+      .wx-gantt-link-control-point,
+      .wx-gantt-task-link-control-wrapper {
+        pointer-events: auto !important;
+        z-index: 1000 !important; /* Ensure they're above any overlays */
+      }
+      
+      /* Keep interaction with list items enabled */
+      .wx-gantt-list-column,
+      .wx-gantt-list-item,
+      .wx-gantt-list * {
+        pointer-events: auto !important;
+      }
+      
+      /* Compensate for missing tooltips with visual feedback */
+      .wx-gantt-bar {
+        stroke-width: 1px;
+        stroke: #000;
+        transition: filter 0.2s ease;
+      }
+      
+      .wx-gantt-bar:hover {
+        filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
         opacity: 0.9;
+      }
+      
+      /* Make link points more visible so users know they can click them */
+      .wx-gantt-link-point {
+        r: 5px !important; /* Slightly larger radius */
+        fill: rgba(0, 120, 212, 0.7) !important; /* More visible blue */
+        stroke: white !important;
+        stroke-width: 1px !important;
+        transition: fill 0.2s ease !important;
+      }
+      
+      .wx-gantt-link-point:hover {
+        fill: rgba(0, 120, 212, 1) !important; /* Brighter on hover */
+        r: 6px !important; /* Even larger on hover */
       }
     `;
     document.head.appendChild(style);
