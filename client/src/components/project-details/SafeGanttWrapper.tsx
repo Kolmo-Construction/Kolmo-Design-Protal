@@ -4,6 +4,55 @@ import "wx-react-gantt/dist/gantt.css";
 // Import a class names utility
 import { cn } from "@/lib/utils";
 
+// Create a style tag to add a protective overlay on timeline areas
+const addProtectiveOverlayStyles = () => {
+  try {
+    // Check if styles already added
+    if (document.getElementById('gantt-protective-styles')) return;
+    
+    // Create style element
+    const style = document.createElement('style');
+    style.id = 'gantt-protective-styles';
+    style.innerHTML = `
+      /* Block mouseover/mousemove interactions on the timeline to prevent errors */
+      .wx-gantt-timeline * {
+        pointer-events: none !important;
+      }
+      
+      /* But allow interactions with task bars */
+      .wx-gantt-bar-wrapper,
+      .wx-gantt-bar,
+      .wx-gantt-bar-wrapper *,
+      .wx-gantt-bar * {
+        pointer-events: auto !important;
+      }
+      
+      /* Allow interaction with list items on the left */
+      .wx-gantt-list * {
+        pointer-events: auto !important;
+      }
+      
+      /* Disable the tooltip that's causing issues */
+      .wx-gantt-tooltip {
+        display: none !important;
+      }
+      
+      /* Improve task visibility to compensate for disabled tooltips */
+      .wx-gantt-bar {
+        stroke-width: 1px;
+        stroke: #000;
+        filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Set global flag
+    (window as any).__GANTT_PROTECTIVE_STYLES_ADDED__ = true;
+  } catch (err) {
+    console.error('[SafeGanttWrapper] Failed to add protective styles:', err);
+  }
+};
+
 // Define the enum locally since it's not exported
 type ViewModeType = "Day" | "Week" | "Month";
 
@@ -67,6 +116,12 @@ class GanttErrorBoundary extends React.Component<
 export function SafeGanttWrapper(props: SafeGanttWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Apply our CSS protection
+  useEffect(() => {
+    // Add protective styles to intercept mouse events
+    addProtectiveOverlayStyles();
+  }, []);
   
   // Add global error handler to catch and suppress type errors from the Gantt chart
   useEffect(() => {
