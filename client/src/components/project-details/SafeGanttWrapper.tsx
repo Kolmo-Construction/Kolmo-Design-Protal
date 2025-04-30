@@ -173,19 +173,21 @@ export function SafeGanttWrapper(props: SafeGanttWrapperProps) {
   
   // Render the Gantt chart within our error-handling wrapper
   return (
-    <div 
-      ref={containerRef} 
-      className="gantt-safe-wrapper"
-      onError={(e: any) => {
-        // React's onError doesn't catch all errors, but include it anyway
-        if (e && e.error && typeof e.error.message === 'string' && 
-            e.error.message.includes('Cannot read properties of undefined')) {
-          e.preventDefault();
-          setError(e.error);
-        }
-      }}
-    >
-      <Gantt {...props} />
-    </div>
+    <GanttErrorBoundary>
+      <div 
+        ref={containerRef} 
+        className={cn("gantt-safe-wrapper", props.readonly ? "gantt-readonly" : "")}
+        onError={(e: any) => {
+          // React's onError doesn't catch all errors, but include it anyway
+          if (e && e.error && typeof e.error.message === 'string' && 
+              e.error.message.includes('Cannot read properties of undefined')) {
+            e.preventDefault();
+            setError(e.error);
+          }
+        }}
+      >
+        <Gantt {...props} />
+      </div>
+    </GanttErrorBoundary>
   );
 }
