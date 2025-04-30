@@ -241,7 +241,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                       } catch (err) { console.error("Error in Gantt onProgressChange handler:", err); }
                     }}
                     // Adjust based on how wx-react-gantt handles dependency creation events
-                    onRelationChange={(fromTaskId, toTaskId) => {
+                    onRelationChange={(fromTaskId: string | number, toTaskId: string | number) => {
                       try {
                          // Ensure IDs are passed correctly to the interaction handler
                         if (handleDependencyLink) handleDependencyLink(String(fromTaskId), String(toTaskId));
