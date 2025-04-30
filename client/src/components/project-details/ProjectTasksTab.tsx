@@ -42,9 +42,9 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
   // const queryClient = useQueryClient();
   // --- REMOVED: Dialog and task state useState hooks ---
 
-  // Fetch tasks and dependencies
-  const tasksQueryKey = ['projects', projectId, 'tasks'];
-  const dependenciesQueryKey = ['projects', projectId, 'tasks', 'dependencies'];
+  // Fetch tasks and dependencies - using proper API URLs as first element
+  const tasksQueryKey = [`/api/projects/${projectId}/tasks`];
+  const dependenciesQueryKey = [`/api/projects/${projectId}/tasks/dependencies`];
 
   const {
     data: tasks = [], // Provide default value

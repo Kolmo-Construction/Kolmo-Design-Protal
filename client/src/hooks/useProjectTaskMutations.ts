@@ -23,9 +23,9 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
     const queryClient = useQueryClient();
     const { toast } = useToast();
 
-    // Define query keys used for invalidation
-    const tasksQueryKey: QueryKey = ['projects', projectId, 'tasks'];
-    const dependenciesQueryKey: QueryKey = ['projects', projectId, 'tasks', 'dependencies'];
+    // Define query keys used for invalidation - using full API URLs
+    const tasksQueryKey: QueryKey = [`/api/projects/${projectId}/tasks`];
+    const dependenciesQueryKey: QueryKey = [`/api/projects/${projectId}/tasks/dependencies`];
 
     // Create Task Mutation
     const createTaskMutation = useMutation<Task, Error, InsertTask>({
