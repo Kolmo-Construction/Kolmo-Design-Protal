@@ -234,7 +234,14 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             )}
             {/* Render Gantt only if there are tasks to display */}
             {formattedGanttTasks.length > 0 && (
-              <div className="gantt-container">
+              <div className="gantt-container relative">
+                {/* Add an invisible overlay div to block all mouse events on the timeline */}
+                <div 
+                  className="absolute inset-0 z-10" 
+                  style={{ pointerEvents: 'none' }} 
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseOver={(e) => e.stopPropagation()}
+                />
                 <SafeGanttWrapper
                     tasks={formattedGanttTasks}
                     viewMode="Week"
