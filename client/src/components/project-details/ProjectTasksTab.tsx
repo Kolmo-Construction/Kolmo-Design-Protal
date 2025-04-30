@@ -21,8 +21,9 @@ import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2 } from "lucid
 // Removed toast import if only used in hooks now
 import { CreateTaskDialog } from "./CreateTaskDialog"; // Assuming this component exists
 import { EditTaskDialog } from "./EditTaskDialog";     // Assuming this component exists
-import { Gantt, Task as GanttTask } from "wx-react-gantt";
+import { Task as GanttTask } from "wx-react-gantt";
 import "wx-react-gantt/dist/gantt.css";
+import { SafeGanttWrapper } from "./SafeGanttWrapper"; // Import our custom wrapper
 import { formatTasksForGantt } from "@/lib/gantt-utils"; // Assuming this util exists
 import { useProjectTaskMutations } from "@/hooks/useProjectTaskMutations"; // Assuming this hook exists
 import { useGanttInteractions } from "@/hooks/useGanttInteractions";       // Assuming this hook exists
@@ -234,25 +235,24 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             {/* Render Gantt only if there are tasks to display */}
             {formattedGanttTasks.length > 0 && (
               <div className="gantt-container">
-                <Gantt
+                <SafeGanttWrapper
                     tasks={formattedGanttTasks}
-                    viewMode="Week" // Use string literal instead of enum to avoid type issues
-                    // Handler functions wrapped in try/catch to prevent unhandled errors
-                    onClick={(task) => {
+                    viewMode="Week"
+                    onClick={(task: GanttTask) => {
                       try {
                         if (handleTaskClick) handleTaskClick(task);
                       } catch (err) {
                         console.error("Error in Gantt onClick handler:", err);
                       }
                     }}
-                    onDateChange={(task, start, end) => {
+                    onDateChange={(task: GanttTask, start: Date, end: Date) => {
                       try {
                         if (handleDateChange) handleDateChange(task, start, end);
                       } catch (err) {
                         console.error("Error in Gantt onDateChange handler:", err);
                       }
                     }}
-                    onProgressChange={(task, progress) => {
+                    onProgressChange={(task: GanttTask, progress: number) => {
                       try {
                         if (handleProgressChange) handleProgressChange(task, progress);
                       } catch (err) {
