@@ -14,6 +14,7 @@ export interface IProjectRepository {
     update(id: string, projectData: Partial<NewProject>): Promise<Project | null>; // Returns base project type or null
     delete(id: string): Promise<boolean>;
     getAllProjects(): Promise<Project[]>;
+    getProjectsForUser(userId: string): Promise<ProjectWithManagerAndClients[]>; // Added to match the controller
     assignClientToProject?(userId: string, projectId: string): Promise<boolean>; // Optional for now
 }
 
@@ -356,6 +357,43 @@ export class ProjectRepository implements IProjectRepository {
         } catch (error) {
             console.error(`[ProjectRepository] Error in getAllProjects:`, error);
             throw new Error(`Database error while fetching all projects.`);
+        }
+    }
+    
+    /**
+     * Gets projects for a specific user by ID, determining their role and applying appropriate filters.
+     * This method wraps findForUser to be compatible with the controller.
+     *
+     * @param userId - The ID of the user to find projects for
+     * @returns A promise resolving to an array of projects with detailed info
+     */
+    async getProjectsForUser(userId: string): Promise<ProjectWithManagerAndClients[]> {
+        console.log(`[ProjectRepository] Getting projects for user ID: ${userId}`);
+        try {
+            // First, get user's info including role from database
+            const user = await db.query.users.findFirst({
+                where: eq(users.id, userId),
+                columns: {
+                    id: true,
+                    role: true
+                }
+            });
+
+            if (!user) {
+                console.warn(`[ProjectRepository] User with ID ${userId} not found`);
+                return [];
+            }
+
+            // Use existing findForUser method with the retrieved user
+            const authenticatedUser: AuthenticatedUser = {
+                id: userId,
+                role: user.role
+            };
+
+            return await this.findForUser(authenticatedUser);
+        } catch (error) {
+            console.error(`[ProjectRepository] Error in getProjectsForUser:`, error);
+            throw new Error(`Database error while fetching projects for user ${userId}`);
         }
     }
 }
