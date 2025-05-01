@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import ProjectCard from "@/components/ProjectCard";
-import { Project } from "@shared/schema";
+import { Project, ProjectWithDetails } from "@shared/schema";
 import { 
   Card, 
   CardContent, 
@@ -31,7 +31,10 @@ export default function Projects() {
   const { 
     data: projects = [],
     isLoading: isLoadingProjects 
-  } = useQuery<Project[]>({
+  } = useQuery<(Project & {
+    projectManager?: { id: number; firstName: string; lastName: string } | null;
+    clients?: { id: number; firstName: string; lastName: string }[];
+  })[]>({
     queryKey: ["/api/projects"],
   });
 
