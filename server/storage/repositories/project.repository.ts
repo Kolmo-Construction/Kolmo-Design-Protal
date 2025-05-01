@@ -1,448 +1,237 @@
 // server/storage/repositories/project.repository.ts
+import { NeonDatabase } from 'drizzle-orm/neon-serverless';
+import { eq, and, or, sql, desc, asc, inArray, exists } from 'drizzle-orm';
+import * as schema from '../../../shared/schema';
 import { db } from '../../db';
-import { projects, users, type NewProject, type Project } from '../../../shared/schema';
-import { eq, desc, inArray, sql, type SQL } from 'drizzle-orm';
-// Import the specific types needed from storage/types.ts
-import type { AuthenticatedUser, ProjectWithManagerAndClients } from '../types';
 import { HttpError } from '../../errors';
+import { ProjectWithDetails, ClientInfo, ProjectManagerInfo } from '../types';
+// Import user repository if needed for complex checks, though checkUserProjectAccess fetches user directly now
+// import { userRepository, IUserRepository } from './user.repository';
 
-// Interface (optional but good practice, ensure it matches the class methods)
+// Interface for Project Repository
 export interface IProjectRepository {
-    findForUser(user: AuthenticatedUser): Promise<ProjectWithManagerAndClients[]>;
-    findById(id: string): Promise<ProjectWithManagerAndClients | null>;
-    create(projectData: NewProject): Promise<Project>; // Returns base project type
-    update(id: string, projectData: Partial<NewProject>): Promise<Project | null>; // Returns base project type or null
-    delete(id: string): Promise<boolean>;
-    getAllProjects(): Promise<Project[]>;
-    getProjectsForUser(userId: string): Promise<ProjectWithManagerAndClients[]>; // Added to match the controller
-    assignClientToProject?(userId: string, projectId: string): Promise<boolean>; // Optional for now
+    getAllProjects(): Promise<ProjectWithDetails[]>;
+    getProjectsForUser(userId: string): Promise<ProjectWithDetails[]>;
+    getProjectById(projectId: number): Promise<ProjectWithDetails | null>;
+    checkUserProjectAccess(userId: string, projectId: number): Promise<boolean>;
+    createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null>;
+    updateProjectDetailsAndClients(projectId: number, projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>, clientIds?: string[]): Promise<ProjectWithDetails | null>;
+    deleteProject(projectId: number): Promise<boolean>;
+
+    // Method for backward compatibility
+    assignClientToProject(clientId: string | number, projectId: string | number): Promise<any>;
 }
 
-export class ProjectRepository implements IProjectRepository {
+// Implementation
+class ProjectRepository implements IProjectRepository {
+    private db: NeonDatabase<typeof schema>;
+    // Optionally inject other repositories if needed
+    // private userRepo: IUserRepository;
 
-    /**
-     * Finds projects accessible to a given user based on their role.
-     * Includes Project Manager name and associated Client names.
-     * @param user - The authenticated user object containing id and role.
-     * @returns A promise resolving to an array of projects with details.
-     */
-    async findForUser(user: AuthenticatedUser): Promise<ProjectWithManagerAndClients[]> {
-        console.log(`[ProjectRepository] Finding projects for user ID: ${user.id}, Role: ${user.role}`);
-        let whereCondition: SQL | undefined = undefined;
+    constructor(database: NeonDatabase<typeof schema> = db /*, userRepoInstance: IUserRepository = userRepository */) {
+        this.db = database;
+        // this.userRepo = userRepoInstance;
+    }
 
-        // --- ROLE-BASED FILTERING ---
-        if (user.role === 'project_manager') {
-            // Project managers see projects where they are assigned
-            whereCondition = eq(projects.project_manager_id, parseInt(user.id, 10));
-            console.log(`[ProjectRepository] Applying filter for project_manager: project_manager_id = ${user.id}`);
-        } else if (user.role === 'client') {
-            // Since we don't have a direct clientIds column in the projects table,
-            // we need to check project_client_junc table or use a client-projects join table
-            // For now, we'll use a custom SQL query approach
-            whereCondition = sql`EXISTS (SELECT 1 FROM project_clients WHERE project_id = ${projects.id} AND client_id = ${parseInt(user.id, 10)})`;
-            console.log(`[ProjectRepository] Applying filter for client: ${user.id} in project_clients join table`);
-        }
-        // Admins (user.role === 'admin') get no 'whereCondition', fetching all projects
-        else if (user.role === 'admin') {
-             console.log(`[ProjectRepository] No filter applied for admin user.`);
-        } else {
-            console.warn(`[ProjectRepository] Unknown user role encountered: ${user.role}. Returning empty array.`);
-            return []; // Handle unknown roles gracefully
-        }
-        // --- END ROLE-BASED FILTERING ---
+    // Helper moved inside the class or kept separate
+    private mapProjectResult(project: any): ProjectWithDetails {
+        const clients = project.clientProjects?.map((cp: any) => cp.client)
+                                              .filter(Boolean)
+                                              .map((c: any) => ({ id: c.id, firstName: c.firstName, lastName: c.lastName, email: c.email })) || [];
+        const projectManager = project.projectManager ? {
+            id: project.projectManager.id, firstName: project.projectManager.firstName,
+            lastName: project.projectManager.lastName, email: project.projectManager.email,
+        } : null;
+        const { clientProjects, ...projectBase } = project; // Exclude join table data
+        return { ...projectBase, clients, projectManager };
+    }
 
+    async getAllProjects(): Promise<ProjectWithDetails[]> {
         try {
-            // 1. Fetch projects with project manager details using the defined relation
-            const fetchedProjects = await db.query.projects.findMany({
-                where: whereCondition,
+            const projects = await this.db.query.projects.findMany({
+                orderBy: [desc(schema.projects.createdAt)],
                 with: {
-                    projectManager: { // Assumes relation named 'projectManager' is defined in schema.ts
-                        columns: {
-                            // Select only necessary fields, e.g., firstName/lastName
-                            firstName: true,
-                            lastName: true,
-                            // id: true, // Include ID if needed elsewhere
-                        },
-                    },
-                },
-                orderBy: (p) => [desc(p.created_at)], // Use alias 'p' for clarity
-            });
-            console.log(`[ProjectRepository] Fetched ${fetchedProjects.length} project(s) initially.`);
-
-
-            if (!fetchedProjects || fetchedProjects.length === 0) {
-                return []; // Return early if no projects found
-            }
-
-            // 2. Fetch client IDs from project_clients join table for all fetched projects
-            const projectIds = fetchedProjects.map(p => p.id);
-            
-            // Use a direct query to get client_id to project_id mappings
-            const projectClientMappings = await db.execute(
-                sql`SELECT project_id, client_id FROM project_clients WHERE project_id IN (${projectIds.join(',')})`
-            );
-            
-            // Create a map of project ID to array of client IDs
-            const projectToClientIds = new Map<number, number[]>();
-            if (projectClientMappings.rows && projectClientMappings.rows.length > 0) {
-                projectClientMappings.rows.forEach((row: any) => {
-                    const projectId = row.project_id;
-                    const clientId = row.client_id;
-                    
-                    if (!projectToClientIds.has(projectId)) {
-                        projectToClientIds.set(projectId, []);
-                    }
-                    projectToClientIds.get(projectId)!.push(clientId);
-                });
-            }
-            
-            // Extract all unique client IDs
-            const allClientIds: number[] = [];
-            projectToClientIds.forEach((clientIds) => {
-                clientIds.forEach(id => {
-                    if (!allClientIds.includes(id)) {
-                        allClientIds.push(id);
-                    }
-                });
-            });
-            
-            console.log(`[ProjectRepository] Unique client IDs found: ${allClientIds.length > 0 ? allClientIds.join(', ') : 'None'}`);
-
-            // 3. Fetch client details if there are any client IDs
-            let clientsMap = new Map<number, { firstName: string | null, lastName: string | null }>();
-            if (allClientIds.length > 0) {
-                const clientUsers = await db.query.users.findMany({
-                    where: inArray(users.id, allClientIds.map(id => id.toString())),
-                    columns: {
-                        id: true,
-                        firstName: true, 
-                        lastName: true,
-                    },
-                });
-                clientsMap = new Map(clientUsers.map(c => [parseInt(c.id, 10), { firstName: c.firstName, lastName: c.lastName }]));
-                console.log(`[ProjectRepository] Fetched details for ${clientsMap.size} clients.`);
-            }
-
-            // 4. Map client names back to the project objects
-            const projectsWithDetails: ProjectWithManagerAndClients[] = fetchedProjects.map(p => {
-                // Get the client IDs for this project from our mapping
-                const projectClientIds = projectToClientIds.get(p.id) || [];
-                
-                // Map client IDs to names
-                const clientNames = projectClientIds
-                    .map(clientId => {
-                        const client = clientsMap.get(clientId);
-                        if (client && (client.firstName || client.lastName)) {
-                            return `${client.firstName || ''} ${client.lastName || ''}`.trim();
-                        }
-                        return null;
-                    })
-                    .filter((name): name is string => name !== null && name !== undefined); // Type guard
-
-                // Create a project manager name from firstName and lastName
-                let projectManagerName = null;
-                if (p.projectManager) {
-                    if (p.projectManager.firstName || p.projectManager.lastName) {
-                        projectManagerName = `${p.projectManager.firstName || ''} ${p.projectManager.lastName || ''}`.trim();
-                    }
+                    projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
-
-                return {
-                    ...p, // Spread the original project data
-                    projectManagerName, 
-                    clientNames, // Assign the array of client names
-                 };
             });
-
-            console.log(`[ProjectRepository] Returning ${projectsWithDetails.length} project(s) with details.`);
-            return projectsWithDetails;
-
+            return projects.map(p => this.mapProjectResult(p)); // Use class method
         } catch (error) {
-            console.error(`[ProjectRepository] Error in findForUser for user ${user.id}:`, error);
-            // Re-throw or handle as appropriate for your application structure
-            throw new Error(`Database error while fetching projects for user ${user.id}.`);
+            console.error('Error fetching all projects:', error);
+            throw new Error('Database error while fetching projects.');
         }
     }
 
-    /**
-     * Finds a single project by its ID, including manager and client names.
-     * Note: Authorization should be checked in the controller/service layer.
-     * @param id - The UUID of the project to find.
-     * @returns A promise resolving to the project with details or null if not found.
-     */
-    async findById(id: string): Promise<ProjectWithManagerAndClients | null> {
-         console.log(`[ProjectRepository] Finding project by ID: ${id}`);
+    async getProjectsForUser(userId: string): Promise<ProjectWithDetails[]> {
          try {
-            const project = await db.query.projects.findFirst({
-                where: eq(projects.id, id),
+            const projects = await this.db.query.projects.findMany({
+                where: or(
+                    eq(schema.projects.projectManagerId, Number(userId)),
+                    exists(this.db.select({ val: sql`1` }).from(schema.clientProjects)
+                           .where(and(eq(schema.clientProjects.projectId, schema.projects.id), eq(schema.clientProjects.clientId, Number(userId)))))
+                ),
+                orderBy: [desc(schema.projects.createdAt)],
                 with: {
-                    projectManager: {
-                        columns: { 
-                            firstName: true,
-                            lastName: true,
-                        },
-                    },
-                    // Include other relations here if needed for a full detail view
-                    // e.g., documents: true, tasks: true, etc.
-                },
-            });
-
-            if (!project) {
-                console.log(`[ProjectRepository] Project with ID ${id} not found.`);
-                return null;
-            }
-
-            // Fetch client names separately from the project_clients join table
-            let clientNames: string[] = [];
-            
-            // Get client IDs from project_clients join table
-            const projectClientMappings = await db.execute(
-                sql`SELECT client_id FROM project_clients WHERE project_id = ${parseInt(id, 10)}`
-            );
-            
-            // Extract client IDs from the result
-            const clientIds: number[] = [];
-            if (projectClientMappings.rows && projectClientMappings.rows.length > 0) {
-                projectClientMappings.rows.forEach((row: any) => {
-                    clientIds.push(row.client_id);
-                });
-            }
-            
-            if (clientIds.length > 0) {
-                const clientUsers = await db.query.users.findMany({
-                    where: inArray(users.id, clientIds.map(id => id.toString())),
-                    columns: { 
-                        firstName: true,
-                        lastName: true,
-                    },
-                });
-                clientNames = clientUsers.map(c => {
-                    if (c.firstName || c.lastName) {
-                        return `${c.firstName || ''} ${c.lastName || ''}`.trim();
-                    }
-                    return '';
-                }).filter(Boolean);
-                console.log(`[ProjectRepository] Found ${clientNames.length} client(s) for project ${id}.`);
-            } else {
-                console.log(`[ProjectRepository] No client IDs associated with project ${id}.`);
-            }
-
-            // Create project manager name
-            let projectManagerName = null;
-            if (project.projectManager) {
-                if (project.projectManager.firstName || project.projectManager.lastName) {
-                    projectManagerName = `${project.projectManager.firstName || ''} ${project.projectManager.lastName || ''}`.trim();
+                    projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
-            }
-
-            return {
-                ...project,
-                projectManagerName,
-                clientNames,
-            };
-         } catch (error) {
-             console.error(`[ProjectRepository] Error in findById for ID ${id}:`, error);
-             throw new Error(`Database error while fetching project ${id}.`);
-         }
+            });
+            return projects.map(p => this.mapProjectResult(p));
+        } catch (error) {
+            console.error(`Error fetching projects for user ${userId}:`, error);
+            throw new Error('Database error while fetching user projects.');
+        }
     }
 
-    /**
-     * Creates a new project in the database.
-     * @param projectData - Data for the new project, conforming to NewProject type.
-     * @returns A promise resolving to the newly created project object.
-     */
-    async create(projectData: NewProject): Promise<Project> {
-         console.log(`[ProjectRepository] Creating new project: ${projectData.name}`);
+    async getProjectById(projectId: number): Promise<ProjectWithDetails | null> {
+        try {
+            const project = await this.db.query.projects.findFirst({
+                where: eq(schema.projects.id, projectId),
+                with: {
+                    projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                }
+            });
+            return project ? this.mapProjectResult(project) : null;
+        } catch (error) {
+            console.error(`Error fetching project ${projectId}:`, error);
+            throw new Error('Database error while fetching project.');
+        }
+    }
+
+    async checkUserProjectAccess(userId: string, projectId: number): Promise<boolean> {
          try {
-            // Drizzle automatically handles default values like createdAt/updatedAt if defined in schema
-            const [newProject] = await db.insert(projects).values(projectData).returning();
-
-            if (!newProject) {
-                 throw new Error("Project creation failed, no record returned.");
+            // Fetch minimal user role info directly
+            const userRoleResult = await this.db.select({ role: schema.users.role })
+                                          .from(schema.users)
+                                          .where(eq(schema.users.id, Number(userId)))
+                                          .limit(1);
+            if (userRoleResult.length > 0 && userRoleResult[0].role.toLowerCase() === 'admin') {
+                return true;
             }
-             console.log(`[ProjectRepository] Project created with ID: ${newProject.id}`);
-            return newProject;
-         } catch (error) {
-            console.error(`[ProjectRepository] Error in create:`, error);
-            // Add more specific error handling if needed (e.g., unique constraint violation)
-             throw new Error(`Database error while creating project.`);
-         }
-    }
 
-    /**
-     * Updates an existing project.
-     * @param id - The UUID of the project to update.
-     * @param projectData - An object containing the fields to update.
-     * @returns A promise resolving to the updated project object or null if not found.
-     */
-    async update(id: string, projectData: Partial<NewProject>): Promise<Project | null> {
-        console.log(`[ProjectRepository] Updating project ID: ${id}`);
-        if (Object.keys(projectData).length === 0) {
-            console.warn(`[ProjectRepository] Update called with empty data for project ID: ${id}`);
-            // Optionally fetch and return the current project data or just return null/throw error
-            return this.findById(id); // Example: return current data if no changes
-        }
-        try {
-            // Convert Date objects to strings for database compatibility
-            const processedData: any = { ...projectData };
-            if (processedData.startDate instanceof Date) {
-                processedData.startDate = processedData.startDate.toISOString();
-            }
-            if (processedData.endDate instanceof Date) {
-                processedData.endDate = processedData.endDate.toISOString();
-            }
-            
-            const [updatedProject] = await db.update(projects)
-                .set({
-                    ...processedData,
-                    updatedAt: new Date(), // Explicitly set updatedAt on every update
-                })
-                .where(eq(projects.id, id))
-                .returning(); // Return the updated record
-
-            if (!updatedProject) {
-                 console.log(`[ProjectRepository] Project with ID ${id} not found for update.`);
-                 return null;
-            }
-            console.log(`[ProjectRepository] Project ${id} updated successfully.`);
-            return updatedProject;
-        } catch (error) {
-             console.error(`[ProjectRepository] Error in update for ID ${id}:`, error);
-             throw new Error(`Database error while updating project ${id}.`);
-        }
-    }
-
-    /**
-     * Deletes a project by its ID.
-     * Note: Related data deletion (tasks, documents etc.) depends on DB foreign key constraints (ON DELETE CASCADE).
-     * @param id - The UUID of the project to delete.
-     * @returns A promise resolving to true if deletion was successful, false otherwise.
-     */
-    async delete(id: string): Promise<boolean> {
-        console.log(`[ProjectRepository] Deleting project ID: ${id}`);
-        try {
-            const result = await db.delete(projects).where(eq(projects.id, id));
-            const success = result && result.rowCount && result.rowCount > 0;
-            console.log(`[ProjectRepository] Project ${id} deletion ${success ? 'successful' : 'failed (not found?)'}.`);
-            return success;
-        } catch (error) {
-            console.error(`[ProjectRepository] Error in delete for ID ${id}:`, error);
-            throw new Error(`Database error while deleting project ${id}.`);
-        }
-    }
-
-    /**
-     * Assigns a client user to a project.
-     * @param userId - The UUID of the client user.
-     * @param projectId - The UUID of the project.
-     * @returns A promise resolving to true if assignment was successful.
-     */
-    async assignClientToProject(userId: string, projectId: string): Promise<boolean> {
-        console.log(`[ProjectRepository] Assigning client ${userId} to project ${projectId}`);
-        try {
-            // 1. Verify project exists
-            const project = await db.query.projects.findFirst({
-                where: eq(projects.id, projectId),
-                columns: { id: true }
+            const project = await this.db.query.projects.findFirst({
+                where: eq(schema.projects.id, projectId),
+                columns: { id: true, projectManagerId: true },
+                with: { clientProjects: { columns: { clientId: true } } }
             });
 
-            if (!project) {
-                throw new HttpError(404, `Project with ID ${projectId} not found.`);
-            }
+            if (!project) return false;
+            if (project.projectManagerId === Number(userId)) return true;
+            if (project.clientProjects?.some(c => c.clientId === Number(userId))) return true;
 
-            // 2. Check if the client is already assigned by checking the project_clients join table
-            const existingAssignment = await db.execute(
-                sql`SELECT 1 FROM project_clients 
-                    WHERE project_id = ${parseInt(projectId, 10)} 
-                    AND client_id = ${parseInt(userId, 10)} 
-                    LIMIT 1`
-            );
-
-            // If we found a row, client is already assigned
-            if (existingAssignment.rows && existingAssignment.rows.length > 0) {
-                console.log(`[ProjectRepository] Client ${userId} is already assigned to project ${projectId}.`);
-                return true; // Already assigned, so consider it successful
-            }
-
-            // 3. Insert into project_clients join table
-            await db.execute(
-                sql`INSERT INTO project_clients (project_id, client_id) 
-                    VALUES (${parseInt(projectId, 10)}, ${parseInt(userId, 10)})`
-            );
-
-            // 4. Update the project's updated_at timestamp
-            await db.update(projects)
-                .set({ 
-                    updated_at: new Date() 
-                })
-                .where(eq(projects.id, projectId));
-
-            console.log(`[ProjectRepository] Client ${userId} successfully assigned to project ${projectId}.`);
-            return true;
+            return false;
         } catch (error) {
-            console.error(`[ProjectRepository] Error in assignClientToProject:`, error);
-            if (error instanceof HttpError) {
-                throw error; // Re-throw HTTP errors with their status
-            }
-            throw new Error(`Database error while assigning client to project.`);
+            console.error(`Error checking access for user ${userId} to project ${projectId}:`, error);
+            throw new Error('Database error while checking project access.');
         }
     }
 
-    /**
-     * Gets all projects in the system.
-     * For admin use.
-     */
-    async getAllProjects(): Promise<Project[]> {
-        console.log(`[ProjectRepository] Fetching all projects`);
-        try {
-            // Use basic select instead of query builder to avoid schema conflicts
-            const allProjects = await db.select().from(projects)
-                .orderBy(desc(projects.created_at));
-            
-            return allProjects;
-        } catch (error) {
-            console.error(`[ProjectRepository] Error in getAllProjects:`, error);
-            throw new Error(`Database error while fetching all projects.`);
-        }
-    }
-    
-    /**
-     * Gets projects for a specific user by ID, determining their role and applying appropriate filters.
-     * This method wraps findForUser to be compatible with the controller.
-     *
-     * @param userId - The ID of the user to find projects for
-     * @returns A promise resolving to an array of projects with detailed info
-     */
-    async getProjectsForUser(userId: string): Promise<ProjectWithManagerAndClients[]> {
-        console.log(`[ProjectRepository] Getting projects for user ID: ${userId}`);
-        try {
-            // First, get user's info including role from database
-            const user = await db.query.users.findFirst({
-                where: eq(users.id, userId),
-                columns: {
-                    id: true,
-                    role: true
+    async createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null> {
+         if (!clientIds || clientIds.length === 0) {
+            throw new Error("Cannot create project without assigning at least one client.");
+         }
+         // Use the db instance passed to the constructor for transaction
+         return this.db.transaction(async (tx) => {
+            const projectResult = await tx.insert(schema.projects).values(projectData).returning({ id: schema.projects.id });
+            if (!projectResult || projectResult.length === 0) throw new Error("Failed to insert project.");
+            const projectId = projectResult[0].id;
+
+            const clientLinks = clientIds.map(clientId => ({ projectId, clientId }));
+            await tx.insert(schema.clientProjects).values(clientLinks);
+
+            // Use tx instance for query inside transaction
+            const finalProject = await tx.query.projects.findFirst({
+                where: eq(schema.projects.id, projectId),
+                with: {
+                    projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
             });
+            // Map using 'this' which refers to the class instance
+            return finalProject ? this.mapProjectResult(finalProject) : null;
+        });
+    }
 
-            if (!user) {
-                console.warn(`[ProjectRepository] User with ID ${userId} not found`);
-                return [];
+    async updateProjectDetailsAndClients(
+            projectId: number,
+            projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>,
+            clientIds?: string[]
+        ): Promise<ProjectWithDetails | null> {
+         // Use the db instance passed to the constructor for transaction
+         return this.db.transaction(async (tx) => {
+            if (Object.keys(projectData).length > 0) {
+                await tx.update(schema.projects).set({ ...projectData, updatedAt: new Date() }).where(eq(schema.projects.id, projectId));
+            }
+            if (clientIds !== undefined) {
+                if (clientIds.length === 0) throw new Error("Cannot update project to have zero clients.");
+                await tx.delete(schema.clientProjects).where(eq(schema.clientProjects.projectId, projectId));
+                const newClientLinks = clientIds.map(clientId => ({ projectId, clientId }));
+                await tx.insert(schema.clientProjects).values(newClientLinks);
             }
 
-            // Use existing findForUser method with the retrieved user
-            const authenticatedUser: AuthenticatedUser = {
-                id: userId,
-                role: user.role
-            };
+            const finalProject = await tx.query.projects.findFirst({
+                where: eq(schema.projects.id, projectId),
+                 with: {
+                    projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                }
+            });
+            if (!finalProject) throw new HttpError(404, 'Project not found during update.');
+             // Map using 'this' which refers to the class instance
+            return this.mapProjectResult(finalProject);
+        });
+    }
 
-            return await this.findForUser(authenticatedUser);
+    async deleteProject(projectId: number): Promise<boolean> {
+        try {
+             // Assume ON DELETE CASCADE is set for related tables (tasks, documents, invoices, messages, etc.)
+             // and for the join table projectsToClients from the project side.
+             // If not, manual deletion is required here within a transaction.
+            const result = await this.db.delete(schema.projects)
+                .where(eq(schema.projects.id, projectId))
+                .returning({ id: schema.projects.id });
+            return result.length > 0;
         } catch (error) {
-            console.error(`[ProjectRepository] Error in getProjectsForUser:`, error);
-            throw new Error(`Database error while fetching projects for user ${userId}`);
+            console.error(`Error deleting project ${projectId}:`, error);
+            throw new Error('Database error while deleting project.');
+        }
+    }
+
+    // Method for backward compatibility
+    async assignClientToProject(clientId: string | number, projectId: string | number): Promise<any> {
+        try {
+            // Convert IDs to strings for consistency
+            const clientIdNum = Number(clientId);
+            const projectIdNum = Number(projectId);
+
+            // Check if association already exists
+            const existing = await this.db.query.clientProjects.findFirst({
+                where: and(
+                    eq(schema.clientProjects.clientId, clientIdNum),
+                    eq(schema.clientProjects.projectId, projectIdNum)
+                )
+            });
+
+            if (existing) {
+                return existing; // Return existing association
+            }
+
+            // Create new association
+            const result = await this.db.insert(schema.clientProjects)
+                .values({ 
+                    clientId: clientIdNum,
+                    projectId: projectIdNum 
+                })
+                .returning();
+
+            return result[0];
+        } catch (error) {
+            console.error(`Error assigning client ${clientId} to project ${projectId}:`, error);
+            throw new Error('Database error while assigning client to project.');
         }
     }
 }
 
-// Export a singleton instance
+// Export an instance for convenience
 export const projectRepository = new ProjectRepository();

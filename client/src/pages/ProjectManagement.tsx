@@ -226,9 +226,9 @@ export default function ProjectManagement() {
        />
 
         <EditProjectDialog
-         projectToEdit={selectedProject} // Use project from hook state
+         project={selectedProject} // Use project from hook state
          isOpen={isEditDialogOpen}
-         setIsOpen={setIsEditDialogOpen} // Pass controlled setter from hook
+         onOpenChange={setIsEditDialogOpen} // Use controlled setter from hook
          projectManagers={projectManagers}
          isLoadingManagers={managersLoading}
        />

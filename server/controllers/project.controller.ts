@@ -58,7 +58,7 @@ export const getProjectById = async (
   try {
     // The ID is guaranteed to be valid due to validateIdParam middleware
     const id = parseInt(req.params.id, 10);
-    
+
     // Use the nested repository: storage.projects
     const project = await storage.projects.getProjectById(id);
 
