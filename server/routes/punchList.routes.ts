@@ -1,79 +1,87 @@
 // server/routes/punchList.routes.ts
 import { Router } from 'express';
-import { punchListController } from '../controllers/punchList.controller';
+import { punchListController } from '../controllers/punchList.controller'; // Assuming controller exists
 
 // --- Corrected Imports ---
 import {
     validateResourceId,
-    validateRequestBody // Keep if needed for other routes, but POST now uses FormData
-} from '../middleware/validation.middleware';
-// Import the BASE insert schema, not the one omitting fields, if controller handles parsing
-import { insertPunchListItemSchema } from '@shared/schema';
-import { isAuthenticated, isAdmin } from '../middleware/auth.middleware';
-import { upload } from '../middleware/upload.middleware'; // Import standard upload middleware
+    validateRequestBody
+} from '../middleware/validation.middleware'; // Use standard validation middleware
+import { insertPunchListItemSchema } from '@shared/schema'; // Import schema from shared
+import { isAuthenticated, isAdmin } from '../middleware/auth.middleware'; // Use standard auth middleware (adjust isAdmin if needed)
+// import { authorize } from '../middleware/permissions.middleware'; // Keep if you have complex auth logic beyond isAdmin/isAuthenticated
+// import { permit } from '@/shared/roles'; // Keep if used with authorize
+import { upload } from '../middleware/upload.middleware'; // Use standard upload middleware
 
 // --- Router Setup ---
+// Ensure mergeParams is true if this router is nested under /api/projects/:projectId
 const router = Router({ mergeParams: true });
 
 // --- Middleware applied to all punch list routes ---
+// Use standard isAuthenticated. Add project-specific permission checks within controllers if needed.
 router.use(isAuthenticated);
 
 // --- Route Definitions ---
 
 // GET /api/projects/:projectId/punch-list - Get all punch list items for a project
+// Project ID validation happens in the parent router (server/routes.ts)
 router.get('/',
+    // authorize(permit('projectManager', 'client')), // Add specific auth checks in controller if needed beyond isAuthenticated
     punchListController.getPunchListItemsForProject
 );
 
 // GET /api/projects/:projectId/punch-list/:itemId - Get a specific punch list item by ID
 router.get('/:itemId',
-    validateResourceId('itemId'),
+    validateResourceId('itemId'), // Validate itemId format
+    // authorize(permit('projectManager', 'client')), // Add specific auth checks in controller if needed
     punchListController.getPunchListItemById
 );
 
 // POST /api/projects/:projectId/punch-list - Create a new punch list item
 router.post('/',
-    // isAdmin, // Uncomment if only admins/PMs can create
-    upload.single('punchPhoto'), // *** ADDED: Middleware to handle single file upload named 'punchPhoto' ***
-    // Remove validateRequestBody for POST as it now expects FormData, not JSON
-    // validateRequestBody(insertPunchListItemSchema.omit(...)), // REMOVED
-    punchListController.createPunchListItem // Controller now expects req.file and req.body
+    // isAdmin, // Example: Only admins or PMs can create? Add logic here or in controller
+    validateRequestBody(insertPunchListItemSchema.omit({ projectId: true, id: true, createdAt: true, updatedAt: true, resolvedAt: true })), // Validate body against schema (excluding fields set by server/DB)
+    punchListController.createPunchListItem
 );
 
 // PUT /api/projects/:projectId/punch-list/:itemId - Update a punch list item
-// Assuming updates might also include photos, add upload middleware here too
 router.put('/:itemId',
-    validateResourceId('itemId'),
-    // isAdmin, // Uncomment if needed
-    upload.single('punchPhoto'), // *** ADDED: Middleware for potential photo update/replacement ***
-    // validateRequestBody(insertPunchListItemSchema.partial()), // REMOVED - Expects FormData now
-    punchListController.updatePunchListItem // Controller needs to handle req.file and req.body
+    validateResourceId('itemId'), // Validate itemId format
+    // isAdmin, // Example: Add specific auth checks here or in controller
+    validateRequestBody(insertPunchListItemSchema.partial()), // Validate body against partial schema
+    punchListController.updatePunchListItem
 );
 
 // DELETE /api/projects/:projectId/punch-list/:itemId - Delete a punch list item
 router.delete('/:itemId',
-    validateResourceId('itemId'),
-    // isAdmin, // Uncomment if needed
+    validateResourceId('itemId'), // Validate itemId format
+    // isAdmin, // Example: Only admins or PMs can delete? Add logic here or in controller
     punchListController.deletePunchListItem
 );
 
-// --- Media Routes (If using separate endpoints, keep as is) ---
-// If creating/updating items handles media directly, these might become redundant or change.
-// For now, assuming they might still be used for *additional* media later.
+// --- Media Routes ---
 
-// POST /api/projects/:projectId/punch-list/:itemId/media - Upload additional media
+// POST /api/projects/:projectId/punch-list/:itemId/media - Upload media for a punch list item
 router.post('/:itemId/media',
-    validateResourceId('itemId'),
-    upload.array('files'), // Handles multiple files named 'files'
-    punchListController.uploadPunchListItemMedia
+    validateResourceId('itemId'), // Validate item ID format
+    // authorize(permit('projectManager', 'client')), // Add specific auth checks in controller if needed
+    upload.array('files'), // Use standard upload middleware instance, assuming 'files' is the field name
+    punchListController.uploadPunchListItemMedia // Assuming this controller exists
 );
 
-// DELETE /api/projects/:projectId/punch-list/:itemId/media/:mediaId - Delete specific media
+// DELETE /api/projects/:projectId/punch-list/:itemId/media/:mediaId - Delete a specific media item
 router.delete('/:itemId/media/:mediaId',
-    validateResourceId('itemId'),
-    validateResourceId('mediaId'),
-    punchListController.deletePunchListItemMedia
+    validateResourceId('itemId'), // Validate item ID format
+    validateResourceId('mediaId'), // Validate media ID format
+    // authorize(permit('projectManager', 'client')), // Add specific auth checks in controller if needed
+    punchListController.deletePunchListItemMedia // Assuming this controller exists
 );
 
+// Optional: GET /api/projects/:projectId/punch-list/:itemId/media
+// router.get('/:itemId/media',
+//      validateResourceId('itemId'),
+//      // authorize(permit('projectManager', 'client')),
+//      punchListController.getPunchListItemMedia // Assuming this controller exists
+// );
 
 export default router;

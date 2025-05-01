@@ -1,72 +1,52 @@
 // server/storage/repositories/document.repository.ts
-import { NeonDatabase } from 'drizzle-orm/neon-serverless';
+import { NeonDatabase, PgTransaction } from 'drizzle-orm/neon-serverless';
 import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
+// Import shared types if needed for complex return values, though document schema is simpler
+// import { ... } from '../types';
 
-// Define a specific type for Document with Uploader info
+// Define a specific type for Document with Uploader info if needed
 export type DocumentWithUploader = schema.Document & {
-    uploadedBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
+    uploadedBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Uploader might be null if user deleted? Handle this case.
 };
+
 
 // Interface for Document Repository
 export interface IDocumentRepository {
+    // Returns documents with uploader details included
     getDocumentsForProject(projectId: number): Promise<DocumentWithUploader[]>;
-    getDocumentById(documentId: number): Promise<schema.Document | null>;
-    createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>;
+    getDocumentById(documentId: number): Promise<schema.Document | null>; // Get raw document for delete logic
+    createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>; // Return basic doc
     deleteDocument(documentId: number): Promise<boolean>;
-    getAllDocuments(): Promise<DocumentWithUploader[]>;
-    getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]>;
 }
-
-// Type for user info
-type UserInfo = {
-    id: number;
-    firstName: string;
-    lastName: string;
-};
 
 // Implementation
 class DocumentRepository implements IDocumentRepository {
-    private dbOrTx: NeonDatabase<typeof schema> | any;
+    private dbOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any>;
 
-    constructor(databaseOrTx: NeonDatabase<typeof schema> | any = db) {
+    constructor(databaseOrTx: NeonDatabase<typeof schema> | PgTransaction<any, any, any> = db) {
         this.dbOrTx = databaseOrTx;
     }
 
     async getDocumentsForProject(projectId: number): Promise<DocumentWithUploader[]> {
         try {
-            // Fetch documents first
-            const documents = await this.dbOrTx.select().from(schema.documents)
-                .where(eq(schema.documents.projectId, projectId))
-                .orderBy(desc(schema.documents.createdAt));
-            
-            // Then fetch uploader info separately for each document
-            const documentsWithUploader: DocumentWithUploader[] = [];
-            
-            for (const doc of documents) {
-                let uploadedBy = null;
-                
-                if (doc.uploadedById) {
-                    const uploader = await this.dbOrTx.select({
-                        id: schema.users.id,
-                        firstName: schema.users.firstName,
-                        lastName: schema.users.lastName
-                    }).from(schema.users)
-                    .where(eq(schema.users.id, doc.uploadedById))
-                    .then((results: UserInfo[]) => results[0] || null);
-                    
-                    uploadedBy = uploader;
+            const documents = await this.dbOrTx.query.documents.findMany({
+                where: eq(schema.documents.projectId, projectId),
+                orderBy: [desc(schema.documents.createdAt)],
+                with: { // Join with the user who uploaded the document
+                    uploadedBy: {
+                        columns: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        }
+                    }
                 }
-                
-                documentsWithUploader.push({
-                    ...doc,
-                    uploadedBy
-                });
-            }
-            
-            return documentsWithUploader;
+            });
+            // Cast to the specific type, ensuring uploadedBy is handled (can be null if user deleted)
+            return documents as DocumentWithUploader[];
         } catch (error) {
             console.error(`Error fetching documents for project ${projectId}:`, error);
             throw new Error('Database error while fetching documents.');
@@ -89,7 +69,7 @@ class DocumentRepository implements IDocumentRepository {
         try {
             const result = await this.dbOrTx.insert(schema.documents)
                 .values(docData)
-                .returning();
+                .returning(); // Return all columns of the inserted document
 
             return result.length > 0 ? result[0] : null;
         } catch (error) {
@@ -114,110 +94,6 @@ class DocumentRepository implements IDocumentRepository {
         } catch (error) {
             console.error(`Error deleting document ${documentId}:`, error);
             throw new Error('Database error while deleting document.');
-        }
-    }
-
-    async getAllDocuments(): Promise<DocumentWithUploader[]> {
-        try {
-            // Fetch documents first
-            const documents = await this.dbOrTx.select().from(schema.documents)
-                .orderBy(desc(schema.documents.createdAt));
-            
-            // Then fetch uploader info separately for each document
-            const documentsWithUploader: DocumentWithUploader[] = [];
-            
-            for (const doc of documents) {
-                let uploadedBy = null;
-                
-                if (doc.uploadedById) {
-                    const uploader = await this.dbOrTx.select({
-                        id: schema.users.id,
-                        firstName: schema.users.firstName,
-                        lastName: schema.users.lastName
-                    }).from(schema.users)
-                    .where(eq(schema.users.id, doc.uploadedById))
-                    .then((results: UserInfo[]) => results[0] || null);
-                    
-                    uploadedBy = uploader;
-                }
-                
-                documentsWithUploader.push({
-                    ...doc,
-                    uploadedBy
-                });
-            }
-            
-            return documentsWithUploader;
-        } catch (error) {
-            console.error('Error fetching all documents:', error);
-            throw new Error('Database error while fetching all documents.');
-        }
-    }
-
-    async getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]> {
-        try {
-            // First, get all projects the user is associated with
-            const userProjects = await this.dbOrTx.query.clientProjects.findMany({
-                where: eq(schema.clientProjects.clientId, userId),
-                columns: {
-                    projectId: true
-                }
-            });
-            
-            // Also check if the user is a project manager for any projects
-            const managedProjects = await this.dbOrTx.query.projects.findMany({
-                where: eq(schema.projects.projectManagerId, userId),
-                columns: {
-                    id: true
-                }
-            });
-            
-            // Combine all project IDs
-            const projectIds = [
-                ...userProjects.map((p: { projectId: number }) => p.projectId),
-                ...managedProjects.map((p: { id: number }) => p.id)
-            ];
-            
-            // If user has no projects, return empty array
-            if (projectIds.length === 0) {
-                return [];
-            }
-            
-            // Get documents for all these projects - using a simplified approach
-            // Fetch documents first
-            const documents = await this.dbOrTx.select().from(schema.documents)
-                .where(sql`${schema.documents.projectId} IN (${sql.join(projectIds, sql`, `)})`)
-                .orderBy(desc(schema.documents.createdAt));
-            
-            // Then fetch uploader info separately for each document
-            const documentsWithUploader: DocumentWithUploader[] = [];
-            
-            for (const doc of documents) {
-                let uploadedBy = null;
-                
-                if (doc.uploadedById) {
-                    const uploader = await this.dbOrTx.select({
-                        id: schema.users.id,
-                        firstName: schema.users.firstName,
-                        lastName: schema.users.lastName
-                    }).from(schema.users)
-                    .where(eq(schema.users.id, doc.uploadedById))
-                    .then((results: UserInfo[]) => results[0] || null);
-                    
-                    uploadedBy = uploader;
-                }
-                
-                documentsWithUploader.push({
-                    ...doc,
-                    uploadedBy
-                });
-            }
-            
-            return documentsWithUploader;
-            
-        } catch (error) {
-            console.error(`Error fetching documents for user ${userId}:`, error);
-            throw new Error('Database error while fetching user documents.');
         }
     }
 }

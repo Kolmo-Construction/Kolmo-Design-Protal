@@ -2,9 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 // Updated import path for the aggregated storage object
 import { storage } from '../storage/index';
-// Import the DocumentWithUploader type from the document repository
-import { DocumentWithUploader } from '../storage/repositories/document.repository';
-import { insertDocumentSchema, User, Document } from '../../shared/schema'; // Keep User type
+// Import specific types if needed (DocumentWithUploader might be used by FE, but controller methods use base Document or void)
+import { DocumentWithUploader } from '../storage/types';
+import { insertDocumentSchema, User } from '../../shared/schema'; // Keep User type
 import { HttpError } from '../errors';
 // R2 functions are separate from the storage repository
 import { uploadToR2, deleteFromR2, getR2DownloadUrl } from '../r2-upload';
@@ -78,12 +78,11 @@ export const uploadDocument = async (
     // 2. Prepare document data for DB
     const documentData = {
       projectId: projectIdNum,
-      uploadedById: user.id,
-      name: req.file.originalname,
+      uploadedBy: user.id,
+      fileName: req.file.originalname,
       fileSize: req.file.size,
-      fileType: req.file.mimetype,
-      fileUrl: r2Result.url,
-      category: req.body.category || 'general',
+      mimeType: req.file.mimetype,
+      storageKey: r2Result.key,
       description: description,
     };
 
@@ -138,37 +137,14 @@ export const deleteDocument = async (
       throw new HttpError(400, 'Invalid project or document ID parameter.');
     }
 
-    // 1. Fetch the document record to get the fileUrl and verify ownership
+    // 1. Fetch the document record to get the storageKey and verify ownership
     // Use the nested repository: storage.documents
     const document = await storage.documents.getDocumentById(documentIdNum);
 
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // Extract the full path key from the fileUrl
-    const fileUrl = document.fileUrl;
-    
-    // Extract the path after the bucket name - handle both URL patterns
-    // Pattern 1: https://pub-xxx.r2.dev/projects/...
-    // Pattern 2: https://xxx.r2.cloudflarestorage.com/bucket-name/projects/...
-    const devMatch = fileUrl.match(/\.r2\.dev\/(.*)/);
-    const cloudflareMatch = fileUrl.match(/\.r2\.cloudflarestorage\.com\/([^\/]+)\/(.*)/);
-    
-    if (devMatch) {
-      storageKeyToDelete = devMatch[1];
-    } else if (cloudflareMatch) {
-      // For cloudflare storage URLs, we need to extract the bucket and the path
-      storageKeyToDelete = cloudflareMatch[2];
-    } else {
-      storageKeyToDelete = null;
-    }
-
-    if (!storageKeyToDelete) {
-      console.error('Could not extract storage key from URL:', fileUrl);
-      throw new HttpError(500, 'Could not determine storage key from file URL.');
-    }
-    
-    console.log('Extracted storage key for deletion:', storageKeyToDelete);
+    storageKeyToDelete = document.storageKey; // Store key for deletion
 
     // 2. Delete the file from R2 storage (No change here)
     await deleteFromR2(storageKeyToDelete);
@@ -222,39 +198,15 @@ export const getDocumentDownloadUrl = async (
 
     if (isNaN(projectIdNum) || isNaN(documentIdNum)) { throw new HttpError(400, 'Invalid project or document ID parameter.'); }
 
-    // 1. Fetch the document record for fileUrl and verification
+    // 1. Fetch the document record for storageKey and verification
     // Use the nested repository: storage.documents
     const document = await storage.documents.getDocumentById(documentIdNum);
 
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // Extract the full path key from the fileUrl
-    const fileUrl = document.fileUrl;
-    
-    // Extract the path after the bucket name - handle both URL patterns
-    // Pattern 1: https://pub-xxx.r2.dev/projects/...
-    // Pattern 2: https://xxx.r2.cloudflarestorage.com/bucket-name/projects/...
-    let storageKey = null;
-    const devMatch = fileUrl.match(/\.r2\.dev\/(.*)/);
-    const cloudflareMatch = fileUrl.match(/\.r2\.cloudflarestorage\.com\/([^\/]+)\/(.*)/);
-    
-    if (devMatch) {
-      storageKey = devMatch[1];
-    } else if (cloudflareMatch) {
-      // For cloudflare storage URLs, we need to extract the bucket and the path
-      storageKey = cloudflareMatch[2];
-    }
-
-    if (!storageKey) {
-      console.error('Could not extract storage key from URL:', fileUrl);
-      throw new HttpError(500, 'Could not determine storage key from file URL.');
-    }
-
-    console.log('Extracted storage key:', storageKey);
-    
-    // 2. Generate a pre-signed download URL from R2
-    const downloadUrl = await getR2DownloadUrl(storageKey, document.name);
+    // 2. Generate a pre-signed download URL from R2 (No change here)
+    const downloadUrl = await getR2DownloadUrl(document.storageKey, document.fileName);
 
     if (!downloadUrl) { throw new HttpError(500, 'Could not generate download URL.'); }
 
