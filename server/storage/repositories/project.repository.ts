@@ -348,9 +348,10 @@ export class ProjectRepository implements IProjectRepository {
     async getAllProjects(): Promise<Project[]> {
         console.log(`[ProjectRepository] Fetching all projects`);
         try {
-            const allProjects = await db.query.projects.findMany({
-                orderBy: (p) => [desc(p.createdAt)],
-            });
+            // Use basic select instead of query builder to avoid schema conflicts
+            const allProjects = await db.select().from(projects)
+                .orderBy(desc(projects.created_at));
+            
             return allProjects;
         } catch (error) {
             console.error(`[ProjectRepository] Error in getAllProjects:`, error);

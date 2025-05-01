@@ -46,20 +46,25 @@ export const users = pgTable('users', {
 
 // Projects Table
 export const projects = pgTable('projects', {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: integer('id').primaryKey(),
     name: text('name').notNull(),
-    address: text('address'),
     description: text('description'),
+    address: text('address'),
+    city: text('city'),
+    state: text('state'),
+    zip_code: text('zip_code'),
+    image_url: text('image_url'),
     status: projectStatusEnum('status').default('Planning').notNull(),
-    startDate: date('start_date'),
-    endDate: date('end_date'),
-    budget: decimal('budget', { precision: 12, scale: 2 }),
+    start_date: timestamp('start_date'),
+    estimated_completion_date: timestamp('estimated_completion_date'),
+    actual_completion_date: timestamp('actual_completion_date'),
+    total_budget: decimal('total_budget', { precision: 12, scale: 2 }),
+    progress: integer('progress'),
     // --- FOREIGN KEYS / RELATION IDS ---
-    projectManagerId: uuid('project_manager_id').references(() => users.id, { onDelete: 'set null' }),
-    clientIds: uuid('client_ids').array(), // Array of user IDs with 'client' role
+    project_manager_id: integer('project_manager_id'), // Reference to users table
     // --- END FOREIGN KEYS ---
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Documents Table
@@ -271,7 +276,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const projectsRelations = relations(projects, ({ one, many }) => ({
     // --- ENSURE THIS RELATION EXISTS ---
     projectManager: one(users, {
-        fields: [projects.projectManagerId],
+        fields: [projects.project_manager_id],
         references: [users.id],
         relationName: 'projectManager' // Optional explicit name matching repo query
     }),
@@ -470,19 +475,26 @@ export type NewUser = z.infer<typeof insertUserSchema>;
 
 // Projects
 export const insertProjectSchema = createInsertSchema(projects, {
-    budget: z.coerce.number().positive().optional(),
-    clientIds: z.array(z.string().uuid()).optional().nullable(), // Ensure client IDs are UUIDs
-    projectManagerId: z.string().uuid().optional().nullable(), // Ensure PM ID is UUID
-    startDate: z.coerce.date().optional(),
-    endDate: z.coerce.date().optional(),
+    total_budget: z.coerce.number().positive().optional(),
+    project_manager_id: z.number().optional(), // Ensure PM ID is valid
+    start_date: z.coerce.date().optional(),
+    estimated_completion_date: z.coerce.date().optional(),
+    actual_completion_date: z.coerce.date().optional(),
     name: z.string().min(1, "Project name is required"),
-}).omit({ id: true, createdAt: true, updatedAt: true });
+}).omit({ id: true, created_at: true, updated_at: true });
 export const selectProjectSchema = createSelectSchema(projects);
 export type Project = z.infer<typeof selectProjectSchema>;
 export type NewProject = z.infer<typeof insertProjectSchema>;
 
 // Documents
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true });
+// Update field names to match actual database fields
+export const insertDocumentSchema2 = createInsertSchema(documents).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true, 
+  fileUrl: true 
+});
 export const selectDocumentSchema = createSelectSchema(documents);
 export type Document = z.infer<typeof selectDocumentSchema>;
 export type NewDocument = z.infer<typeof insertDocumentSchema>;

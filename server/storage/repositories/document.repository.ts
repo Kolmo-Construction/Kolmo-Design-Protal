@@ -14,7 +14,7 @@ export type DocumentWithUploader = schema.Document & {
 export interface IDocumentRepository {
     getDocumentsForProject(projectId: string): Promise<DocumentWithUploader[]>;
     getDocumentById(documentId: string): Promise<schema.Document | null>;
-    createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>;
+    createDocument(docData: any): Promise<schema.Document | null>;
     deleteDocument(documentId: string): Promise<boolean>;
     getAllDocuments(): Promise<DocumentWithUploader[]>;
     getDocumentsForUser(userId: string): Promise<DocumentWithUploader[]>;
@@ -35,7 +35,7 @@ class DocumentRepository implements IDocumentRepository {
         this.dbOrTx = databaseOrTx;
     }
 
-    async getDocumentsForProject(projectId: number): Promise<DocumentWithUploader[]> {
+    async getDocumentsForProject(projectId: string): Promise<DocumentWithUploader[]> {
         try {
             // Fetch documents first
             const documents = await this.dbOrTx.select().from(schema.documents)
@@ -73,7 +73,7 @@ class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async getDocumentById(documentId: number): Promise<schema.Document | null> {
+    async getDocumentById(documentId: string): Promise<schema.Document | null> {
         try {
             const document = await this.dbOrTx.query.documents.findFirst({
                 where: eq(schema.documents.id, documentId),
@@ -85,7 +85,7 @@ class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async createDocument(docData: schema.InsertDocument): Promise<schema.Document | null> {
+    async createDocument(docData: any): Promise<schema.Document | null> {
         try {
             const result = await this.dbOrTx.insert(schema.documents)
                 .values(docData)
@@ -102,7 +102,7 @@ class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async deleteDocument(documentId: number): Promise<boolean> {
+    async deleteDocument(documentId: string): Promise<boolean> {
         // Note: Deleting the associated file from R2 storage should be handled
         // by the controller/service *before* calling this repository method.
         try {
@@ -154,7 +154,7 @@ class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]> {
+    async getDocumentsForUser(userId: string): Promise<DocumentWithUploader[]> {
         try {
             // First, get all projects the user is associated with
             const userProjects = await this.dbOrTx.query.clientProjects.findMany({
