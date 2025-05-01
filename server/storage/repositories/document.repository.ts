@@ -7,9 +7,14 @@ import { HttpError } from '../../errors';
 // Import shared types if needed for complex return values, though document schema is simpler
 // import { ... } from '../types';
 
-// Define a specific type for Document with Uploader info if needed
+// Define type for document with the relation name from schema.ts (internal use)
+type DocumentWithUploadRelation = schema.Document & {
+    uploader: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
+};
+
+// Export the user-facing type
 export type DocumentWithUploader = schema.Document & {
-    uploadedBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Uploader might be null if user deleted? Handle this case.
+    uploadedBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
 };
 
 
@@ -38,7 +43,7 @@ class DocumentRepository implements IDocumentRepository {
                 where: eq(schema.documents.projectId, projectId),
                 orderBy: [desc(schema.documents.createdAt)],
                 with: { // Join with the user who uploaded the document
-                    uploadedBy: {
+                    uploader: { // This should match the relation name in schema.ts
                         columns: {
                             id: true,
                             firstName: true,
@@ -47,8 +52,12 @@ class DocumentRepository implements IDocumentRepository {
                     }
                 }
             });
-            // Cast to the specific type, ensuring uploadedBy is handled (can be null if user deleted)
-            return documents as DocumentWithUploader[];
+            
+            // Map the relation name from 'uploader' to 'uploadedBy' for consistency
+            return documents.map(doc => ({
+                ...doc,
+                uploadedBy: doc.uploader
+            })) as unknown as DocumentWithUploader[];
         } catch (error) {
             console.error(`Error fetching documents for project ${projectId}:`, error);
             throw new Error('Database error while fetching documents.');
@@ -104,7 +113,7 @@ class DocumentRepository implements IDocumentRepository {
             const documents = await this.dbOrTx.query.documents.findMany({
                 orderBy: [desc(schema.documents.createdAt)],
                 with: {
-                    uploadedBy: {
+                    uploader: { // This should match the relation name in schema.ts
                         columns: {
                             id: true,
                             firstName: true,
@@ -113,7 +122,12 @@ class DocumentRepository implements IDocumentRepository {
                     }
                 }
             });
-            return documents as DocumentWithUploader[];
+            
+            // Map the relation name from 'uploader' to 'uploadedBy' for consistency
+            return documents.map(doc => ({
+                ...doc,
+                uploadedBy: doc.uploader
+            })) as unknown as DocumentWithUploader[];
         } catch (error) {
             console.error('Error fetching all documents:', error);
             throw new Error('Database error while fetching all documents.');
@@ -167,7 +181,7 @@ class DocumentRepository implements IDocumentRepository {
                 ),
                 orderBy: [desc(schema.documents.createdAt)],
                 with: {
-                    uploadedBy: {
+                    uploader: { // This should match the relation name in schema.ts
                         columns: {
                             id: true,
                             firstName: true,
@@ -177,7 +191,11 @@ class DocumentRepository implements IDocumentRepository {
                 }
             });
 
-            return documents as DocumentWithUploader[];
+            // Map the relation name from 'uploader' to 'uploadedBy' for consistency
+            return documents.map((doc: any) => ({
+                ...doc,
+                uploadedBy: doc.uploader
+            })) as DocumentWithUploader[];
         } catch (error) {
             console.error(`Error fetching documents for user ${userId}:`, error);
             throw new Error('Database error while fetching user documents.');
