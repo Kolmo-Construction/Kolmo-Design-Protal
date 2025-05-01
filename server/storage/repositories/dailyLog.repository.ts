@@ -103,6 +103,16 @@ class DailyLogRepository implements IDailyLogRepository {
             return this.getDailyLogById(insertedLogs[0].id);
         } catch (error) {
             console.error('Error creating daily log:', error);
+            
+            // Check for specific database errors and provide a more helpful message
+            if (error instanceof Error) {
+                if (error.message.includes('numeric field overflow') || 
+                    (error as any).code === '22003') {
+                    throw new Error('Temperature value is too large. Please enter a value between -999.99 and 999.99.');
+                }
+            }
+            
+            // Generic fallback error
             throw new Error('Database error while creating daily log.');
         }
     }
@@ -137,6 +147,16 @@ class DailyLogRepository implements IDailyLogRepository {
             return this.getDailyLogById(logId);
         } catch (error) {
             console.error(`Error updating daily log ${logId}:`, error);
+            
+            // Check for specific database errors and provide a more helpful message
+            if (error instanceof Error) {
+                if (error.message.includes('numeric field overflow') || 
+                    (error as any).code === '22003') {
+                    throw new Error('Temperature value is too large. Please enter a value between -999.99 and 999.99.');
+                }
+            }
+            
+            // Generic fallback error
             throw new Error('Database error while updating daily log.');
         }
     }

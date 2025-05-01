@@ -12,11 +12,17 @@ const createDailyLogInputSchema = z.object({
     workPerformed: z.string().min(1),
     weather: z.string().optional().nullable(),
     temperature: z.union([
-        z.number().optional().nullable(),
+        z.number()
+          .refine(val => val === null || (val >= -999.99 && val <= 999.99), {
+            message: "Temperature must be between -999.99 and 999.99"
+          })
+          .optional()
+          .nullable(),
         z.string()
           .transform(val => val === "" || val === null ? null : Number(val))
-          .refine(val => val === null || !isNaN(val as number), {
-            message: "Temperature must be a valid number"
+          .refine(val => 
+            val === null || (!isNaN(val as number) && (val as number) >= -999.99 && (val as number) <= 999.99), {
+            message: "Temperature must be a valid number between -999.99 and 999.99"
           })
           .optional()
           .nullable()

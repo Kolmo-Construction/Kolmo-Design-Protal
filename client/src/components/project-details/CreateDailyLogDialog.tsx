@@ -42,6 +42,24 @@ import { z } from "zod"; // Import z
 const frontendDailyLogSchema = insertDailyLogSchema.omit({
   createdById: true, // Backend sets this based on logged-in user
   projectId: true    // This comes from component props, not form input
+}).extend({
+  // Add client-side validation for temperature
+  temperature: z.union([
+    z.number()
+      .refine(val => val === null || val === undefined || (val >= -999.99 && val <= 999.99), {
+        message: "Temperature must be between -999.99 and 999.99"
+      })
+      .optional()
+      .nullable(),
+    z.string()
+      .transform(val => val === "" || val === null ? null : Number(val))
+      .refine(val => 
+        val === null || (!isNaN(val as number) && (val as number) >= -999.99 && (val as number) <= 999.99), {
+          message: "Temperature must be between -999.99 and 999.99"
+      })
+      .optional()
+      .nullable()
+  ])
 });
 
 // Define the type for the form values based on the new frontend schema
