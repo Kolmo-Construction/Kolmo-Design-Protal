@@ -33,14 +33,14 @@ export class ProjectRepository implements IProjectRepository {
         // --- ROLE-BASED FILTERING ---
         if (user.role === 'project_manager') {
             // Project managers see projects where they are assigned
-            whereCondition = eq(projects.projectManagerId, user.id);
-            console.log(`[ProjectRepository] Applying filter for project_manager: projectManagerId = ${user.id}`);
+            whereCondition = eq(projects.project_manager_id, parseInt(user.id, 10));
+            console.log(`[ProjectRepository] Applying filter for project_manager: project_manager_id = ${user.id}`);
         } else if (user.role === 'client') {
-            // Clients see projects where their ID is in the clientIds array
-            // Using PostgreSQL specific array containment syntax: '<value> = ANY(<array_column>)'
-            // Ensure user.id is cast correctly if your IDs are UUIDs in the DB
-            whereCondition = sql`${user.id}::uuid = ANY (${projects.clientIds})`;
-            console.log(`[ProjectRepository] Applying filter for client: ${user.id} = ANY (clientIds)`);
+            // Since we don't have a direct clientIds column in the projects table,
+            // we need to check project_client_junc table or use a client-projects join table
+            // For now, we'll use a custom SQL query approach
+            whereCondition = sql`EXISTS (SELECT 1 FROM project_clients WHERE project_id = ${projects.id} AND client_id = ${parseInt(user.id, 10)})`;
+            console.log(`[ProjectRepository] Applying filter for client: ${user.id} in project_clients join table`);
         }
         // Admins (user.role === 'admin') get no 'whereCondition', fetching all projects
         else if (user.role === 'admin') {
@@ -65,7 +65,7 @@ export class ProjectRepository implements IProjectRepository {
                         },
                     },
                 },
-                orderBy: (p) => [desc(p.createdAt)], // Use alias 'p' for clarity
+                orderBy: (p) => [desc(p.created_at)], // Use alias 'p' for clarity
             });
             console.log(`[ProjectRepository] Fetched ${fetchedProjects.length} project(s) initially.`);
 
@@ -74,35 +74,64 @@ export class ProjectRepository implements IProjectRepository {
                 return []; // Return early if no projects found
             }
 
-            // 2. Extract unique client IDs from all fetched projects
-            // Ensure clientIds is treated as an array, even if null/undefined, and filter null IDs
-            const allClientIds = fetchedProjects.flatMap(p => p.clientIds || []).filter(id => id != null);
-            const uniqueClientIds = [...new Set(allClientIds)];
-            console.log(`[ProjectRepository] Unique client IDs found: ${uniqueClientIds.length > 0 ? uniqueClientIds.join(', ') : 'None'}`);
-
+            // 2. Fetch client IDs from project_clients join table for all fetched projects
+            const projectIds = fetchedProjects.map(p => p.id);
+            
+            // Use a direct query to get client_id to project_id mappings
+            const projectClientMappings = await db.execute(
+                sql`SELECT project_id, client_id FROM project_clients WHERE project_id IN (${projectIds.join(',')})`
+            );
+            
+            // Create a map of project ID to array of client IDs
+            const projectToClientIds = new Map<number, number[]>();
+            if (projectClientMappings.rows && projectClientMappings.rows.length > 0) {
+                projectClientMappings.rows.forEach((row: any) => {
+                    const projectId = row.project_id;
+                    const clientId = row.client_id;
+                    
+                    if (!projectToClientIds.has(projectId)) {
+                        projectToClientIds.set(projectId, []);
+                    }
+                    projectToClientIds.get(projectId)!.push(clientId);
+                });
+            }
+            
+            // Extract all unique client IDs
+            const allClientIds: number[] = [];
+            projectToClientIds.forEach((clientIds) => {
+                clientIds.forEach(id => {
+                    if (!allClientIds.includes(id)) {
+                        allClientIds.push(id);
+                    }
+                });
+            });
+            
+            console.log(`[ProjectRepository] Unique client IDs found: ${allClientIds.length > 0 ? allClientIds.join(', ') : 'None'}`);
 
             // 3. Fetch client details if there are any client IDs
-            let clientsMap = new Map<string, { firstName: string | null, lastName: string | null }>();
-            if (uniqueClientIds.length > 0) {
+            let clientsMap = new Map<number, { firstName: string | null, lastName: string | null }>();
+            if (allClientIds.length > 0) {
                 const clientUsers = await db.query.users.findMany({
-                    where: inArray(users.id, uniqueClientIds),
+                    where: inArray(users.id, allClientIds.map(id => id.toString())),
                     columns: {
                         id: true,
                         firstName: true, 
                         lastName: true,
                     },
                 });
-                clientsMap = new Map(clientUsers.map(c => [c.id, { firstName: c.firstName, lastName: c.lastName }]));
+                clientsMap = new Map(clientUsers.map(c => [parseInt(c.id, 10), { firstName: c.firstName, lastName: c.lastName }]));
                 console.log(`[ProjectRepository] Fetched details for ${clientsMap.size} clients.`);
             }
 
             // 4. Map client names back to the project objects
             const projectsWithDetails: ProjectWithManagerAndClients[] = fetchedProjects.map(p => {
-                // Ensure p.clientIds is treated as an array, filter nulls/undefineds
-                const clientNames = (p.clientIds || [])
-                    .filter(id => id != null) // Filter out potential nulls in the array
+                // Get the client IDs for this project from our mapping
+                const projectClientIds = projectToClientIds.get(p.id) || [];
+                
+                // Map client IDs to names
+                const clientNames = projectClientIds
                     .map(clientId => {
-                        const client = clientsMap.get(clientId!);
+                        const client = clientsMap.get(clientId);
                         if (client && (client.firstName || client.lastName)) {
                             return `${client.firstName || ''} ${client.lastName || ''}`.trim();
                         }
@@ -163,12 +192,25 @@ export class ProjectRepository implements IProjectRepository {
                 return null;
             }
 
-            // Fetch client names separately
+            // Fetch client names separately from the project_clients join table
             let clientNames: string[] = [];
-            const clientIds = (project.clientIds || []).filter(id => id != null); // Ensure array and filter nulls
+            
+            // Get client IDs from project_clients join table
+            const projectClientMappings = await db.execute(
+                sql`SELECT client_id FROM project_clients WHERE project_id = ${parseInt(id, 10)}`
+            );
+            
+            // Extract client IDs from the result
+            const clientIds: number[] = [];
+            if (projectClientMappings.rows && projectClientMappings.rows.length > 0) {
+                projectClientMappings.rows.forEach((row: any) => {
+                    clientIds.push(row.client_id);
+                });
+            }
+            
             if (clientIds.length > 0) {
                 const clientUsers = await db.query.users.findMany({
-                    where: inArray(users.id, clientIds),
+                    where: inArray(users.id, clientIds.map(id => id.toString())),
                     columns: { 
                         firstName: true,
                         lastName: true,
@@ -180,9 +222,9 @@ export class ProjectRepository implements IProjectRepository {
                     }
                     return '';
                 }).filter(Boolean);
-                 console.log(`[ProjectRepository] Found ${clientNames.length} client(s) for project ${id}.`);
+                console.log(`[ProjectRepository] Found ${clientNames.length} client(s) for project ${id}.`);
             } else {
-                 console.log(`[ProjectRepository] No client IDs associated with project ${id}.`);
+                console.log(`[ProjectRepository] No client IDs associated with project ${id}.`);
             }
 
             // Create project manager name
@@ -298,38 +340,42 @@ export class ProjectRepository implements IProjectRepository {
     async assignClientToProject(userId: string, projectId: string): Promise<boolean> {
         console.log(`[ProjectRepository] Assigning client ${userId} to project ${projectId}`);
         try {
-            // 1. Get the current project to access its clientIds array
+            // 1. Verify project exists
             const project = await db.query.projects.findFirst({
                 where: eq(projects.id, projectId),
-                columns: { clientIds: true }
+                columns: { id: true }
             });
 
             if (!project) {
                 throw new HttpError(404, `Project with ID ${projectId} not found.`);
             }
 
-            // 2. Check if the client is already assigned
-            const currentClientIds = project.clientIds || [];
-            if (currentClientIds.includes(userId)) {
+            // 2. Check if the client is already assigned by checking the project_clients join table
+            const existingAssignment = await db.execute(
+                sql`SELECT 1 FROM project_clients 
+                    WHERE project_id = ${parseInt(projectId, 10)} 
+                    AND client_id = ${parseInt(userId, 10)} 
+                    LIMIT 1`
+            );
+
+            // If we found a row, client is already assigned
+            if (existingAssignment.rows && existingAssignment.rows.length > 0) {
                 console.log(`[ProjectRepository] Client ${userId} is already assigned to project ${projectId}.`);
                 return true; // Already assigned, so consider it successful
             }
 
-            // 3. Add the client to the array
-            const updatedClientIds = [...currentClientIds, userId];
-            
-            // 4. Update the project with the new client array
-            const [updatedProject] = await db.update(projects)
-                .set({ 
-                    clientIds: updatedClientIds,
-                    updatedAt: new Date() 
-                })
-                .where(eq(projects.id, projectId))
-                .returning();
+            // 3. Insert into project_clients join table
+            await db.execute(
+                sql`INSERT INTO project_clients (project_id, client_id) 
+                    VALUES (${parseInt(projectId, 10)}, ${parseInt(userId, 10)})`
+            );
 
-            if (!updatedProject) {
-                throw new Error(`Failed to update project ${projectId} with new client.`);
-            }
+            // 4. Update the project's updated_at timestamp
+            await db.update(projects)
+                .set({ 
+                    updated_at: new Date() 
+                })
+                .where(eq(projects.id, projectId));
 
             console.log(`[ProjectRepository] Client ${userId} successfully assigned to project ${projectId}.`);
             return true;
