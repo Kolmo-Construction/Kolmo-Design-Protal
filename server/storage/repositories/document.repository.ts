@@ -4,25 +4,28 @@ import { eq, and, or, sql, desc, asc } from 'drizzle-orm';
 import * as schema from '../../../shared/schema';
 import { db } from '../../db';
 import { HttpError } from '../../errors';
-// Import shared types if needed for complex return values, though document schema is simpler
-// import { ... } from '../types';
 
-// Define a specific type for Document with Uploader info if needed
+// Define a specific type for Document with Uploader info
 export type DocumentWithUploader = schema.Document & {
-    uploadedBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null; // Uploader might be null if user deleted? Handle this case.
+    uploadedBy: Pick<schema.User, 'id' | 'firstName' | 'lastName'> | null;
 };
-
 
 // Interface for Document Repository
 export interface IDocumentRepository {
-    // Returns documents with uploader details included
     getDocumentsForProject(projectId: number): Promise<DocumentWithUploader[]>;
-    getDocumentById(documentId: number): Promise<schema.Document | null>; // Get raw document for delete logic
-    createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>; // Return basic doc
+    getDocumentById(documentId: number): Promise<schema.Document | null>;
+    createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>;
     deleteDocument(documentId: number): Promise<boolean>;
-    getAllDocuments(): Promise<DocumentWithUploader[]>; // Get all documents (for admin)
-    getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]>; // Get documents for user (based on their projects)
+    getAllDocuments(): Promise<DocumentWithUploader[]>;
+    getDocumentsForUser(userId: number): Promise<DocumentWithUploader[]>;
 }
+
+// Type for user info
+type UserInfo = {
+    id: number;
+    firstName: string;
+    lastName: string;
+};
 
 // Implementation
 class DocumentRepository implements IDocumentRepository {
@@ -34,21 +37,36 @@ class DocumentRepository implements IDocumentRepository {
 
     async getDocumentsForProject(projectId: number): Promise<DocumentWithUploader[]> {
         try {
-            const documents = await this.dbOrTx.query.documents.findMany({
-                where: eq(schema.documents.projectId, projectId),
-                orderBy: [desc(schema.documents.createdAt)],
-                with: { // Join with the user who uploaded the document
-                    uploadedBy: {
-                        columns: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                        }
-                    }
+            // Fetch documents first
+            const documents = await this.dbOrTx.select().from(schema.documents)
+                .where(eq(schema.documents.projectId, projectId))
+                .orderBy(desc(schema.documents.createdAt));
+            
+            // Then fetch uploader info separately for each document
+            const documentsWithUploader: DocumentWithUploader[] = [];
+            
+            for (const doc of documents) {
+                let uploadedBy = null;
+                
+                if (doc.uploadedById) {
+                    const uploader = await this.dbOrTx.select({
+                        id: schema.users.id,
+                        firstName: schema.users.firstName,
+                        lastName: schema.users.lastName
+                    }).from(schema.users)
+                    .where(eq(schema.users.id, doc.uploadedById))
+                    .then((results: UserInfo[]) => results[0] || null);
+                    
+                    uploadedBy = uploader;
                 }
-            });
-            // Cast to the specific type, ensuring uploadedBy is handled (can be null if user deleted)
-            return documents as DocumentWithUploader[];
+                
+                documentsWithUploader.push({
+                    ...doc,
+                    uploadedBy
+                });
+            }
+            
+            return documentsWithUploader;
         } catch (error) {
             console.error(`Error fetching documents for project ${projectId}:`, error);
             throw new Error('Database error while fetching documents.');
@@ -71,7 +89,7 @@ class DocumentRepository implements IDocumentRepository {
         try {
             const result = await this.dbOrTx.insert(schema.documents)
                 .values(docData)
-                .returning(); // Return all columns of the inserted document
+                .returning();
 
             return result.length > 0 ? result[0] : null;
         } catch (error) {
@@ -118,7 +136,7 @@ class DocumentRepository implements IDocumentRepository {
                         lastName: schema.users.lastName
                     }).from(schema.users)
                     .where(eq(schema.users.id, doc.uploadedById))
-                    .then(result => result[0] || null);
+                    .then((results: UserInfo[]) => results[0] || null);
                     
                     uploadedBy = uploader;
                 }
@@ -184,7 +202,7 @@ class DocumentRepository implements IDocumentRepository {
                         lastName: schema.users.lastName
                     }).from(schema.users)
                     .where(eq(schema.users.id, doc.uploadedById))
-                    .then(result => result[0] || null);
+                    .then((results: UserInfo[]) => results[0] || null);
                     
                     uploadedBy = uploader;
                 }
