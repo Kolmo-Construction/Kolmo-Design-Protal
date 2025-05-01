@@ -1,31 +1,53 @@
 // server/controllers/punchList.controller.ts
 import { Request, Response } from 'express';
-import { PunchListRepository } from '../storage/repositories/punchList.repository'; // Import the class if needed for typing/injection
+import { IPunchListRepository } from '../storage/repositories/punchList.repository'; // Import the interface instead of the class
 import { InsertPunchListItem } from '@shared/schema'; // Use @shared alias
-import type { TypedRequestBody, TypedRequestParams, TypedRequest } from '@server/types'; // Use @server alias
-// import { AuthenticatedRequest } from '@server/middleware/auth.middleware'; // Assuming this type exists and is needed
-// Define AuthenticatedRequest locally if not exported or adjust import
+
+// Define request type interfaces that will be used within the controller
+interface TypedRequestParams<T> extends Request {
+    params: T;
+}
+
+interface TypedRequestBody<T> extends Request {
+    body: T;
+}
+
+interface TypedRequest<P, B> extends Request {
+    params: P;
+    body: B;
+}
+
+// Define AuthenticatedRequest locally
 interface AuthenticatedRequest extends Request {
     user: { id: number; [key: string]: any }; // Define a minimal user structure
 }
 
 import { HttpError } from '../errors';
-import { MediaRepository } from '../storage/repositories/media.repository';
-import { log as logger } from '@server/vite'; // Corrected import path and renamed log to logger
+import { IMediaRepository } from '../storage/repositories/media.repository'; // Import the interface instead
+import { log as logger } from '../vite'; // Use relative path
 import { storage } from '../storage'; // Assuming storage index exports instances
 
 
 export class PunchListController {
-    // Use specific repository types for clarity
-    private punchListRepo: PunchListRepository;
-    private mediaRepo: MediaRepository;
+    // Use interfaces for repositories instead of concrete classes
+    private punchListRepo: IPunchListRepository;
+    private mediaRepo: IMediaRepository;
 
     constructor(
-        punchListRepository: PunchListRepository = storage.punchLists, // Use correct property from storage
-        mediaRepository: MediaRepository = storage.media // Use correct property from storage
+        punchListRepository: IPunchListRepository = storage.punchLists, // Use correct property from storage
+        mediaRepository: IMediaRepository = storage.media // Use correct property from storage
     ) {
         this.punchListRepo = punchListRepository;
         this.mediaRepo = mediaRepository;
+        
+        // Bind all methods to ensure 'this' context is preserved when used as callbacks
+        this.getPunchListItemsForProject = this.getPunchListItemsForProject.bind(this);
+        this.getPunchListItemById = this.getPunchListItemById.bind(this);
+        this.createPunchListItem = this.createPunchListItem.bind(this);
+        this.updatePunchListItem = this.updatePunchListItem.bind(this);
+        this.deletePunchListItem = this.deletePunchListItem.bind(this);
+        this.uploadPunchListItemMedia = this.uploadPunchListItemMedia.bind(this);
+        this.deletePunchListItemMedia = this.deletePunchListItemMedia.bind(this);
     }
 
 
@@ -38,8 +60,8 @@ export class PunchListController {
         }
 
         try {
-            // Assuming the repository method exists and takes a number
-            const punchListItems = await this.punchListRepo.getPunchListItems(projectId);
+            // Call the correct method from the repository - the interface defines getPunchListItemsForProject
+            const punchListItems = await this.punchListRepo.getPunchListItemsForProject(projectId);
             res.status(200).json(punchListItems);
         } catch (error) {
             logger(`Error fetching punch list items for project ${projectId}: ${error instanceof Error ? error.message : error}`, 'PunchListController');
