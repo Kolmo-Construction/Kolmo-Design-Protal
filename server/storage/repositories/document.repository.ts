@@ -17,6 +17,8 @@ export type DocumentWithUploader = schema.Document & {
 export interface IDocumentRepository {
     // Returns documents with uploader details included
     getDocumentsForProject(projectId: number): Promise<DocumentWithUploader[]>;
+    getAllDocuments(): Promise<DocumentWithUploader[]>; // Get all documents (admin only)
+    getDocumentsForUser(userId: number | string): Promise<DocumentWithUploader[]>; // Get documents accessible to a user
     getDocumentById(documentId: number): Promise<schema.Document | null>; // Get raw document for delete logic
     createDocument(docData: schema.InsertDocument): Promise<schema.Document | null>; // Return basic doc
     deleteDocument(documentId: number): Promise<boolean>;
@@ -94,6 +96,91 @@ class DocumentRepository implements IDocumentRepository {
         } catch (error) {
             console.error(`Error deleting document ${documentId}:`, error);
             throw new Error('Database error while deleting document.');
+        }
+    }
+
+    async getAllDocuments(): Promise<DocumentWithUploader[]> {
+        try {
+            const documents = await this.dbOrTx.query.documents.findMany({
+                orderBy: [desc(schema.documents.createdAt)],
+                with: {
+                    uploadedBy: {
+                        columns: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        }
+                    }
+                }
+            });
+            return documents as DocumentWithUploader[];
+        } catch (error) {
+            console.error('Error fetching all documents:', error);
+            throw new Error('Database error while fetching all documents.');
+        }
+    }
+
+    async getDocumentsForUser(userId: number | string): Promise<DocumentWithUploader[]> {
+        const numericUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+        
+        try {
+            // Get user's role first to determine access level
+            const user = await this.dbOrTx.query.users.findFirst({
+                where: eq(schema.users.id, numericUserId),
+                columns: {
+                    id: true,
+                    role: true
+                }
+            });
+
+            if (!user) {
+                throw new Error('User not found.');
+            }
+
+            // Admin can see all documents
+            if (user.role.toLowerCase() === 'admin') {
+                return this.getAllDocuments();
+            }
+
+            // For project managers, get documents from projects they manage
+            // For clients, get documents from projects they are clients of
+            const documents = await this.dbOrTx.query.documents.findMany({
+                where: or(
+                    // Documents from projects the user manages
+                    exists(
+                        this.dbOrTx.select({ val: sql`1` })
+                            .from(schema.projects)
+                            .where(and(
+                                eq(schema.projects.id, schema.documents.projectId),
+                                eq(schema.projects.projectManagerId, numericUserId)
+                            ))
+                    ),
+                    // Documents from projects the user is a client of
+                    exists(
+                        this.dbOrTx.select({ val: sql`1` })
+                            .from(schema.clientProjects)
+                            .where(and(
+                                eq(schema.clientProjects.projectId, schema.documents.projectId),
+                                eq(schema.clientProjects.clientId, numericUserId)
+                            ))
+                    )
+                ),
+                orderBy: [desc(schema.documents.createdAt)],
+                with: {
+                    uploadedBy: {
+                        columns: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        }
+                    }
+                }
+            });
+
+            return documents as DocumentWithUploader[];
+        } catch (error) {
+            console.error(`Error fetching documents for user ${userId}:`, error);
+            throw new Error('Database error while fetching user documents.');
         }
     }
 }

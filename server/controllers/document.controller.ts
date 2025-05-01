@@ -205,8 +205,25 @@ export const getDocumentDownloadUrl = async (
     if (!document) { throw new HttpError(404, 'Document not found.'); }
     if (document.projectId !== projectIdNum) { throw new HttpError(403, 'Document does not belong to the specified project.'); }
 
-    // 2. Generate a pre-signed download URL from R2 (No change here)
-    const downloadUrl = await getR2DownloadUrl(document.storageKey, document.fileName);
+    // 2. Extract the correct R2 key from fileUrl 
+    // The field in the database is named fileUrl but it contains the R2 storage key
+    const fileUrl = document.fileUrl;
+    let key = fileUrl;
+    
+    // Try to extract the key if it's a full URL
+    if (fileUrl.includes('.com/')) {
+      key = fileUrl.split('.com/')[1];
+    } else if (fileUrl.includes('.dev/')) {
+      key = fileUrl.split('.dev/')[1];
+    } else if (fileUrl.includes('/')) {
+      // Fallback: just use the part after the last slash
+      key = fileUrl.split('/').pop() || fileUrl;
+    }
+
+    console.log(`Generating download URL for key: ${key} from fileUrl: ${fileUrl}`);
+    
+    // Generate a pre-signed download URL from R2
+    const downloadUrl = await getR2DownloadUrl(key, document.name);
 
     if (!downloadUrl) { throw new HttpError(500, 'Could not generate download URL.'); }
 
