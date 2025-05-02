@@ -353,6 +353,152 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
                 </div>
               </div>
               
+              {/* Project Stages Flower Infographic */}
+              <div className="mt-2 mb-8">
+                <h4 className="text-base font-medium mb-4 text-slate-700">Project Stages</h4>
+                <div className="flex justify-center">
+                  <div className="relative w-full max-w-3xl h-64">
+                    {/* Center Circle */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg">
+                      <div className="text-white text-sm font-medium text-center leading-tight">
+                        Project<br/>Journey
+                      </div>
+                    </div>
+                    
+                    {/* Flower Petals (6 Stages) */}
+                    {/* Stage 1: Planning */}
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-3 transform hover:scale-105 transition-transform">
+                      <div className="w-24 h-24 bg-blue-100 rounded-full flex flex-col items-center justify-center p-2 border-4 border-white shadow-md">
+                        <div className="bg-blue-500 rounded-full p-1.5 mb-1">
+                          <ClipboardList className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="text-blue-800 font-medium text-xs text-center">Planning</div>
+                        <div className="text-blue-600 text-[10px] text-center mt-0.5">Project Setup</div>
+                      </div>
+                    </div>
+                    
+                    {/* Stage 2: Design */}
+                    <div className="absolute right-1/4 top-1/4 translate-x-1/2 -translate-y-1/4 transform hover:scale-105 transition-transform">
+                      <div className="w-24 h-24 bg-purple-100 rounded-full flex flex-col items-center justify-center p-2 border-4 border-white shadow-md">
+                        <div className="bg-purple-500 rounded-full p-1.5 mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white">
+                            <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"></path>
+                            <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path>
+                            <path d="M12 2v2"></path>
+                            <path d="M12 22v-2"></path>
+                            <path d="M20 12h-2"></path>
+                            <path d="M4 12h2"></path>
+                          </svg>
+                        </div>
+                        <div className="text-purple-800 font-medium text-xs text-center">Design</div>
+                        <div className="text-purple-600 text-[10px] text-center mt-0.5">Selections & Plans</div>
+                      </div>
+                    </div>
+                    
+                    {/* Stage 3: Demolition */}
+                    <div className="absolute right-0 top-1/2 translate-x-3 -translate-y-1/2 transform hover:scale-105 transition-transform">
+                      <div className="w-24 h-24 bg-amber-100 rounded-full flex flex-col items-center justify-center p-2 border-4 border-white shadow-md">
+                        <div className="bg-amber-500 rounded-full p-1.5 mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white">
+                            <path d="M8 9l5 5v7H7v-7l5-5"></path>
+                            <path d="M8 3h8v6h-8z"></path>
+                            <path d="M8 9v1"></path>
+                          </svg>
+                        </div>
+                        <div className="text-amber-800 font-medium text-xs text-center">Demolition</div>
+                        <div className="text-amber-600 text-[10px] text-center mt-0.5">Site Preparation</div>
+                      </div>
+                    </div>
+                    
+                    {/* Stage 4: Construction */}
+                    <div className="absolute right-1/4 bottom-1/4 translate-x-1/2 translate-y-1/4 transform hover:scale-105 transition-transform">
+                      <div className="w-24 h-24 bg-emerald-100 rounded-full flex flex-col items-center justify-center p-2 border-4 border-white shadow-md">
+                        <div className="bg-emerald-500 rounded-full p-1.5 mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white">
+                            <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                            <path d="M17 14h.01"></path>
+                            <path d="M13 14h.01"></path>
+                            <path d="M9 14h.01"></path>
+                            <path d="M5 14h.01"></path>
+                            <path d="M2 10h20"></path>
+                          </svg>
+                        </div>
+                        <div className="text-emerald-800 font-medium text-xs text-center">Construction</div>
+                        <div className="text-emerald-600 text-[10px] text-center mt-0.5">Building Phase</div>
+                      </div>
+                    </div>
+                    
+                    {/* Stage 5: Finishing */}
+                    <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-3 transform hover:scale-105 transition-transform">
+                      <div className="w-24 h-24 bg-rose-100 rounded-full flex flex-col items-center justify-center p-2 border-4 border-white shadow-md">
+                        <div className="bg-rose-500 rounded-full p-1.5 mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <path d="M3.27 6.96L12 12.01l8.73-5.05"></path>
+                            <path d="M12 22.08V12"></path>
+                          </svg>
+                        </div>
+                        <div className="text-rose-800 font-medium text-xs text-center">Finishing</div>
+                        <div className="text-rose-600 text-[10px] text-center mt-0.5">Details & Fixtures</div>
+                      </div>
+                    </div>
+                    
+                    {/* Stage 6: Inspection */}
+                    <div className="absolute left-1/4 bottom-1/4 -translate-x-1/2 translate-y-1/4 transform hover:scale-105 transition-transform">
+                      <div className="w-24 h-24 bg-cyan-100 rounded-full flex flex-col items-center justify-center p-2 border-4 border-white shadow-md">
+                        <div className="bg-cyan-500 rounded-full p-1.5 mb-1">
+                          <CheckCircle2 className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="text-cyan-800 font-medium text-xs text-center">Completion</div>
+                        <div className="text-cyan-600 text-[10px] text-center mt-0.5">Final Inspection</div>
+                      </div>
+                    </div>
+                    
+                    {/* Connecting Lines */}
+                    <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="50%" y1="20%" x2="50%" y2="35%" stroke="#e2e8f0" strokeWidth="2" />
+                      <line x1="66%" y1="30%" x2="58%" y2="40%" stroke="#e2e8f0" strokeWidth="2" />
+                      <line x1="80%" y1="50%" x2="62%" y2="50%" stroke="#e2e8f0" strokeWidth="2" />
+                      <line x1="66%" y1="70%" x2="58%" y2="60%" stroke="#e2e8f0" strokeWidth="2" />
+                      <line x1="50%" y1="80%" x2="50%" y2="65%" stroke="#e2e8f0" strokeWidth="2" />
+                      <line x1="34%" y1="70%" x2="42%" y2="60%" stroke="#e2e8f0" strokeWidth="2" />
+                    </svg>
+                    
+                    {/* Add a active stage indicator based on progress */}
+                    {timeProgress < 15 && (
+                      <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-3 animate-pulse">
+                        <div className="w-28 h-28 rounded-full border-4 border-blue-400 opacity-50"></div>
+                      </div>
+                    )}
+                    {timeProgress >= 15 && timeProgress < 30 && (
+                      <div className="absolute right-1/4 top-1/4 translate-x-1/2 -translate-y-1/4 animate-pulse">
+                        <div className="w-28 h-28 rounded-full border-4 border-purple-400 opacity-50"></div>
+                      </div>
+                    )}
+                    {timeProgress >= 30 && timeProgress < 50 && (
+                      <div className="absolute right-0 top-1/2 translate-x-3 -translate-y-1/2 animate-pulse">
+                        <div className="w-28 h-28 rounded-full border-4 border-amber-400 opacity-50"></div>
+                      </div>
+                    )}
+                    {timeProgress >= 50 && timeProgress < 70 && (
+                      <div className="absolute right-1/4 bottom-1/4 translate-x-1/2 translate-y-1/4 animate-pulse">
+                        <div className="w-28 h-28 rounded-full border-4 border-emerald-400 opacity-50"></div>
+                      </div>
+                    )}
+                    {timeProgress >= 70 && timeProgress < 85 && (
+                      <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-3 animate-pulse">
+                        <div className="w-28 h-28 rounded-full border-4 border-rose-400 opacity-50"></div>
+                      </div>
+                    )}
+                    {timeProgress >= 85 && (
+                      <div className="absolute left-1/4 bottom-1/4 -translate-x-1/2 translate-y-1/4 animate-pulse">
+                        <div className="w-28 h-28 rounded-full border-4 border-cyan-400 opacity-50"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
               <div className="mt-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-slate-500">Project Timeline</span>
