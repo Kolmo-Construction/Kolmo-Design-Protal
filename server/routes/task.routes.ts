@@ -35,4 +35,10 @@ router.post("/publish", isAuthenticated, taskController.publishProjectTasks);
 // POST /api/projects/:projectId/tasks/unpublish - Unpublish all project tasks (hide from clients)
 router.post("/unpublish", isAuthenticated, taskController.unpublishProjectTasks);
 
+// Import the function directly - bypassing the module import
+import { importTasksFromJson } from '../controllers/task.controller';
+
+// POST /api/projects/:projectId/tasks/import - Import tasks from JSON
+router.post("/import", isAuthenticated, importTasksFromJson);
+
 export default router;

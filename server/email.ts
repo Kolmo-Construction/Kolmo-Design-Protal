@@ -24,25 +24,28 @@ interface EmailOptions {
   text?: string;
   html?: string;
   from?: string;
+  fromName?: string; // Added fromName
 }
 
 // Default sender email - should be a verified domain in MailerSend account
 // Can be overridden with environment variable
 const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@constructionportal.com';
+const DEFAULT_FROM_NAME = "Construction Portal"; // Added default name
 
 /**
  * Send an email using MailerSend
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === 'development';
+  // Use provided fromEmail/fromName or defaults
   const fromEmail = options.from || DEFAULT_FROM_EMAIL;
-  const fromName = "Construction Portal";
+  const fromName = options.fromName || DEFAULT_FROM_NAME;
 
   // Always print email content in development mode for easier debugging
   if (isDev) {
     console.log('\n==== DEVELOPMENT EMAIL ====');
     console.log(`TO: ${options.to}`);
-    console.log(`FROM: ${fromEmail}`);
+    console.log(`FROM: ${fromName} <${fromEmail}>`); // Show name and email
     console.log(`SUBJECT: ${options.subject}`);
     console.log('\n---- TEXT CONTENT ----');
     console.log(options.text || '(No text content)');
@@ -81,7 +84,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   try {
     const emailParams = new EmailParams()
-      .setFrom(new Sender(fromEmail, fromName))
+      .setFrom(new Sender(fromEmail, fromName)) // Use fromName
       .setTo([new Recipient(options.to)])
       .setSubject(options.subject);
 
@@ -132,17 +135,17 @@ export async function sendMagicLinkEmail({
     if (process.env.REPLIT_SLUG) {
       baseUrl = `https://${process.env.REPLIT_SLUG}.replit.app`;
     } else {
-      baseUrl = 'http://localhost:5000';
+      baseUrl = 'http://localhost:5000'; // Adjust if your local dev port is different
     }
   }
 
   // Determine the correct path based on the purpose
+  // *** FIX: Corrected magic link path to match auth controller ***
   const path = resetPassword
-    ? `/reset-password/${token}`
-    : `/magic-link/${token}`;
+    ? `/reset-password?token=${token}` // Assuming a route like this
+    : `/auth/magic-link/${token}`; // Matches auth.ts route
 
-  const magicLink = `${baseUrl}${path}`;
-  // isNewUser should be passed as a parameter from auth.ts, not derived from token
+  const link = `${baseUrl}${path}`;
 
   const subject = resetPassword
     ? 'Reset Your Construction Client Portal Password'
@@ -172,30 +175,26 @@ export async function sendMagicLinkEmail({
   }
 
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px; overflow: hidden;">
       <div style="background-color: #3d4f52; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">Construction Client Portal</h1>
       </div>
-      <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
-        <p>Hello ${firstName},</p>
-
-        ${contentHtml}
-
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333;">Hello ${firstName},</p>
+        <div style="font-size: 14px; color: #555; line-height: 1.6;">
+          ${contentHtml}
+        </div>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${magicLink}"
-             style="background-color: #d8973c; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+          <a href="${link}"
+             style="background-color: #d8973c; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
             ${buttonText}
           </a>
         </div>
-
-        <p>This link will expire in 24 hours for security reasons.</p>
-
-        <p>If you're having trouble with the button above, copy and paste the URL below into your web browser:</p>
-        <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; font-size: 12px;">${magicLink}</p>
-
-        <p>If you didn't request this email, please ignore it.</p>
-
-        <p>Thank you,<br>Construction Client Portal Team</p>
+        <p style="font-size: 14px; color: #555; line-height: 1.6;">This link will expire in 24 hours for security reasons.</p>
+        <p style="font-size: 14px; color: #555; line-height: 1.6;">If you're having trouble with the button above, copy and paste the URL below into your web browser:</p>
+        <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; color: #333;">${link}</p>
+        <p style="font-size: 14px; color: #555; line-height: 1.6;">If you didn't request this email, please ignore it.</p>
+        <p style="font-size: 14px; color: #555; line-height: 1.6;">Thank you,<br>The Construction Portal Team</p>
       </div>
       <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
         <p>This is an automated message, please do not reply to this email.</p>
@@ -209,14 +208,16 @@ Hello ${firstName},
 ${contentText}
 
 Please use the following link to ${resetPassword ? 'reset your password' : (isNewUser ? 'set up your account' : 'sign in')}:
-${magicLink}
+${link}
 
 This link will expire in 24 hours for security reasons.
 
 If you didn't request this email, please ignore it.
 
 Thank you,
-Construction Client Portal Team
+The Construction Portal Team
+
+This is an automated message, please do not reply to this email.
 `;
 
   return sendEmail({
@@ -226,3 +227,80 @@ Construction Client Portal Team
     text
   });
 }
+
+
+// --- NEW FUNCTION for Message Notifications ---
+interface NewMessageEmailOptions {
+    recipientEmail: string;
+    recipientFirstName: string;
+    senderName: string;
+    projectName: string;
+    messageSubject: string;
+    messageLink: string; // Link to the project's message tab
+}
+
+export async function sendNewMessageNotificationEmail({
+    recipientEmail,
+    recipientFirstName,
+    senderName,
+    projectName,
+    messageSubject,
+    messageLink
+}: NewMessageEmailOptions): Promise<boolean> {
+
+    const subject = `New Message in Project: ${projectName}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px; overflow: hidden;">
+        <div style="background-color: #3d4f52; padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">Construction Client Portal</h1>
+        </div>
+        <div style="padding: 30px;">
+          <p style="font-size: 16px; color: #333;">Hello ${recipientFirstName},</p>
+          <p style="font-size: 14px; color: #555; line-height: 1.6;">
+            You have received a new message from <strong>${senderName}</strong> regarding the project: <strong>${projectName}</strong>.
+          </p>
+          <p style="font-size: 14px; color: #555; line-height: 1.6;">
+            <strong>Subject:</strong> ${messageSubject}
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${messageLink}"
+               style="background-color: #d8973c; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
+              View Message
+            </a>
+          </div>
+          <p style="font-size: 14px; color: #555; line-height: 1.6;">
+            You can view this message and reply by logging into the client portal.
+          </p>
+          <p style="font-size: 14px; color: #555; line-height: 1.6;">Thank you,<br>The Construction Portal Team</p>
+        </div>
+        <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+          <p>This is an automated message, please do not reply to this email.</p>
+        </div>
+      </div>
+    `;
+
+    const text = `
+Hello ${recipientFirstName},
+
+You have received a new message from ${senderName} regarding the project: ${projectName}.
+
+Subject: ${messageSubject}
+
+You can view this message and reply by logging into the client portal:
+${messageLink}
+
+Thank you,
+The Construction Portal Team
+
+This is an automated message, please do not reply to this email.
+`;
+
+    return sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        text
+    });
+}
+// --- END NEW FUNCTION ---

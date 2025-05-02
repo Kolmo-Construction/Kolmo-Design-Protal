@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { queryClient } from "@/lib/queryClient";
-import { apiRequest } from "@/lib/queryClient";
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Added useQueryClient
+import { useAuth } from "@/hooks/use-auth"; // *** ADDED: Import useAuth ***
+// Removed queryClient import as it's obtained via hook
+import { apiRequest, getQueryFn } from "@/lib/queryClient"; // *** UPDATED: Import getQueryFn ***
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import MessageItem from "@/components/MessageItem";
-import { Message, Project, User } from "@shared/schema";
+import { Message, Project, User } from "@shared/schema"; // *** ADDED: Import User ***
 import {
   Card,
   CardContent,
@@ -48,9 +48,12 @@ import {
   XCircle
 } from "lucide-react";
 
+// Schema for the message form
 const messageSchema = z.object({
-  projectId: z.number().min(1, "Please select a project"),
-  recipientId: z.number().nullable(),
+  // Ensure projectId is treated as a string initially for the Select component
+  projectId: z.string().min(1, "Please select a project"),
+  // recipientId can be number or null
+  recipientId: z.number().nullable().optional(),
   subject: z.string().min(1, "Subject is required"),
   message: z.string().min(1, "Message is required"),
 });
@@ -62,39 +65,43 @@ export default function Messages() {
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const { user } = useAuth();
+  const { user } = useAuth(); // *** ADDED: Get user from auth hook ***
   const { toast } = useToast();
+  const queryClient = useQueryClient(); // *** ADDED: Get queryClient via hook ***
 
   // Fetch projects
-  const { 
+  const {
     data: projects = [],
-    isLoading: isLoadingProjects 
+    isLoading: isLoadingProjects
   } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
+    queryFn: getQueryFn({ on401: "throw" }), // *** UPDATED: Use getQueryFn ***
   });
 
   // Fetch all messages across all projects
-  const { 
+  const {
     data: allMessages = [],
-    isLoading: isLoadingMessages 
+    isLoading: isLoadingMessages
   } = useQuery<Message[]>({
-    queryKey: ["/api/messages"],
-    enabled: projects.length > 0,
+    queryKey: ["/api/messages"], // Endpoint might need adjustment based on backend
+    queryFn: getQueryFn({ on401: "throw" }), // *** UPDATED: Use getQueryFn ***
+    // enabled: projects.length > 0, // Can fetch messages regardless of projects loaded
   });
 
-  // Fetch users for recipient selection
-  const { 
+  // Fetch users for recipient selection (only if not a client)
+  const {
     data: users = [],
-    isLoading: isLoadingUsers 
+    isLoading: isLoadingUsers
   } = useQuery<User[]>({
-    queryKey: ["/api/users"],
-    enabled: user?.role === "admin",
+    queryKey: ["/api/users"], // Or a more specific endpoint like /api/message-recipients
+    queryFn: getQueryFn({ on401: "throw" }), // *** UPDATED: Use getQueryFn ***
+    enabled: user?.role !== 'client', // *** ADDED: Enable only if user is NOT a client ***
   });
 
   // Filter messages based on project and search query
   const filteredMessages = allMessages.filter(msg => {
     const matchesProject = projectFilter === "all" || msg.projectId.toString() === projectFilter;
-    const matchesSearch = msg.subject.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = msg.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         msg.message.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesProject && matchesSearch;
   });
@@ -102,40 +109,67 @@ export default function Messages() {
   // Form setup
   const form = useForm<MessageFormValues>({
     resolver: zodResolver(messageSchema),
+    // Set default projectId as string if projects are loaded, otherwise empty string
     defaultValues: {
-      projectId: projects[0]?.id || 0,
+      projectId: projects[0]?.id.toString() || "",
       recipientId: null,
       subject: "",
       message: "",
     },
   });
 
+  // Reset form projectId when projects load
+  React.useEffect(() => {
+    if (projects.length > 0 && !form.getValues('projectId')) {
+        form.reset({ ...form.getValues(), projectId: projects[0].id.toString() });
+    }
+  }, [projects, form]);
+
   // Create message mutation
   const createMessageMutation = useMutation({
     mutationFn: async (data: MessageFormValues) => {
-      const res = await apiRequest("POST", `/api/projects/${data.projectId}/messages`, data);
-      return res.json();
+      // Convert projectId back to number before sending
+      const payload = {
+          ...data,
+          projectId: parseInt(data.projectId, 10),
+          // recipientId is already number | null | undefined
+      };
+      const res = await apiRequest("POST", `/api/projects/${payload.projectId}/messages`, payload);
+      // apiRequest should throw on non-ok status, so we assume success here
+      return res.json(); // Assuming backend returns the created message
     },
     onSuccess: () => {
       toast({
         title: "Message Sent",
         description: "Your message has been sent successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"] }); // Invalidate general messages query
+      // Optionally invalidate project-specific messages if using separate keys
+      // queryClient.invalidateQueries({ queryKey: [`/api/projects/${form.getValues('projectId')}/messages`] });
       setDialogOpen(false);
-      form.reset();
+      form.reset({ // Reset form to defaults (or specific values)
+        projectId: projects[0]?.id.toString() || "",
+        recipientId: null,
+        subject: "",
+        message: ""
+      });
     },
     onError: (error) => {
       toast({
         title: "Failed to Send Message",
-        description: error.message || "There was an error sending your message. Please try again.",
+        description: error instanceof Error ? error.message : "An unknown error occurred.", // Display error message
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: MessageFormValues) => {
-    createMessageMutation.mutate(data);
+    // *** ADDED: Ensure recipientId is null for clients ***
+    const submissionData = user?.role === 'client'
+      ? { ...data, recipientId: null }
+      : data;
+    // *** END ADDED ***
+    createMessageMutation.mutate(submissionData);
   };
 
   return (
@@ -160,24 +194,30 @@ export default function Messages() {
               <DialogHeader>
                 <DialogTitle>Send a New Message</DialogTitle>
                 <DialogDescription>
-                  Send a message to your project team. They will be notified and can respond.
+                  Send a message regarding a project.
+                  {/* Clarify recipient based on role */}
+                  {user?.role === 'client'
+                    ? " Your message will be sent to the project team."
+                    : " Select a recipient or send to all project members."}
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {/* Project Selection */}
                   <FormField
                     control={form.control}
                     name="projectId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Project</FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(parseInt(value))}
-                          defaultValue={field.value.toString()}
+                        <FormLabel>Project*</FormLabel>
+                        <Select
+                          onValueChange={field.onChange} // RHF expects string here
+                          value={field.value} // Value is string from form state
+                          disabled={isLoadingProjects}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a project" />
+                              <SelectValue placeholder={isLoadingProjects ? "Loading..." : "Select a project"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -192,44 +232,56 @@ export default function Messages() {
                       </FormItem>
                     )}
                   />
-                  
-                  {user?.role === "admin" && (
+
+                  {/* --- Conditional Recipient Field --- */}
+                  {user?.role !== 'client' && ( // Only show if NOT a client
                     <FormField
                       control={form.control}
                       name="recipientId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Recipient (Optional)</FormLabel>
-                          <Select 
+                          <Select
+                            // Ensure value is string or "null" for Select component
                             onValueChange={(value) => field.onChange(value === "null" ? null : parseInt(value))}
-                            defaultValue={field.value?.toString() || "null"}
+                            value={field.value?.toString() ?? "null"}
+                            disabled={isLoadingUsers}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="All team members" />
+                                <SelectValue placeholder={isLoadingUsers ? "Loading..." : "All project members"} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="null">All team members</SelectItem>
-                              {users.map(user => (
-                                <SelectItem key={user.id} value={user.id.toString()}>
-                                  {user.firstName} {user.lastName} ({user.role})
+                              <SelectItem value="null">All Project Members</SelectItem>
+                              {/* Filter users (e.g., only show PMs and Admins, or clients on the selected project) */}
+                              {users
+                                // Example: Filter out the current user and potentially other clients
+                                .filter(u => u.id !== user?.id)
+                                .map(u => (
+                                <SelectItem key={u.id} value={u.id.toString()}>
+                                  {u.firstName} {u.lastName} ({u.role})
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          <FormDescription>
+                            Leave blank to send to all project members.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   )}
-                  
+                  {/* --- End Conditional Field --- */}
+
+                  {/* Subject */}
                   <FormField
                     control={form.control}
                     name="subject"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Subject</FormLabel>
+                        <FormLabel>Subject*</FormLabel>
                         <FormControl>
                           <Input placeholder="Enter message subject" {...field} />
                         </FormControl>
@@ -237,35 +289,36 @@ export default function Messages() {
                       </FormItem>
                     )}
                   />
-                  
+
+                  {/* Message */}
                   <FormField
                     control={form.control}
                     name="message"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Message</FormLabel>
+                        <FormLabel>Message*</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Enter your message here..." 
-                            className="min-h-[120px]" 
-                            {...field} 
+                          <Textarea
+                            placeholder="Enter your message here..."
+                            className="min-h-[120px]"
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
+
                   <DialogFooter>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => setDialogOpen(false)}
                       disabled={createMessageMutation.isPending}
                     >
                       Cancel
                     </Button>
-                    <Button 
+                    <Button
                       type="submit"
                       disabled={createMessageMutation.isPending}
                     >
@@ -319,9 +372,10 @@ export default function Messages() {
                   className="pl-10"
                 />
                 {searchQuery && (
-                  <button 
+                  <button
                     onClick={() => setSearchQuery("")}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label="Clear search"
                   >
                     <XCircle className="h-4 w-4" />
                   </button>
@@ -331,17 +385,18 @@ export default function Messages() {
           </CardContent>
         </Card>
 
-        {/* Messages */}
+        {/* Messages List */}
         <Card>
           <CardHeader>
             <CardTitle>Communication Log</CardTitle>
             <CardDescription>
-              {filteredMessages.length} message{filteredMessages.length !== 1 ? 's' : ''} found
+              {isLoadingMessages ? "Loading messages..." : `${filteredMessages.length} message${filteredMessages.length !== 1 ? 's' : ''} found`}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {(isLoadingProjects || isLoadingMessages) ? (
+            {(isLoadingProjects || isLoadingMessages || isLoadingUsers) ? ( // Check all relevant loading states
               <div>
+                {/* Placeholder loading items */}
                 <MessageItem isLoading={true} message={{} as Message} />
                 <MessageItem isLoading={true} message={{} as Message} />
                 <MessageItem isLoading={true} message={{} as Message} />
@@ -353,40 +408,41 @@ export default function Messages() {
                 </div>
                 <h3 className="text-lg font-medium text-slate-900 mb-2">No Messages Found</h3>
                 <p className="text-center text-slate-500 mb-6 max-w-md">
-                  {allMessages.length === 0 
+                  {allMessages.length === 0
                     ? "No messages have been exchanged yet. Send a message to get started."
                     : "No messages match your current filters. Try adjusting your search or filter criteria."}
                 </p>
-                <Button 
-                  onClick={() => setDialogOpen(true)}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Message
-                </Button>
+                 {allMessages.length > 0 && ( // Show Clear Filters button only if filters might be active
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            setProjectFilter("all");
+                            setSearchQuery("");
+                        }}
+                    >
+                        Clear Filters
+                    </Button>
+                 )}
               </div>
             ) : (
               <div className="divide-y divide-slate-200">
                 {filteredMessages.map((message) => {
-                  // Find project for this message
-                  const project = projects.find(p => p.id === message.projectId);
-                  
+                  // Enrich message with sender details (if users are loaded)
+                  const sender = users.find(u => u.id === message.senderId);
                   return (
-                    <MessageItem 
-                      key={message.id} 
-                      message={{
-                        ...message,
-                        sender: users.find(u => u.id === message.senderId)
-                      }} 
+                    <MessageItem
+                      key={message.id}
+                      message={{ ...message, sender }} // Pass enriched message
                     />
                   );
                 })}
               </div>
             )}
           </CardContent>
-          {filteredMessages.length > 0 && (
+          {filteredMessages.length > 10 && ( // Example: Show Load More if more than 10 messages match filter
             <CardFooter className="justify-center border-t py-4">
-              <Button variant="outline">Load More Messages</Button>
+              {/* TODO: Implement actual Load More functionality */}
+              <Button variant="outline" disabled>Load More Messages</Button>
             </CardFooter>
           )}
         </Card>

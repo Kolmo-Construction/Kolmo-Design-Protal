@@ -3,11 +3,13 @@ import { useMutation, useQueryClient, QueryKey } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient"; // Assuming apiRequest handles response parsing/errors
 import { useToast } from "@/hooks/use-toast";
 import { Task, InsertTask } from "@shared/schema";
+import { Task as GanttTask } from 'gantt-task-react';
 
 // Define payload types (can be shared or defined here if specific to these mutations)
 type UpdateTaskDatePayload = { taskId: number; startDate: Date; dueDate: Date };
 type UpdateTaskProgressPayload = { taskId: number; progress: number };
 type CreateDependencyPayload = { predecessorId: number; successorId: number; type?: string };
+type ImportTasksPayload = { projectId: number; tasks: GanttTask[] };
 
 // Define the structure of what the hook returns
 interface UseProjectTaskMutationsResult {
@@ -19,6 +21,7 @@ interface UseProjectTaskMutationsResult {
     deleteDependencyMutation: ReturnType<typeof useMutation<void, Error, number>>;
     publishTasksMutation: ReturnType<typeof useMutation<unknown, Error, void>>;
     unpublishTasksMutation: ReturnType<typeof useMutation<unknown, Error, void>>;
+    importTasksMutation: ReturnType<typeof useMutation<unknown, Error, ImportTasksPayload>>;
 }
 
 export function useProjectTaskMutations(projectId: number): UseProjectTaskMutationsResult {
@@ -179,6 +182,26 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         },
     });
 
+    // Import Tasks from JSON Mutation
+    const importTasksMutation = useMutation<unknown, Error, ImportTasksPayload>({
+        mutationFn: ({ projectId, tasks }: ImportTasksPayload) => {
+            return apiRequest(
+                'POST',
+                `/api/projects/${projectId}/tasks/import`,
+                { tasks }
+            );
+        },
+        onSuccess: () => {
+            toast({ title: "Tasks Imported", description: "Tasks have been successfully imported from JSON." });
+            queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+            queryClient.invalidateQueries({ queryKey: dependenciesQueryKey });
+        },
+        onError: (err: Error) => {
+            console.error("Error importing tasks:", err);
+            toast({ title: "Error Importing Tasks", description: err.message, variant: "destructive" });
+        },
+    });
+
     return {
         createTaskMutation,
         deleteTaskMutation,
@@ -188,5 +211,6 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         deleteDependencyMutation,
         publishTasksMutation,
         unpublishTasksMutation,
+        importTasksMutation,
     };
 }

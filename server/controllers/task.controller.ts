@@ -427,3 +427,71 @@ export const unpublishProjectTasks = async (
         next(error); // Pass HttpError or other errors to central handler
     }
 };
+
+/**
+ * Import tasks from JSON
+ * Handles bulk creation of tasks from JSON data in the gantt-task-react format
+ */
+export const importTasksFromJson = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    logger(`[importTasksFromJson] Handler reached for projectId: ${req.params.projectId}`, 'TaskController');
+    try {
+        const projectId = parseInt(req.params.projectId);
+        if (isNaN(projectId)) {
+            throw new HttpError(400, 'Invalid project ID parameter.');
+        }
+        
+        // Get tasks from request body
+        const { tasks } = req.body;
+        
+        if (!Array.isArray(tasks) || tasks.length === 0) {
+            throw new HttpError(400, 'Invalid tasks data. Expected non-empty array.');
+        }
+        
+        logger(`[importTasksFromJson] Importing ${tasks.length} tasks for project ${projectId}`, 'TaskController');
+        
+        // Process each Gantt task and convert to our schema format
+        const createdTasks = [];
+        for (const ganttTask of tasks) {
+            // Validate required fields in gantt task
+            if (!ganttTask.name || !ganttTask.start || !ganttTask.end) {
+                logger(`[importTasksFromJson] Skipping invalid task: ${JSON.stringify(ganttTask)}`, 'TaskController');
+                continue;
+            }
+            
+            // Convert from gantt-task-react format to our schema
+            const taskData: schema.InsertTask = {
+                projectId: projectId,
+                title: ganttTask.name,
+                description: ganttTask.description || null,
+                startDate: new Date(ganttTask.start),
+                dueDate: new Date(ganttTask.end),
+                status: ganttTask.progress === 100 ? 'done' : 
+                        ganttTask.progress > 0 ? 'in_progress' : 'todo',
+                priority: 'medium',
+                assigneeId: null,
+                progress: ganttTask.progress || 0,
+                displayOrder: 0,
+                parentId: null,
+            };
+            
+            // Create the task in the database
+            logger(`[importTasksFromJson] Creating task "${taskData.title}"`, 'TaskController');
+            const createdTask = await storage.tasks.createTask(taskData);
+            createdTasks.push(createdTask);
+        }
+        
+        // Return success response with created tasks
+        res.status(201).json({
+            message: `Successfully imported ${createdTasks.length} tasks`,
+            tasks: createdTasks
+        });
+        
+    } catch (error) {
+        logger(`[importTasksFromJson] Error occurred: ${error instanceof Error ? error.message : String(error)}`, 'TaskController');
+        next(error);
+    }
+};
