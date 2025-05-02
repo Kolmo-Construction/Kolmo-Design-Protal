@@ -255,7 +255,11 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
                  <div className="rounded-full bg-muted p-4 mb-4"><ClipboardList className="h-8 w-8 text-muted-foreground" /></div>
                  <h3 className="text-lg font-semibold mb-1">No Tasks Created Yet</h3>
                  <p className="text-muted-foreground mb-4">Add the first task for this project's schedule.</p>
-                 <Button size="sm" onClick={handleAddTaskClick} className="gap-1"><PlusCircle className="h-4 w-4" />Add First Task</Button>
+                 {!isClient && (
+                   <Button size="sm" onClick={handleAddTaskClick} className="gap-1">
+                     <PlusCircle className="h-4 w-4" />Add First Task
+                   </Button>
+                 )}
              </div>
          );
      }
@@ -263,7 +267,226 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
     // Check pending status for mutations
     const isMutating = createTaskMutation.isPending || deleteTaskMutation.isPending || updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending;
 
-    // Render Gantt container
+    // If client view, render a more beautiful timeline visualization
+    if (isClient && tasks.length > 0) {
+      // Sort tasks by start date
+      const sortedTasks = [...tasks].sort((a, b) => {
+        if (a.startDate && b.startDate) {
+          return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+        }
+        if (a.startDate) return -1;
+        if (b.startDate) return 1;
+        return a.id - b.id;
+      });
+
+      // Find project timeframe
+      const today = new Date();
+      let projectStart = today;
+      let projectEnd = today;
+      
+      sortedTasks.forEach(task => {
+        if (task.startDate) {
+          const taskStartDate = new Date(task.startDate);
+          if (taskStartDate < projectStart) {
+            projectStart = taskStartDate;
+          }
+        }
+        
+        if (task.dueDate) {
+          const taskDueDate = new Date(task.dueDate);
+          if (taskDueDate > projectEnd) {
+            projectEnd = taskDueDate;
+          }
+        }
+      });
+      
+      // Calculate completed tasks
+      const completedTasks = sortedTasks.filter(task => task.status === 'done').length;
+      const totalTasks = sortedTasks.length;
+      const completionPercentage = Math.round((completedTasks / totalTasks) * 100);
+      
+      // Calculate time progress
+      const totalDuration = (projectEnd.getTime() - projectStart.getTime()) || 1;
+      const elapsedDuration = (today.getTime() - projectStart.getTime());
+      const timeProgress = Math.min(Math.max(Math.round((elapsedDuration / totalDuration) * 100), 0), 100);
+      
+      return (
+        <div className="w-full overflow-auto relative">
+          {/* Progress Overview */}
+          <div className="mb-8 p-6 border rounded-xl bg-gradient-to-r from-slate-50 to-blue-50 shadow-sm">
+            <h3 className="text-xl font-semibold mb-4 text-slate-800 flex items-center">
+              <div className="bg-blue-100 rounded-full p-1.5 mr-2">
+                <Clock className="h-5 w-5 text-blue-700" />
+              </div>
+              Project Timeline Overview
+            </h3>
+            
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <p className="text-sm font-medium text-slate-500 mb-3">Project Timeline</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-center">
+                    <p className="text-xs text-slate-500">Start Date</p>
+                    <p className="text-base font-medium">{projectStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
+                  <div className="flex-grow mx-2 px-2">
+                    <div className="h-0.5 w-full bg-slate-100 relative">
+                      <div className="absolute inset-y-0 left-0 bg-blue-500" style={{ width: `${timeProgress}%` }}></div>
+                      <div 
+                        className="absolute h-3 w-3 bg-red-500 rounded-full -top-1" 
+                        style={{ left: `${timeProgress}%`, transform: 'translateX(-50%)' }}
+                      ></div>
+                    </div>
+                    <p className="text-center text-xs text-slate-500 mt-1">Today</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-slate-500">End Date</p>
+                    <p className="text-base font-medium">{projectEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <p className="text-sm font-medium text-slate-500 mb-3">Tasks Progress</p>
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="text-xs text-slate-500">Completion</p>
+                    <p className="text-xs font-medium">{completionPercentage}%</p>
+                  </div>
+                  <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden mb-1">
+                    <div 
+                      className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full" 
+                      style={{ width: `${completionPercentage}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <p>{completedTasks} completed</p>
+                    <p>{totalTasks} total tasks</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <p className="text-sm font-medium text-slate-500 mb-3">Task Status Breakdown</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-sm bg-green-500 mr-2"></div>
+                      <p className="text-xs">Completed</p>
+                    </div>
+                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'done').length}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-sm bg-blue-500 mr-2"></div>
+                      <p className="text-xs">In Progress</p>
+                    </div>
+                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'in_progress').length}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-sm bg-yellow-500 mr-2"></div>
+                      <p className="text-xs">Todo</p>
+                    </div>
+                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'todo').length}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-sm bg-red-500 mr-2"></div>
+                      <p className="text-xs">Blocked</p>
+                    </div>
+                    <p className="text-xs font-medium">{sortedTasks.filter(t => t.status === 'blocked').length}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tasks Timeline */}
+          <div className="p-6 border rounded-xl shadow-sm bg-white">
+            <h3 className="text-xl font-semibold mb-4 text-slate-800 flex items-center">
+              <div className="bg-indigo-100 rounded-full p-1.5 mr-2">
+                <ClipboardList className="h-5 w-5 text-indigo-700" />
+              </div>
+              Project Schedule
+            </h3>
+            
+            <div className="relative mt-8 mb-4">
+              {/* Timeline bar */}
+              <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-200"></div>
+              
+              {/* Timeline points */}
+              <div className="space-y-10">
+                {sortedTasks.map((task, index) => {
+                  // Determine status color
+                  let statusColor = 'bg-slate-400'; // default
+                  let statusTextColor = 'text-slate-800';
+                  if (task.status === 'done') {
+                    statusColor = 'bg-green-500';
+                    statusTextColor = 'text-green-800';
+                  } else if (task.status === 'in_progress') {
+                    statusColor = 'bg-blue-500';
+                    statusTextColor = 'text-blue-800';
+                  } else if (task.status === 'blocked') {
+                    statusColor = 'bg-red-500';
+                    statusTextColor = 'text-red-800';
+                  } else if (task.status === 'todo') {
+                    statusColor = 'bg-yellow-500';
+                    statusTextColor = 'text-yellow-800';
+                  }
+                  
+                  // Format dates
+                  const startDate = task.startDate ? new Date(task.startDate) : null;
+                  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+
+                  return (
+                    <div key={task.id} className="relative pl-14">
+                      {/* Timeline point */}
+                      <div className={`absolute left-6 -translate-x-1/2 w-4 h-4 rounded-full ${statusColor} border-4 border-white`}></div>
+                      
+                      {/* Task card with animation */}
+                      <div 
+                        className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-1"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-lg font-medium">{task.title}</h4>
+                            {task.description && (
+                              <p className="text-slate-600 text-sm mt-1">{task.description}</p>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor} bg-opacity-20 ${statusTextColor}`}>
+                              {task.status === 'done' ? 'Completed' : 
+                               task.status === 'in_progress' ? 'In Progress' :
+                               task.status === 'blocked' ? 'Blocked' : 'Planned'}
+                            </span>
+                            
+                            {startDate && dueDate && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                                {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer note */}
+          <div className="p-2 text-xs text-slate-500 text-center mt-4">
+            This timeline view shows your project's schedule in a client-friendly format.
+          </div>
+        </div>
+      );
+    }
+
+    // For admin/PM, render the technical Gantt chart
     return (
         <div className="h-[600px] w-full overflow-auto border rounded-md bg-background relative">
             {isMutating && ( /* Loading overlay */
@@ -282,14 +505,13 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
                     tasks={formattedGanttTasks} // Pass formatted tasks
                     viewMode={ViewMode.Week} // Example view mode
                     // --- Event Handlers for gantt-task-react ---
-                    // Only add mutation handlers for non-client users
-                    onDateChange={!isClient ? handleTaskChange : undefined} // Handles drag/resize
-                    onDelete={!isClient ? handleTaskDelete : undefined} // Handles delete action
-                    onProgressChange={!isClient ? handleProgressChange : undefined} // Handles progress
-                    onDoubleClick={!isClient ? handleDblClick : undefined} // Handles double click
-                    onClick={handleClick} // Always allow single click (view only)
-                    onSelect={handleSelect} // Always allow selection (view only)
-                    onExpanderClick={handleExpanderClick} // Always allow expand/collapse (view only)
+                    onDateChange={handleTaskChange} // Handles drag/resize
+                    onDelete={handleTaskDelete} // Handles delete action
+                    onProgressChange={handleProgressChange} // Handles progress
+                    onDoubleClick={handleDblClick} // Handles double click
+                    onClick={handleClick} // Always allow single click
+                    onSelect={handleSelect} // Always allow selection
+                    onExpanderClick={handleExpanderClick} // Always allow expand/collapse
 
                     // --- Styling & Config Props (Examples - check docs) ---
                     listCellWidth={"150px"} // Adjust width of the task list column
@@ -318,9 +540,7 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
                 )
             )}
              <div className="p-2 text-xs text-muted-foreground border-t">
-                 {isClient 
-                   ? "Note: View-only mode. Tasks are displayed in read-only format."
-                   : "Note: Using gantt-task-react library. Drag tasks to adjust dates and progress."}
+                 Note: Using gantt-task-react library. Drag tasks to adjust dates and progress.
              </div>
         </div>
     );
