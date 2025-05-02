@@ -29,4 +29,10 @@ router.post("/dependencies", isAuthenticated, taskController.createTaskDependenc
 // DELETE /api/projects/:projectId/tasks/dependencies - Remove a dependency
 router.delete("/dependencies", isAuthenticated, taskController.deleteTaskDependency);
 
+// POST /api/projects/:projectId/tasks/publish - Publish all project tasks (make visible to clients)
+router.post("/publish", isAuthenticated, taskController.publishProjectTasks);
+
+// POST /api/projects/:projectId/tasks/unpublish - Unpublish all project tasks (hide from clients)
+router.post("/unpublish", isAuthenticated, taskController.unpublishProjectTasks);
+
 export default router;

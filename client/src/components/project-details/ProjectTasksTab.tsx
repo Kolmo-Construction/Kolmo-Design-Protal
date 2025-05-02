@@ -19,7 +19,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { 
-  Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2, Eye,
+  Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2, Eye, EyeOff,
   Clock, Calendar, CheckCircle2, ArrowRight, CheckCheck, CircleDot
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -91,6 +91,8 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
       // Dependency mutations might be needed if library supports link creation via UI
       // createDependencyMutation,
       // deleteDependencyMutation,
+      publishTasksMutation,
+      unpublishTasksMutation,
   } = useProjectTaskMutations(projectId);
 
   // Dialogs hook (remains the same)
@@ -131,15 +133,19 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
     const originalTask = tasks.find(t => String(t.id) === task.id);
 
     // Check if dates actually changed to avoid unnecessary mutations during drag
-    const startDateChanged = originalTask?.startDate !== task.start.toISOString().split('T')[0]; // Compare YYYY-MM-DD part
-    const dueDateChanged = originalTask?.dueDate !== task.end.toISOString().split('T')[0]; // Compare YYYY-MM-DD part
+    const startDateChanged = originalTask?.startDate ? 
+                           new Date(originalTask.startDate).toISOString() !== task.start.toISOString() : 
+                           false;
+    const dueDateChanged = originalTask?.dueDate ? 
+                         new Date(originalTask.dueDate).toISOString() !== task.end.toISOString() : 
+                         false;
 
     if (originalTask && (startDateChanged || dueDateChanged)) {
         console.log(`[gantt-task-react] Dates changed for task ${task.id}. Mutating.`);
         updateTaskDateMutation.mutate({
             taskId: parseInt(task.id, 10), // Convert ID back to number if API expects number
-            startDate: task.start.toISOString(),
-            dueDate: task.end.toISOString(),
+            startDate: new Date(task.start),
+            dueDate: new Date(task.end),
         });
     } else {
         // console.log(`[gantt-task-react] Dates did not change for task ${task.id}. Skipping mutation.`);
@@ -167,7 +173,7 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
     console.log("[gantt-task-react] onProgressChange:", task);
     const originalTask = tasks.find(t => String(t.id) === task.id);
     // Optional: Check if progress actually changed
-    if (originalTask && originalTask.progress !== task.progress) {
+    if (originalTask) {
          updateTaskProgressMutation.mutate({
              taskId: parseInt(task.id, 10), // Convert ID back to number if API expects number
              progress: task.progress,
@@ -183,8 +189,10 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
   const handleDblClick = useCallback((task: GanttReactTask) => {
     console.log("[gantt-task-react] onDoubleClick:", task);
     const originalTask = tasks.find(t => String(t.id) === task.id);
-    if (originalTask && handleTaskClick) { // handleTaskClick opens the Edit Dialog
-        handleTaskClick(originalTask);
+    if (originalTask && handleTaskClick) { 
+        // Type cast to any to avoid TS errors related to library-specific Task vs API Task
+        // This is safe because we're using our own adapter and know the fields we need are present
+        handleTaskClick(originalTask as any);
     } else {
          console.warn(`Could not find original task with ID ${task.id} for double click.`);
     }
@@ -228,6 +236,8 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
     });
   }, [ projectId, isLoading, isError, error, tasksStatus, tasks, formattedGanttTasks ]);
 
+  // Check if user is a client
+  const isClient = user?.role === 'client';
 
   // --- Render Logic ---
   const renderContent = () => {
@@ -268,13 +278,35 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
          );
      }
 
-    // Check pending status for mutations
-    const isMutating = createTaskMutation.isPending || deleteTaskMutation.isPending || updateTaskDateMutation.isPending || updateTaskProgressMutation.isPending;
+    // Check pending status for all mutations
+    const isMutating = createTaskMutation.isPending || 
+                     deleteTaskMutation.isPending || 
+                     updateTaskDateMutation.isPending || 
+                     updateTaskProgressMutation.isPending || 
+                     publishTasksMutation.isPending || 
+                     unpublishTasksMutation.isPending;
 
     // If client view, render a more beautiful timeline visualization
-    if (isClient && tasks.length > 0) {
+    if (isClient) {
+      // For clients, only show published tasks
+      const publishedTasks = tasks.filter(task => task.publishedAt !== null);
+      
+      if (publishedTasks.length === 0) {
+        return (
+          <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg mt-4">
+            <div className="rounded-full bg-blue-50 p-4 mb-4">
+              <Eye className="h-8 w-8 text-blue-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1">No Published Schedule Yet</h3>
+            <p className="text-slate-600 mb-4">
+              The project schedule is being prepared and will be available soon.
+            </p>
+          </div>
+        );
+      }
+      
       // Sort tasks by start date
-      const sortedTasks = [...tasks].sort((a, b) => {
+      const sortedTasks = [...publishedTasks].sort((a, b) => {
         if (a.startDate && b.startDate) {
           return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
         }
@@ -356,7 +388,7 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
               <div className="mt-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-slate-500">Project Timeline</span>
-                  <span className="text-sm font-medium">{Math.min(Math.round((new Date().getTime() - projectStart.getTime()) / (projectEnd.getTime() - projectStart.getTime()) * 100), 100)}% Complete</span>
+                  <span className="text-sm font-medium">{timeProgress}% Complete</span>
                 </div>
                 
                 <div className="h-1.5 w-full bg-slate-100 rounded-full relative mb-2">
@@ -499,68 +531,109 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
       );
     }
 
-    // For admin/PM, render the technical Gantt chart
+    // For admin/PM, render the technical Gantt chart with publishing controls
+    const hasPublishedTasks = tasks.some(task => task.publishedAt !== null);
+        
     return (
-        <div className="h-[600px] w-full overflow-auto border rounded-md bg-background relative">
-            {isMutating && ( /* Loading overlay */
-                 <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
-                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                     <span className="ml-2">Processing...</span>
-                 </div>
-            )}
-            {/* Render Gantt directly only if there are formatted tasks */}
-            {formattedGanttTasks.length > 0 ? (
-              <div className="gantt-container relative">
-                {console.log('[ProjectTasksTab] Rendering gantt-task-react with tasks:', JSON.parse(JSON.stringify(formattedGanttTasks)))}
+        <div className="space-y-4">
+            {/* Publishing Controls */}
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Publication Status:</span>
+                    {hasPublishedTasks ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                            <Eye className="h-3.5 w-3.5" />
+                            Published to clients
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-800">
+                            <EyeOff className="h-3.5 w-3.5" />
+                            Hidden from clients
+                        </span>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => publishTasksMutation.mutate()}
+                        disabled={publishTasksMutation.isPending || hasPublishedTasks}
+                        className="gap-1"
+                    >
+                        <Eye className="h-4 w-4" />
+                        Publish Tasks
+                    </Button>
+                    <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => unpublishTasksMutation.mutate()}
+                        disabled={unpublishTasksMutation.isPending || !hasPublishedTasks}
+                        className="gap-1"
+                    >
+                        <EyeOff className="h-4 w-4" />
+                        Unpublish Tasks
+                    </Button>
+                </div>
+            </div>
 
-                {/* --- Use gantt-task-react Component with Interaction Handlers --- */}
-                <Gantt
-                    tasks={formattedGanttTasks} // Pass formatted tasks
-                    viewMode={ViewMode.Week} // Example view mode
-                    // --- Event Handlers for gantt-task-react ---
-                    onDateChange={handleTaskChange} // Handles drag/resize
-                    onDelete={handleTaskDelete} // Handles delete action
-                    onProgressChange={handleProgressChange} // Handles progress
-                    onDoubleClick={handleDblClick} // Handles double click
-                    onClick={handleClick} // Always allow single click
-                    onSelect={handleSelect} // Always allow selection
-                    onExpanderClick={handleExpanderClick} // Always allow expand/collapse
-
-                    // --- Styling & Config Props (Examples - check docs) ---
-                    listCellWidth={"150px"} // Adjust width of the task list column
-                    // columnWidth={60} // Adjust width of date columns in timeline
-                    // ganttHeight={580} // Optional: Set explicit height
-                    // barCornerRadius={4} // Optional: Styling
-                    // handleWidth={8} // Optional: Styling
-                    // Other relevant props:
-                    // locale="en-US" // Set locale for date formatting
-                    // timeStep={3600000} // Example: Set minimum time step (1 hour)
-                    // Tooltip props if needed:
-                    // TooltipContent={({ task, fontSize, fontFamily }) => <div>Custom: {task.name}</div>}
-                />
-                {/* --- End gantt-task-react Component --- */}
-              </div>
-            ) : (
-                // Show message if tasks were fetched but all were filtered out by formatter
-                tasks.length > 0 && !isLoading && tasksStatus === 'success' && (
-                     <div className="flex flex-col items-center justify-center py-16 text-center">
-                         <AlertTriangle className="h-8 w-8 text-muted-foreground mb-4" />
-                         <h3 className="text-lg font-semibold mb-1">No Tasks to Display</h3>
-                         <p className="text-muted-foreground">
-                             Tasks were found, but none have valid start and end dates for the schedule view.
-                         </p>
+            <div className="h-[600px] w-full overflow-auto border rounded-md bg-background relative">
+                {isMutating && ( /* Loading overlay */
+                     <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
+                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                         <span className="ml-2">Processing...</span>
                      </div>
-                )
-            )}
-             <div className="p-2 text-xs text-muted-foreground border-t">
-                 Note: Using gantt-task-react library. Drag tasks to adjust dates and progress.
-             </div>
+                )}
+                {/* Render Gantt directly only if there are formatted tasks */}
+                {formattedGanttTasks.length > 0 ? (
+                  <div className="gantt-container relative">
+                    {console.log('[ProjectTasksTab] Rendering gantt-task-react with tasks:', JSON.parse(JSON.stringify(formattedGanttTasks)))}
+
+                    {/* --- Use gantt-task-react Component with Interaction Handlers --- */}
+                    <Gantt
+                        tasks={formattedGanttTasks} // Pass formatted tasks
+                        viewMode={ViewMode.Week} // Example view mode
+                        // --- Event Handlers for gantt-task-react ---
+                        onDateChange={handleTaskChange} // Handles drag/resize
+                        onDelete={handleTaskDelete} // Handles delete action
+                        onProgressChange={handleProgressChange} // Handles progress
+                        onDoubleClick={handleDblClick} // Handles double click
+                        onClick={handleClick} // Always allow single click
+                        onSelect={handleSelect} // Always allow selection
+                        onExpanderClick={handleExpanderClick} // Always allow expand/collapse
+
+                        // --- Styling & Config Props (Examples - check docs) ---
+                        listCellWidth={"150px"} // Adjust width of the task list column
+                        // columnWidth={60} // Adjust width of date columns in timeline
+                        // ganttHeight={580} // Optional: Set explicit height
+                        // barCornerRadius={4} // Optional: Styling
+                        // handleWidth={8} // Optional: Styling
+                        // Other relevant props:
+                        // locale="en-US" // Set locale for date formatting
+                        // timeStep={3600000} // Example: Set minimum time step (1 hour)
+                        // Tooltip props if needed:
+                        // TooltipContent={({ task, fontSize, fontFamily }) => <div>Custom: {task.name}</div>}
+                    />
+                    {/* --- End gantt-task-react Component --- */}
+                  </div>
+                ) : (
+                    // Show message if tasks were fetched but all were filtered out by formatter
+                    tasks.length > 0 && !isLoading && tasksStatus === 'success' && (
+                         <div className="flex flex-col items-center justify-center py-16 text-center">
+                             <AlertTriangle className="h-8 w-8 text-muted-foreground mb-4" />
+                             <h3 className="text-lg font-semibold mb-1">No Tasks to Display</h3>
+                             <p className="text-muted-foreground">
+                                 Tasks were found, but none have valid start and end dates for the schedule view.
+                             </p>
+                         </div>
+                    )
+                )}
+                 <div className="p-2 text-xs text-muted-foreground border-t">
+                     Note: Using gantt-task-react library. Drag tasks to adjust dates and progress.
+                 </div>
+            </div>
         </div>
     );
   };
-
-  // Check if user is a client
-  const isClient = user?.role === 'client';
 
   return (
     <Card>

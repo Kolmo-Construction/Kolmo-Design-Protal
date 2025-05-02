@@ -17,6 +17,8 @@ interface UseProjectTaskMutationsResult {
     updateTaskProgressMutation: ReturnType<typeof useMutation<Task, Error, UpdateTaskProgressPayload>>;
     createDependencyMutation: ReturnType<typeof useMutation<unknown, Error, CreateDependencyPayload>>; // Use unknown if response isn't used
     deleteDependencyMutation: ReturnType<typeof useMutation<void, Error, number>>;
+    publishTasksMutation: ReturnType<typeof useMutation<unknown, Error, void>>;
+    unpublishTasksMutation: ReturnType<typeof useMutation<unknown, Error, void>>;
 }
 
 export function useProjectTaskMutations(projectId: number): UseProjectTaskMutationsResult {
@@ -141,6 +143,42 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         },
     });
 
+    // Publish Project Tasks Mutation
+    const publishTasksMutation = useMutation<unknown, Error, void>({
+        mutationFn: () => {
+            return apiRequest(
+                'POST',
+                `/api/projects/${projectId}/tasks/publish`
+            );
+        },
+        onSuccess: () => {
+            toast({ title: "Tasks Published", description: "All tasks are now visible to clients." });
+            queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+        },
+        onError: (err: Error) => {
+            console.error("Error publishing tasks:", err);
+            toast({ title: "Error Publishing Tasks", description: err.message, variant: "destructive" });
+        },
+    });
+
+    // Unpublish Project Tasks Mutation
+    const unpublishTasksMutation = useMutation<unknown, Error, void>({
+        mutationFn: () => {
+            return apiRequest(
+                'POST',
+                `/api/projects/${projectId}/tasks/unpublish`
+            );
+        },
+        onSuccess: () => {
+            toast({ title: "Tasks Unpublished", description: "Tasks are now hidden from clients." });
+            queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+        },
+        onError: (err: Error) => {
+            console.error("Error unpublishing tasks:", err);
+            toast({ title: "Error Unpublishing Tasks", description: err.message, variant: "destructive" });
+        },
+    });
+
     return {
         createTaskMutation,
         deleteTaskMutation,
@@ -148,5 +186,7 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         updateTaskProgressMutation,
         createDependencyMutation,
         deleteDependencyMutation,
+        publishTasksMutation,
+        unpublishTasksMutation,
     };
 }
