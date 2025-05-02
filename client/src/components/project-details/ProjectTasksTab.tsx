@@ -18,7 +18,11 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2, Eye } from "lucide-react";
+import { 
+  Loader2, PlusCircle, ClipboardList, AlertTriangle, Trash2, Eye,
+  Clock, Calendar, CheckCircle2, ArrowRight, CheckCheck, CircleDot
+} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { EditTaskDialog } from "./EditTaskDialog";
 
