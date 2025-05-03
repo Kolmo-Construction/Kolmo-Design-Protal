@@ -1,26 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
-import ProjectCard from "@/components/ProjectCard";
 import MessageItem from "@/components/MessageItem";
 import UpdateItem from "@/components/UpdateItem";
 import ApprovalItem from "@/components/ApprovalItem";
-import DashboardStats from "@/components/DashboardStats";
 import { Project, Message, ProgressUpdate, Selection } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, MessageSquare, CheckCircle2, ImageIcon, Building2 } from "lucide-react";
+import { 
+  Plus, 
+  MessageSquare, 
+  CheckCircle2, 
+  ImageIcon, 
+  Building2, 
+  Clock, 
+  Calendar, 
+  ArrowRight, 
+  Users,
+  AlertCircle,
+  CalendarCheck,
+  FileCheck,
+  User as UserIcon
+} from "lucide-react";
 import { Link } from "wouter";
+import { format, formatDistanceToNow } from "date-fns";
 
-export default function Dashboard() {
+export default function ClientDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-
+  
   // Fetch projects
   const { 
     data: projects = [],
@@ -67,226 +83,446 @@ export default function Dashboard() {
 
   const isLoading = isLoadingProjects || isLoadingMessages || isLoadingUpdates || isLoadingSelections;
 
+  // Calculate action items counts for dashboard stats
+  const pendingApprovals = selections.filter(s => s.status === "pending").length;
+  const unreadMessages = messages.filter(m => !m.isRead).length;
+  
+  // Calculate next upcoming event (deadline, milestone, etc.)
+  const getNextEvent = () => {
+    // In a real app, this would combine milestones, payment due dates, etc.
+    const activeMilestones = projects.flatMap(p => 
+      p.startDate ? [{ 
+        date: new Date(p.startDate),
+        title: `${p.name} - Project Start`,
+        projectId: p.id
+      }] : []
+    ).concat(
+      projects.flatMap(p => 
+        p.estimatedCompletionDate ? [{ 
+          date: new Date(p.estimatedCompletionDate),
+          title: `${p.name} - Estimated Completion`,
+          projectId: p.id
+        }] : []
+      )
+    );
+    
+    const future = activeMilestones.filter(m => m.date > new Date())
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    
+    return future.length > 0 ? future[0] : null;
+  };
+  
+  const nextEvent = getNextEvent();
+
+  // Format dates
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return "Not set";
+    return format(new Date(dateString), "MMM d, yyyy");
+  };
+
   return (
     <div className="flex h-screen bg-slate-50">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20 overflow-auto">
-        {/* Welcome Banner */}
-        <Card className="mb-6">
-          <CardContent className="px-6 py-5">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-slate-800">Welcome back, {user?.firstName || "User"}!</h1>
-                <p className="mt-1 text-slate-600">Here's what's happening with your construction projects.</p>
-              </div>
-              <div className="mt-4 md:mt-0">
-                <Button className="gap-2">
-                  <Plus className="h-5 w-5" />
-                  New Message
+        {/* Hero/Welcome Section */}
+        <div className="mb-8 relative overflow-hidden bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl text-white p-6 md:p-8">
+          <div className="relative z-10">
+            <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.firstName || "User"}!</h1>
+            <p className="text-primary-100 max-w-xl mb-6">
+              Your construction project hub is here. Track progress, make decisions, and stay in the loop.
+            </p>
+            
+            <div className="flex flex-wrap gap-4">
+              {pendingApprovals > 0 && (
+                <Link href="/selections">
+                  <Button className="bg-white text-primary-700 hover:bg-primary-50 font-medium flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    {pendingApprovals} Pending Approval{pendingApprovals !== 1 ? 's' : ''}
+                  </Button>
+                </Link>
+              )}
+              
+              <Link href="/messages">
+                <Button variant="outline" className="bg-primary-700/30 text-white border-primary-300 hover:bg-primary-700/50">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Message Your Team
                 </Button>
-              </div>
+              </Link>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Dashboard Stats */}
-        <DashboardStats 
-          projects={projects}
-          messages={messages}
-          updates={updates}
-          selections={selections}
-          isLoading={isLoading}
-        />
-
-        {/* Projects Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-800">Your Projects</h2>
-            <Link href="/projects">
-              <Button variant="link" className="text-primary-600 hover:text-primary-700">
-                View All
-              </Button>
-            </Link>
           </div>
           
-          {isLoadingProjects ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden border border-slate-200 animate-pulse">
-                  <div className="h-40 bg-slate-200"></div>
-                  <div className="p-5">
-                    <div className="h-6 bg-slate-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-slate-200 rounded w-1/2 mb-4"></div>
-                    <div className="h-4 bg-slate-200 rounded w-full mb-4"></div>
-                    <div className="h-2 bg-slate-200 rounded-full w-full mb-4"></div>
-                    <div className="h-4 bg-slate-200 rounded w-full mb-4"></div>
-                    <div className="h-10 bg-slate-200 rounded w-full mt-4"></div>
+          {/* Background pattern */}
+          <div className="absolute top-0 right-0 w-64 h-full opacity-10">
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+              <path fill="currentColor" d="M100 0H0V100H100V0ZM90 10V90H10V10H90Z" />
+              <path fill="currentColor" d="M80 20H20V80H80V20ZM70 30V70H30V30H70Z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Project Timeline */}
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {/* Left column - Action items */}
+          <div className="md:col-span-1">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">Action Center</h2>
+            
+            <div className="flex flex-col gap-4">
+              {/* Pending Approvals Quick View */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-yellow-50 p-2 rounded-lg">
+                      <FileCheck className="h-5 w-5 text-yellow-600" />
+                    </div>
+                    <h3 className="font-medium">Selections & Approvals</h3>
                   </div>
+                  {pendingApprovals > 0 && (
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
+                      {pendingApprovals} Pending
+                    </Badge>
+                  )}
                 </div>
-              ))}
+                
+                {isLoadingSelections ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="h-12 bg-slate-100 rounded"></div>
+                    <div className="h-12 bg-slate-100 rounded"></div>
+                  </div>
+                ) : selections.filter(s => s.status === "pending").length === 0 ? (
+                  <div className="text-center py-3 text-slate-500 text-sm">
+                    No pending approvals
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selections
+                      .filter(selection => selection.status === "pending")
+                      .slice(0, 2)
+                      .map((selection) => (
+                        <div key={selection.id} className="p-3 bg-slate-50 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-slate-800">{selection.name}</p>
+                              <p className="text-xs text-slate-500">Requested {selection.createdAt ? formatDistanceToNow(new Date(selection.createdAt), { addSuffix: true }) : 'recently'}</p>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              variant="secondary"
+                              onClick={() => handleReviewSelection(selection.id)}
+                              className="text-xs h-8"
+                            >
+                              Review
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    }
+                    
+                    {selections.filter(s => s.status === "pending").length > 2 && (
+                      <Link href="/selections">
+                        <Button variant="link" size="sm" className="text-primary-600 w-full">
+                          View All Approvals
+                          <ArrowRight className="h-3 w-3 ml-1" />
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Time-sensitive items */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-blue-50 p-2 rounded-lg">
+                    <CalendarCheck className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <h3 className="font-medium">Coming Up</h3>
+                </div>
+                
+                {isLoadingProjects ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="h-14 bg-slate-100 rounded"></div>
+                  </div>
+                ) : nextEvent ? (
+                  <div className="p-3 bg-slate-50 rounded-lg">
+                    <div className="text-sm font-medium text-slate-800">
+                      {nextEvent.title}
+                    </div>
+                    <div className="flex items-center mt-1 text-xs text-slate-500">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {formatDate(nextEvent.date)}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-xs text-slate-500">
+                        {formatDistanceToNow(nextEvent.date, { addSuffix: true })}
+                      </div>
+                      <Link href={`/projects/${nextEvent.projectId}`}>
+                        <Button size="sm" variant="ghost" className="text-xs h-7 px-2">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-3 text-slate-500 text-sm">
+                    No upcoming events scheduled
+                  </div>
+                )}
+              </div>
+              
+              {/* Messages quick view */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary-50 p-2 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-primary-600" />
+                    </div>
+                    <h3 className="font-medium">Recent Messages</h3>
+                  </div>
+                  {unreadMessages > 0 && (
+                    <Badge className="bg-primary-100 text-primary-800 hover:bg-primary-200">
+                      {unreadMessages} New
+                    </Badge>
+                  )}
+                </div>
+                
+                {isLoadingMessages ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="h-12 bg-slate-100 rounded"></div>
+                    <div className="h-12 bg-slate-100 rounded"></div>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center py-3 text-slate-500 text-sm">
+                    No messages yet
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {messages.slice(0, 2).map((message) => (
+                      <div key={message.id} className={`p-3 rounded-lg ${!message.isRead ? 'bg-primary-50' : 'bg-slate-50'}`}>
+                        <div className="flex justify-between">
+                          <div className="text-sm font-medium text-slate-800">
+                            {message.subject}
+                          </div>
+                          {!message.isRead && (
+                            <div className="h-2 w-2 rounded-full bg-primary-500"></div>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          From: {message.senderName || 'Team Member'}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          {message.createdAt ? formatDistanceToNow(new Date(message.createdAt), { addSuffix: true }) : 'recently'}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Link href="/messages">
+                      <Button variant="link" size="sm" className="text-primary-600 w-full">
+                        View All Messages
+                        <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
-          ) : projects.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <div className="rounded-full bg-primary-50 p-3 mb-4">
+          </div>
+          
+          {/* Middle column - Project highlights */}
+          <div className="md:col-span-2">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">Project Highlights</h2>
+            
+            {isLoadingProjects ? (
+              <div className="space-y-6 animate-pulse">
+                <div className="h-64 bg-slate-200 rounded-xl"></div>
+                <div className="h-64 bg-slate-200 rounded-xl"></div>
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+                <div className="rounded-full bg-primary-50 p-3 inline-flex mb-4">
                   <Building2 className="h-6 w-6 text-primary-600" />
                 </div>
                 <h3 className="text-lg font-medium text-slate-900 mb-2">No Projects Yet</h3>
-                <p className="text-center text-slate-500 mb-6 max-w-md">
+                <p className="text-center text-slate-500 mb-6 max-w-md mx-auto">
                   You don't have any projects assigned to you yet. Check back later or contact your project manager.
                 </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.slice(0, 3).map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Tabs for Messages and Updates */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader className="px-6 py-5 border-b border-slate-200">
-              <div className="flex justify-between items-center">
-                <CardTitle>Recent Messages</CardTitle>
-                <Link href="/messages">
-                  <Button variant="link" className="text-primary-600 hover:text-primary-700">
-                    View All
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <div className="divide-y divide-slate-200">
-              {isLoadingMessages ? (
-                <>
-                  <MessageItem isLoading={true} message={{} as Message} />
-                  <MessageItem isLoading={true} message={{} as Message} />
-                  <MessageItem isLoading={true} message={{} as Message} />
-                </>
-              ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="rounded-full bg-blue-50 p-3 mb-4">
-                    <MessageSquare className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <p className="text-slate-500">No messages yet</p>
-                </div>
-              ) : (
-                <>
-                  {messages.slice(0, 3).map((message) => (
-                    <MessageItem key={message.id} message={message} />
-                  ))}
-                  <div className="p-4 text-center">
-                    <Button variant="ghost" className="text-primary-600 hover:text-primary-700">
-                      Load More
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader className="px-6 py-5 border-b border-slate-200">
-              <div className="flex justify-between items-center">
-                <CardTitle>Progress Updates</CardTitle>
-                <Link href="/progress-updates">
-                  <Button variant="link" className="text-primary-600 hover:text-primary-700">
-                    View All
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              {isLoadingUpdates ? (
-                <div className="flow-root">
-                  <ul className="-mb-8">
-                    <UpdateItem isLoading={true} update={{} as ProgressUpdate} />
-                    <UpdateItem isLoading={true} update={{} as ProgressUpdate} />
-                  </ul>
-                </div>
-              ) : updates.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="rounded-full bg-green-50 p-3 mb-4">
-                    <ImageIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <p className="text-slate-500">No updates yet</p>
-                </div>
-              ) : (
-                <div className="flow-root">
-                  <ul className="-mb-8">
-                    {updates.slice(0, 3).map((update) => (
-                      <UpdateItem key={update.id} update={update} />
-                    ))}
-                  </ul>
-                  <div className="pt-4 text-center">
-                    <Button variant="ghost" className="text-primary-600 hover:text-primary-700">
-                      View All Updates
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Pending Approvals */}
-        <Card className="mb-8">
-          <CardHeader className="px-6 py-5 border-b border-slate-200">
-            <CardTitle>Pending Approvals</CardTitle>
-            <CardDescription>Material and design selections that need your review</CardDescription>
-          </CardHeader>
-          <div className="overflow-x-auto">
-            {isLoadingSelections ? (
-              <div className="p-8 flex justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
-              </div>
-            ) : selections.filter(s => s.status === "pending").length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="rounded-full bg-green-50 p-3 mb-4">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <p className="text-slate-500">No pending approvals</p>
               </div>
             ) : (
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Item</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date Requested</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-200">
-                  {selections
-                    .filter(selection => selection.status === "pending")
-                    .slice(0, 3)
-                    .map((selection) => (
-                      <ApprovalItem 
-                        key={selection.id} 
-                        approval={selection} 
-                        onReview={handleReviewSelection}
+              <div className="space-y-6">
+                {projects.map((project) => (
+                  <div key={project.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                    {/* Project header with image background */}
+                    <div className="h-48 sm:h-56 relative">
+                      <img 
+                        src={project.imageUrl || 
+                          `https://images.unsplash.com/photo-1541888946425-d81bb19240f5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`} 
+                        alt={project.name} 
+                        className="w-full h-full object-cover"
                       />
-                    ))
-                  }
-                </tbody>
-              </table>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                      
+                      {/* Project info overlay */}
+                      <div className="absolute bottom-0 left-0 w-full p-4 text-white">
+                        <div className="flex justify-between items-center mb-1">
+                          <h3 className="font-bold text-xl text-white">{project.name}</h3>
+                          <Badge className={`${
+                            project.status === "planning" ? "bg-accent-600" :
+                            project.status === "in_progress" ? "bg-primary-600" :
+                            project.status === "on_hold" ? "bg-yellow-500" :
+                            project.status === "completed" ? "bg-green-600" : "bg-slate-600"
+                          } text-white hover:opacity-90`}>
+                            {project.status === "planning" ? "Planning" :
+                             project.status === "in_progress" ? "In Progress" :
+                             project.status === "on_hold" ? "On Hold" :
+                             project.status === "completed" ? "Completed" :
+                             project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <p className="text-primary-50 text-sm mb-3">{project.address}, {project.city}, {project.state}</p>
+                        
+                        <div className="flex flex-wrap gap-4">
+                          {/* Project Manager */}
+                          {project.projectManager && (
+                            <div className="flex items-center text-xs text-primary-50">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              PM: {project.projectManager.firstName} {project.projectManager.lastName}
+                            </div>
+                          )}
+                          
+                          {/* Start Date */}
+                          <div className="flex items-center text-xs text-primary-50">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Start: {formatDate(project.startDate)}
+                          </div>
+                          
+                          {/* Completion Date */}
+                          <div className="flex items-center text-xs text-primary-50">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Est. Completion: {formatDate(project.estimatedCompletionDate)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Project progress and quick actions */}
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-slate-800">Project Progress</div>
+                        <div className="text-sm text-slate-600">{project.progress || 0}% Complete</div>
+                      </div>
+                      <Progress value={project.progress || 0} className="h-2 mb-4" />
+                      
+                      <div className="flex gap-3 justify-end">
+                        <Link href={`/projects/${project.id}/media`}>
+                          <Button size="sm" variant="outline" className="text-xs gap-1">
+                            <ImageIcon className="h-3.5 w-3.5" />
+                            View Photos
+                          </Button>
+                        </Link>
+                        <Link href={`/projects/${project.id}`}>
+                          <Button size="sm" className="text-xs gap-1">
+                            View Details
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-          <div className="px-6 py-4 border-t border-slate-200">
-            <Link href="/selections">
-              <Button variant="link" className="text-primary-600 hover:text-primary-700">
-                View All Approvals
-              </Button>
-            </Link>
-          </div>
-        </Card>
+        </div>
+        
+        {/* Recent Updates with Image Showcase */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">Recent Progress</h2>
+          
+          {isLoadingUpdates ? (
+            <div className="h-64 bg-slate-200 rounded-xl animate-pulse"></div>
+          ) : updates.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+              <div className="rounded-full bg-green-50 p-3 inline-flex mb-4">
+                <ImageIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <p className="text-slate-500">No updates yet</p>
+            </div>
+          ) : (
+            <>
+              {/* Featured update with large image */}
+              {updates[0] && updates[0].media && updates[0].media.length > 0 ? (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-4">
+                  <div className="md:flex">
+                    <div className="md:w-1/2">
+                      <img 
+                        src={updates[0].media[0].mediaUrl} 
+                        alt="Project update" 
+                        className="w-full h-64 md:h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-6 md:w-1/2 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`p-2 rounded-lg ${
+                            updates[0].updateType === "milestone" ? "bg-blue-50" :
+                            updates[0].updateType === "issue" ? "bg-yellow-50" :
+                            updates[0].updateType === "photo" ? "bg-primary-50" : "bg-slate-50"
+                          }`}>
+                            {updates[0].updateType === "milestone" ? 
+                              <CheckCircle2 className="h-5 w-5 text-blue-600" /> :
+                             updates[0].updateType === "issue" ? 
+                              <AlertCircle className="h-5 w-5 text-yellow-600" /> :
+                             updates[0].updateType === "photo" ? 
+                              <ImageIcon className="h-5 w-5 text-primary-600" /> :
+                              <ImageIcon className="h-5 w-5 text-slate-600" />
+                            }
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {updates[0].updateType.charAt(0).toUpperCase() + updates[0].updateType.slice(1)}
+                          </Badge>
+                        </div>
+                        
+                        <h3 className="text-xl font-semibold mb-2">{updates[0].title}</h3>
+                        <p className="text-slate-600 mb-4">{updates[0].description}</p>
+                      </div>
+                      
+                      <div className="mt-auto flex items-center justify-between">
+                        <div className="text-xs text-slate-500">
+                          {updates[0].createdAt ? formatDistanceToNow(new Date(updates[0].createdAt), { addSuffix: true }) : 'recently'} 
+                          {updates[0].createdBy ? ` by ${updates[0].createdBy.firstName} ${updates[0].createdBy.lastName}` : ''}
+                        </div>
+                        <Link href="/progress-updates">
+                          <Button variant="link" size="sm" className="text-primary-600">
+                            View All Updates
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Timeline view for updates without media
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                  <div className="flow-root">
+                    <ul className="-mb-8">
+                      {updates.slice(0, 3).map((update) => (
+                        <UpdateItem key={update.id} update={update} />
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="pt-4 text-center">
+                    <Link href="/progress-updates">
+                      <Button variant="link" className="text-primary-600 hover:text-primary-700">
+                        View All Updates
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );
