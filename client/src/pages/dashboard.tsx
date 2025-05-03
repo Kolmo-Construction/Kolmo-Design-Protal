@@ -45,34 +45,92 @@ export default function ClientDashboard() {
     queryKey: ["/api/projects"],
   });
 
-  // Use an empty array for these examples to avoid making too many API calls at once
-  // In a real application, you would fetch all of these with useQuery
+  // State to store combined messages, updates and selections across all projects
+  const [allMessages, setAllMessages] = useState<Message[]>([]);
+  const [allUpdates, setAllUpdates] = useState<ProgressUpdate[]>([]);
+  const [allSelections, setAllSelections] = useState<Selection[]>([]);
+  
+  // Use query for all messages
   const { 
     data: messages = [], 
     isLoading: isLoadingMessages 
   } = useQuery<Message[]>({
-    queryKey: ["/api/projects/messages"],
+    queryKey: ["/api/messages"],
     // Only fetch if we have projects
     enabled: projects.length > 0,
   });
-
-  const { 
-    data: updates = [], 
-    isLoading: isLoadingUpdates 
-  } = useQuery<ProgressUpdate[]>({
-    queryKey: ["/api/projects/updates"],
-    // Only fetch if we have projects
-    enabled: projects.length > 0,
+  
+  // For each project, fetch project-specific data
+  // This uses individual queries for each project to ensure proper data loading
+  const projectQueries = projects.map(project => {
+    const projectId = project.id;
+    
+    // Project updates query
+    const updatesQuery = useQuery<ProgressUpdate[]>({
+      queryKey: ["/api/projects", projectId, "updates"],
+      queryFn: async () => {
+        const response = await fetch(`/api/projects/${projectId}/updates`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch project updates');
+        }
+        return response.json();
+      },
+      enabled: !!projectId,
+    });
+    
+    // Project selections query
+    const selectionsQuery = useQuery<Selection[]>({
+      queryKey: ["/api/projects", projectId, "selections"],
+      queryFn: async () => {
+        const response = await fetch(`/api/projects/${projectId}/selections`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch project selections');
+        }
+        return response.json();
+      },
+      enabled: !!projectId,
+    });
+    
+    return { 
+      projectId, 
+      updatesQuery, 
+      selectionsQuery
+    };
   });
-
-  const { 
-    data: selections = [], 
-    isLoading: isLoadingSelections 
-  } = useQuery<Selection[]>({
-    queryKey: ["/api/projects/selections"],
-    // Only fetch if we have projects
-    enabled: projects.length > 0,
-  });
+  
+  // Determine loading state for project data
+  const isLoadingProjectData = projectQueries.some(
+    query => query.updatesQuery.isLoading || query.selectionsQuery.isLoading
+  );
+  
+  // Combine project data when it's available
+  useEffect(() => {
+    if (!isLoadingProjectData && projects.length > 0) {
+      // Combine all project updates
+      const updates = projectQueries
+        .filter(query => !!query.updatesQuery.data)
+        .flatMap(query => query.updatesQuery.data || []);
+      
+      // Combine all project selections
+      const selections = projectQueries
+        .filter(query => !!query.selectionsQuery.data)
+        .flatMap(query => query.selectionsQuery.data || []);
+      
+      setAllUpdates(updates);
+      setAllSelections(selections);
+    }
+  }, [projectQueries, projects, isLoadingProjectData]);
+  
+  // Set messages from the global messages query
+  useEffect(() => {
+    if (messages.length > 0) {
+      setAllMessages(messages);
+    }
+  }, [messages]);
+  
+  // Loading state for all data
+  const isLoadingSelections = isLoadingProjectData;
+  const isLoadingUpdates = isLoadingProjectData;
 
   const handleReviewSelection = (id: number) => {
     toast({
@@ -84,8 +142,8 @@ export default function ClientDashboard() {
   const isLoading = isLoadingProjects || isLoadingMessages || isLoadingUpdates || isLoadingSelections;
 
   // Calculate action items counts for dashboard stats
-  const pendingApprovals = selections.filter(s => s.status === "pending").length;
-  const unreadMessages = messages.filter(m => !m.isRead).length;
+  const pendingApprovals = allSelections.filter(s => s.status === "pending").length;
+  const unreadMessages = allMessages.filter(m => !m.isRead).length;
   
   // Calculate next upcoming event (deadline, milestone, etc.)
   const getNextEvent = () => {
@@ -190,13 +248,13 @@ export default function ClientDashboard() {
                     <div className="h-12 bg-slate-100 rounded"></div>
                     <div className="h-12 bg-slate-100 rounded"></div>
                   </div>
-                ) : selections.filter(s => s.status === "pending").length === 0 ? (
+                ) : allSelections.filter(s => s.status === "pending").length === 0 ? (
                   <div className="text-center py-3 text-slate-500 text-sm">
                     No pending approvals
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {selections
+                    {allSelections
                       .filter(selection => selection.status === "pending")
                       .slice(0, 2)
                       .map((selection) => (
@@ -219,7 +277,7 @@ export default function ClientDashboard() {
                       ))
                     }
                     
-                    {selections.filter(s => s.status === "pending").length > 2 && (
+                    {allSelections.filter(s => s.status === "pending").length > 2 && (
                       <Link href="/selections">
                         <Button variant="link" size="sm" className="text-primary-600 w-full">
                           View All Approvals
@@ -292,13 +350,13 @@ export default function ClientDashboard() {
                     <div className="h-12 bg-slate-100 rounded"></div>
                     <div className="h-12 bg-slate-100 rounded"></div>
                   </div>
-                ) : messages.length === 0 ? (
+                ) : allMessages.length === 0 ? (
                   <div className="text-center py-3 text-slate-500 text-sm">
                     No messages yet
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {messages.slice(0, 2).map((message) => (
+                    {allMessages.slice(0, 2).map((message) => (
                       <div key={message.id} className={`p-3 rounded-lg ${!message.isRead ? 'bg-primary-50' : 'bg-slate-50'}`}>
                         <div className="flex justify-between">
                           <div className="text-sm font-medium text-slate-800">
@@ -309,7 +367,7 @@ export default function ClientDashboard() {
                           )}
                         </div>
                         <div className="mt-1 text-xs text-slate-500">
-                          From: {message.senderName || 'Team Member'}
+                          From: {message.senderId ? 'Team Member' : 'Team Member'}
                         </div>
                         <div className="mt-0.5 text-xs text-slate-500">
                           {message.createdAt ? formatDistanceToNow(new Date(message.createdAt), { addSuffix: true }) : 'recently'}
@@ -441,7 +499,7 @@ export default function ClientDashboard() {
           
           {isLoadingUpdates ? (
             <div className="h-64 bg-slate-200 rounded-xl animate-pulse"></div>
-          ) : updates.length === 0 ? (
+          ) : allUpdates.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
               <div className="rounded-full bg-green-50 p-3 inline-flex mb-4">
                 <ImageIcon className="h-6 w-6 text-green-600" />
@@ -449,78 +507,23 @@ export default function ClientDashboard() {
               <p className="text-slate-500">No updates yet</p>
             </div>
           ) : (
-            <>
-              {/* Featured update with large image */}
-              {updates[0] && updates[0].media && updates[0].media.length > 0 ? (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-4">
-                  <div className="md:flex">
-                    <div className="md:w-1/2">
-                      <img 
-                        src={updates[0].media[0].mediaUrl} 
-                        alt="Project update" 
-                        className="w-full h-64 md:h-full object-cover"
-                      />
-                    </div>
-                    <div className="p-6 md:w-1/2 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className={`p-2 rounded-lg ${
-                            updates[0].updateType === "milestone" ? "bg-blue-50" :
-                            updates[0].updateType === "issue" ? "bg-yellow-50" :
-                            updates[0].updateType === "photo" ? "bg-primary-50" : "bg-slate-50"
-                          }`}>
-                            {updates[0].updateType === "milestone" ? 
-                              <CheckCircle2 className="h-5 w-5 text-blue-600" /> :
-                             updates[0].updateType === "issue" ? 
-                              <AlertCircle className="h-5 w-5 text-yellow-600" /> :
-                             updates[0].updateType === "photo" ? 
-                              <ImageIcon className="h-5 w-5 text-primary-600" /> :
-                              <ImageIcon className="h-5 w-5 text-slate-600" />
-                            }
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            {updates[0].updateType.charAt(0).toUpperCase() + updates[0].updateType.slice(1)}
-                          </Badge>
-                        </div>
-                        
-                        <h3 className="text-xl font-semibold mb-2">{updates[0].title}</h3>
-                        <p className="text-slate-600 mb-4">{updates[0].description}</p>
-                      </div>
-                      
-                      <div className="mt-auto flex items-center justify-between">
-                        <div className="text-xs text-slate-500">
-                          {updates[0].createdAt ? formatDistanceToNow(new Date(updates[0].createdAt), { addSuffix: true }) : 'recently'} 
-                          {updates[0].createdBy ? ` by ${updates[0].createdBy.firstName} ${updates[0].createdBy.lastName}` : ''}
-                        </div>
-                        <Link href="/progress-updates">
-                          <Button variant="link" size="sm" className="text-primary-600">
-                            View All Updates
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                // Timeline view for updates without media
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                  <div className="flow-root">
-                    <ul className="-mb-8">
-                      {updates.slice(0, 3).map((update) => (
-                        <UpdateItem key={update.id} update={update} />
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="pt-4 text-center">
-                    <Link href="/progress-updates">
-                      <Button variant="link" className="text-primary-600 hover:text-primary-700">
-                        View All Updates
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </>
+            // Simple timeline view for updates
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <div className="flow-root">
+                <ul className="-mb-8">
+                  {allUpdates.slice(0, 3).map((update) => (
+                    <UpdateItem key={update.id} update={update} />
+                  ))}
+                </ul>
+              </div>
+              <div className="pt-4 text-center">
+                <Link href="/progress-updates">
+                  <Button variant="link" className="text-primary-600 hover:text-primary-700">
+                    View All Updates
+                  </Button>
+                </Link>
+              </div>
+            </div>
           )}
         </div>
       </main>
