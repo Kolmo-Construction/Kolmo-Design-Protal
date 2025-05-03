@@ -5,19 +5,21 @@ import {
   HomeIcon, 
   Building2, 
   FileText, 
-  CreditCard, 
   MessageSquare, 
-  Image, 
+  ImageIcon, 
   Calendar, 
   CheckSquare, 
   Settings, 
   LogOut,
-  Users
+  HelpCircle,
+  Phone,
+  ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 interface SidebarProps {
   open: boolean;
@@ -51,129 +53,176 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     }
   };
 
-  const navLinks = [
+  // Simplified navigation for clients
+  const clientNavLinks = [
+    { href: "/", icon: <HomeIcon className="h-5 w-5 mr-3" />, label: "Home" },
+    { href: "/projects", icon: <Building2 className="h-5 w-5 mr-3" />, label: "My Projects" },
+    { href: "/progress-updates", icon: <ImageIcon className="h-5 w-5 mr-3" />, label: "Progress Photos" },
+    { href: "/schedule", icon: <Calendar className="h-5 w-5 mr-3" />, label: "Schedule" },
+    { href: "/documents", icon: <FileText className="h-5 w-5 mr-3" />, label: "Documents" },
+    { href: "/selections", icon: <CheckSquare className="h-5 w-5 mr-3" />, label: "Selections" },
+    { href: "/messages", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Messages" },
+  ];
+
+  // Full navigation for PMs and admins
+  const adminNavLinks = [
     { href: "/", icon: <HomeIcon className="h-5 w-5 mr-3" />, label: "Dashboard" },
     { href: "/projects", icon: <Building2 className="h-5 w-5 mr-3" />, label: "Projects" },
     { href: "/documents", icon: <FileText className="h-5 w-5 mr-3" />, label: "Documents" },
-    { href: "/financials", icon: <CreditCard className="h-5 w-5 mr-3" />, label: "Financials" },
+    { href: "/financials", icon: <ClipboardList className="h-5 w-5 mr-3" />, label: "Financials" },
     { href: "/messages", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Messages" },
-    { href: "/progress-updates", icon: <Image className="h-5 w-5 mr-3" />, label: "Progress Updates" },
+    { href: "/progress-updates", icon: <ImageIcon className="h-5 w-5 mr-3" />, label: "Progress Updates" },
     { href: "/schedule", icon: <Calendar className="h-5 w-5 mr-3" />, label: "Schedule" },
     { href: "/selections", icon: <CheckSquare className="h-5 w-5 mr-3" />, label: "Selections & Approvals" },
   ];
 
+  // Use the appropriate navigation links based on user role
+  const navLinks = user?.role === "client" ? clientNavLinks : adminNavLinks;
+
   return (
-    <aside 
-      className={cn(
-        "fixed inset-y-0 left-0 w-64 pt-14 bg-white z-10 border-r border-slate-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
-        open ? "translate-x-0" : "-translate-x-full"
+    <>
+      {/* Mobile Backdrop */}
+      {open && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-20 lg:hidden"
+          onClick={() => setOpen(false)} 
+        />
       )}
-    >
-      <div className="h-full flex flex-col">
-        {/* User Info */}
-        <div className="px-4 py-4 border-b border-slate-200">
-          <div className="flex items-center">
-            <Avatar>
-              <AvatarImage src={`https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=3b82f6&color=fff`} />
-              <AvatarFallback>{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
-            </Avatar>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-slate-800">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="text-xs text-slate-500">{user?.email}</p>
+    
+      <aside 
+        className={cn(
+          "fixed inset-y-0 left-0 w-64 pt-16 bg-white z-30 shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-10 lg:shadow-none lg:border-r lg:border-slate-200",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="h-full flex flex-col">
+          {/* User Info - Simplified for client */}
+          <div className="px-6 py-5 border-b border-slate-200">
+            <div className="flex items-center">
+              <Avatar className="h-12 w-12">
+                <AvatarImage 
+                  src={`https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=3b82f6&color=fff&size=128`} 
+                  alt={`${user?.firstName} ${user?.lastName}`} 
+                />
+                <AvatarFallback className="text-lg">{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className="ml-3 flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800 truncate">
+                  {user?.firstName} {user?.lastName}
+                </p>
+                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                
+                {user?.role && (
+                  <Badge variant="outline" className="mt-1 text-xs font-normal">
+                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      
-        {/* Navigation Links */}
-        <ScrollArea className="flex-1 px-2 py-4">
-          <nav className="space-y-1">
-            {navLinks.map((link) => (
-              <div 
-                key={link.href}
-                onClick={() => {
-                  closeSidebarOnMobile();
-                  window.location.href = link.href;
-                }}
-                className={cn(
-                  "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                  location === link.href 
-                    ? "bg-primary-50 text-primary-600 border-l-2 border-primary-600" 
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                )}
-              >
-                {link.icon}
-                {link.label}
+        
+          {/* Navigation Links - Client-focused */}
+          <ScrollArea className="flex-1 pt-6 px-4">
+            <nav className="space-y-1.5">
+              {navLinks.map((link) => (
+                <Link 
+                  key={link.href}
+                  href={link.href}
+                  onClick={closeSidebarOnMobile}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                      location === link.href 
+                        ? "bg-primary-50 text-primary-600" 
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                  >
+                    {link.icon}
+                    {link.label}
+                  </div>
+                </Link>
+              ))}
+            </nav>
+            
+            <Separator className="my-5" />
+            
+            {/* Help & Support Section for Clients */}
+            {user?.role === "client" && (
+              <div className="px-4 py-4 mb-4 bg-primary-50 rounded-lg">
+                <h3 className="flex items-center text-sm font-medium text-primary-700 mb-2">
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Need Help?
+                </h3>
+                <p className="text-xs text-primary-600 mb-3">
+                  Contact your project manager directly for questions about your project.
+                </p>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full border-primary-200 bg-white text-primary-700 text-xs h-8"
+                  onClick={() => window.location.href = "/contact"}
+                >
+                  <Phone className="h-3 w-3 mr-1" />
+                  Contact Support
+                </Button>
               </div>
-            ))}
-            
-            <Separator className="my-2" />
-            
-            {user?.role === "admin" && (
-              <>
-                <div 
-                  onClick={() => {
-                    closeSidebarOnMobile();
-                    window.location.href = "/project-management";
-                  }}
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                    location === "/project-management" 
-                      ? "bg-primary-50 text-primary-600 border-l-2 border-primary-600" 
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  )}
-                >
-                  <Building2 className="h-5 w-5 mr-3" />
-                  Project Management
-                </div>
-                
-                <div 
-                  onClick={() => {
-                    closeSidebarOnMobile();
-                    window.location.href = "/user-management";
-                  }}
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                    location === "/user-management" 
-                      ? "bg-primary-50 text-primary-600 border-l-2 border-primary-600" 
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  )}
-                >
-                  <Users className="h-5 w-5 mr-3" />
-                  User Management
-                </div>
-              </>
             )}
             
-            <div
-              onClick={() => {
-                closeSidebarOnMobile();
-                window.location.href = "/settings";
-              }}
-              className={cn(
-                "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                location === "/settings" 
-                  ? "bg-primary-50 text-primary-600 border-l-2 border-primary-600" 
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <Settings className="h-5 w-5 mr-3" />
-              Settings
-            </div>
+            {/* Admin-only sections */}
+            {user?.role === "admin" && (
+              <div className="space-y-1.5 mb-4">
+                <p className="px-4 text-xs font-medium text-slate-400 uppercase tracking-wider mt-4 mb-2">
+                  Admin
+                </p>
+                <Link href="/project-management">
+                  <div
+                    className={cn(
+                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                      location === "/project-management" 
+                        ? "bg-primary-50 text-primary-600" 
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                  >
+                    <Building2 className="h-5 w-5 mr-3" />
+                    Project Management
+                  </div>
+                </Link>
+              </div>
+            )}
             
-            <Button 
-              variant="ghost" 
-              className="flex items-center w-full px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 justify-start"
-              onClick={handleLogout}
-              disabled={logoutMutation.isPending}
-            >
-              <LogOut className="h-5 w-5 mr-3" />
-              {logoutMutation.isPending ? "Logging out..." : "Logout"}
-            </Button>
-          </nav>
-        </ScrollArea>
-      </div>
-    </aside>
+            {/* Settings & Logout - Common for all users */}
+            <div className="space-y-1.5 mb-6">
+              <p className="px-4 text-xs font-medium text-slate-400 uppercase tracking-wider mt-4 mb-2">
+                Account
+              </p>
+              <Link href="/settings">
+                <div
+                  className={cn(
+                    "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                    location === "/settings" 
+                      ? "bg-primary-50 text-primary-600" 
+                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  <Settings className="h-5 w-5 mr-3" />
+                  Settings
+                </div>
+              </Link>
+              
+              <Button 
+                variant="ghost" 
+                className="flex items-center w-full px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 justify-start rounded-lg"
+                onClick={handleLogout}
+                disabled={logoutMutation.isPending}
+              >
+                <LogOut className="h-5 w-5 mr-3" />
+                {logoutMutation.isPending ? "Logging out..." : "Sign Out"}
+              </Button>
+            </div>
+          </ScrollArea>
+        </div>
+      </aside>
+    </>
   );
 }
