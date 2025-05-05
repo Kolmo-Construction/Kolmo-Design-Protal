@@ -30,7 +30,7 @@ import { createNotFoundError, createBadRequestError } from '../errors';
 /**
  * Create a new project version
  */
-export async function createProjectVersion(data: InsertProjectVersion): Promise<ProjectVersion> {
+export async function createProjectVersion(data: { projectId: number, notes: string | null }): Promise<ProjectVersion> {
   try {
     // Check if project exists
     const projectExists = await db.query.projects.findFirst({
@@ -53,7 +53,8 @@ export async function createProjectVersion(data: InsertProjectVersion): Promise<
     const [newVersion] = await db
       .insert(projectVersions)
       .values({
-        ...data,
+        projectId: data.projectId,
+        notes: data.notes,
         versionNumber,
       })
       .returning();

@@ -581,6 +581,37 @@ export const insertPunchListItemSchema = createInsertSchema(punchListItems).omit
   dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
 });
 
+// --- RAG Insert Schemas ---
+export const insertProjectVersionSchema = createInsertSchema(projectVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGenerationPromptSchema = createInsertSchema(generationPrompts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRagTaskSchema = createInsertSchema(ragTasks).omit({
+  id: true,
+  createdAt: true,
+  isGenerated: true, // This has a default value
+});
+
+export const insertRagTaskDependencySchema = createInsertSchema(ragTaskDependencies).omit({
+  id: true,
+});
+
+export const insertTaskFeedbackSchema = createInsertSchema(taskFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
+  id: true,
+  createdAt: true,
+});
+
 // --- Export Types ---
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -590,6 +621,25 @@ export type Project = typeof projects.$inferSelect;
 
 export type InsertClientProject = z.infer<typeof insertClientProjectSchema>;
 export type ClientProject = typeof clientProjects.$inferSelect;
+
+// --- RAG Export Types ---
+export type InsertProjectVersion = z.infer<typeof insertProjectVersionSchema>;
+export type ProjectVersion = typeof projectVersions.$inferSelect;
+
+export type InsertGenerationPrompt = z.infer<typeof insertGenerationPromptSchema>;
+export type GenerationPrompt = typeof generationPrompts.$inferSelect;
+
+export type InsertRagTask = z.infer<typeof insertRagTaskSchema>;
+export type RagTask = typeof ragTasks.$inferSelect;
+
+export type InsertRagTaskDependency = z.infer<typeof insertRagTaskDependencySchema>;
+export type RagTaskDependency = typeof ragTaskDependencies.$inferSelect;
+
+export type InsertTaskFeedback = z.infer<typeof insertTaskFeedbackSchema>;
+export type TaskFeedback = typeof taskFeedback.$inferSelect;
+
+export type InsertTaskChunk = z.infer<typeof insertTaskChunkSchema>;
+export type TaskChunk = typeof taskChunks.$inferSelect;
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
@@ -630,50 +680,7 @@ export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
 
-// RAG System Types
-export type ProjectVersion = typeof projectVersions.$inferSelect;
-export type RagTask = typeof ragTasks.$inferSelect;
-export type RagTaskDependency = typeof ragTaskDependencies.$inferSelect;
-export type TaskChunk = typeof taskChunks.$inferSelect;
-export type GenerationPrompt = typeof generationPrompts.$inferSelect;
-export type TaskFeedback = typeof taskFeedback.$inferSelect;
-
-// Create insert schemas for the RAG system
-export const insertProjectVersionSchema = createInsertSchema(projectVersions).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertRagTaskSchema = createInsertSchema(ragTasks).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertRagTaskDependencySchema = createInsertSchema(ragTaskDependencies).omit({
-  id: true,
-});
-
-export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertGenerationPromptSchema = createInsertSchema(generationPrompts).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertTaskFeedbackSchema = createInsertSchema(taskFeedback).omit({
-  id: true,
-  createdAt: true,
-});
-
-export type InsertProjectVersion = z.infer<typeof insertProjectVersionSchema>;
-export type InsertRagTask = z.infer<typeof insertRagTaskSchema>;
-export type InsertRagTaskDependency = z.infer<typeof insertRagTaskDependencySchema>;
-export type InsertTaskChunk = z.infer<typeof insertTaskChunkSchema>;
-export type InsertGenerationPrompt = z.infer<typeof insertGenerationPromptSchema>;
-export type InsertTaskFeedback = z.infer<typeof insertTaskFeedbackSchema>;
+// These types are already defined above
 
 // --- Export Combined Types ---
 export type DailyLogWithDetails = DailyLog & {

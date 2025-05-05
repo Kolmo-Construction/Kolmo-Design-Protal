@@ -1,9 +1,86 @@
 // shared/schema.ts
 
-import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey, pgEnum, uuid as pgUuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+
+// Define project statuses enum
+export const projectStatusEnum = pgEnum('project_status', ['draft', 'finalized', 'archived']);
+
+// Define feedback types enum
+export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'reject']);
+
+// Define RAG Tables
+
+// Project versions table for immutable versioning of task bundles
+export const projectVersions = pgTable("project_versions", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  versionNumber: integer("version_number").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Advanced Tasks table for the RAG system
+export const ragTasks = pgTable("rag_tasks", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  projectVersionId: pgUuid("project_version_id").notNull().references(() => projectVersions.id, { onDelete: 'cascade' }),
+  taskName: text("task_name").notNull(),
+  trade: text("trade").notNull(), // e.g., 'plumber', 'tile setter'
+  phase: text("phase").notNull(), // e.g., 'Rough-In', 'Finish'
+  description: text("description").notNull(),
+  durationDays: decimal("duration_days", { precision: 5, scale: 2 }).notNull(),
+  requiredMaterials: jsonb("required_materials"), // Array of materials
+  requiredInspections: jsonb("required_inspections"), // Array of inspections
+  notes: text("notes"),
+  isGenerated: boolean("is_generated").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Task dependencies for RAG tasks
+export const ragTaskDependencies = pgTable("rag_task_dependencies", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  taskId: pgUuid("task_id").notNull().references(() => ragTasks.id, { onDelete: 'cascade' }),
+  dependsOnTaskId: pgUuid("depends_on_task_id").notNull().references(() => ragTasks.id, { onDelete: 'cascade' }),
+});
+
+// Task chunks for the RAG corpus
+export const taskChunks = pgTable("task_chunks", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  taskText: text("task_text").notNull(), // canonical description
+  trade: text("trade").notNull(),
+  phase: text("phase").notNull(),
+  projectType: text("project_type").notNull(),
+  embedding: text("embedding"), // Will store vector data as text for now, will update when pgvector is integrated
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Generation prompts for storing the input spec and prompt
+export const generationPrompts = pgTable("generation_prompts", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  projectVersionId: pgUuid("project_version_id").notNull().references(() => projectVersions.id, { onDelete: 'cascade' }),
+  inputText: text("input_text").notNull(), // what the user typed
+  rawPrompt: text("raw_prompt").notNull(),
+  usedEmbeddingIds: jsonb("used_embedding_ids"), // Array of UUIDs
+  llmOutput: jsonb("llm_output"),
+  modelUsed: text("model_used").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Task feedback for refining generations
+export const taskFeedback = pgTable("task_feedback", {
+  id: pgUuid("id").primaryKey().default(sql`uuid_generate_v4()`),
+  taskId: pgUuid("task_id").notNull().references(() => ragTasks.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  feedbackType: feedbackTypeEnum("feedback_type").notNull(),
+  oldValue: jsonb("old_value"),
+  newValue: jsonb("new_value"),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 
 // Users table for authentication and profile information
@@ -118,22 +195,12 @@ export const progressUpdates = pgTable("progress_updates", {
 export const updateMedia = pgTable("update_media", {
   id: serial("id").primaryKey(),
   updateId: integer("update_id").references(() => progressUpdates.id),
-  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id), // Added punchListItemId
+  punchListItemId: integer("punch_list_item_id").references(() => punchListItems.id),
   mediaUrl: text("media_url").notNull(),
   mediaType: text("media_type").notNull(), // image, video
   caption: text("caption"),
   uploadedById: integer("uploaded_by_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    // Ensure either updateId or punchListItemId is present
-    updateIdOrPunchListItemId: foreignKey(() => progressUpdates.id).onUpdate('cascade').onDelete('set null'),
-    punchListItemId: foreignKey(() => punchListItems.id).onUpdate('cascade').onDelete('set null'),
-    // Add a check constraint to ensure at least one of the foreign keys is not null
-    // This requires raw SQL in Drizzle, which is not directly supported in this format.
-    // A potential workaround is to handle this validation in the application logic
-    // or use a database migration tool that supports check constraints.
-  };
 });
 
 // Milestones for project timeline
@@ -177,6 +244,7 @@ export const tasks = pgTable("tasks", {
   estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }), // DECIMAL column
   actualHours: decimal("actual_hours", { precision: 5, scale: 2 }), // DECIMAL column
   // progress field was removed since it doesn't exist in the database
+  publishedAt: timestamp("published_at"), // When the task was published to clients (null = not published)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -225,14 +293,42 @@ export const punchListItems = pgTable("punch_list_items", {
   priority: text("priority").default("medium"), // low, medium, high
   assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }),
   dueDate: timestamp("due_date"),
-  // photoUrl: text("photo_url"), // Removed photoUrl - now using updateMedia
+  photoUrl: text("photo_url"), // Keep photoUrl as it exists in the database
   createdById: integer("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
 });
 
-// --- Relations ---
+// --- RAG Relations ---
+export const projectVersionRelations = relations(projectVersions, ({ one, many }) => ({
+  project: one(projects, { fields: [projectVersions.projectId], references: [projects.id] }),
+  ragTasks: many(ragTasks),
+  generationPrompts: many(generationPrompts),
+}));
+
+export const ragTaskRelations = relations(ragTasks, ({ one, many }) => ({
+  projectVersion: one(projectVersions, { fields: [ragTasks.projectVersionId], references: [projectVersions.id] }),
+  predecessorDependencies: many(ragTaskDependencies, { relationName: 'Successor' }),
+  successorDependencies: many(ragTaskDependencies, { relationName: 'Predecessor' }),
+  feedback: many(taskFeedback),
+}));
+
+export const ragTaskDependencyRelations = relations(ragTaskDependencies, ({ one }) => ({
+  task: one(ragTasks, { fields: [ragTaskDependencies.taskId], references: [ragTasks.id] }),
+  dependsOnTask: one(ragTasks, { fields: [ragTaskDependencies.dependsOnTaskId], references: [ragTasks.id] }),
+}));
+
+export const generationPromptRelations = relations(generationPrompts, ({ one }) => ({
+  projectVersion: one(projectVersions, { fields: [generationPrompts.projectVersionId], references: [projectVersions.id] }),
+}));
+
+export const taskFeedbackRelations = relations(taskFeedback, ({ one }) => ({
+  task: one(ragTasks, { fields: [taskFeedback.taskId], references: [ragTasks.id] }),
+  user: one(users, { fields: [taskFeedback.userId], references: [users.id] }),
+}));
+
+// --- Original Relations ---
 export const projectRelations = relations(projects, ({ many, one }) => ({
   tasks: many(tasks),
   dailyLogs: many(dailyLogs),
@@ -249,6 +345,7 @@ export const projectRelations = relations(projects, ({ many, one }) => ({
   progressUpdates: many(progressUpdates),
   milestones: many(milestones),
   selections: many(selections),
+  projectVersions: many(projectVersions),
 }));
 
 export const userRelations = relations(users, ({ many }) => ({
@@ -265,6 +362,7 @@ export const userRelations = relations(users, ({ many }) => ({
   receivedMessages: many(messages, { relationName: 'Recipient' }),
   createdProgressUpdates: many(progressUpdates),
   uploadedUpdateMedia: many(updateMedia),
+  taskFeedback: many(taskFeedback),
 }));
 
 export const clientProjectRelations = relations(clientProjects, ({ one }) => ({
@@ -301,7 +399,7 @@ export const progressUpdateRelations = relations(progressUpdates, ({ one, many }
 
 export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
   update: one(progressUpdates, { fields: [updateMedia.updateId], references: [progressUpdates.id] }),
-  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id] }), // Added relation to punchListItems
+  punchListItem: one(punchListItems, { fields: [updateMedia.punchListItemId], references: [punchListItems.id] }),
   uploader: one(users, { fields: [updateMedia.uploadedById], references: [users.id] }),
 }));
 
@@ -340,7 +438,7 @@ export const punchListItemRelations = relations(punchListItems, ({ one, many }) 
   project: one(projects, { fields: [punchListItems.projectId], references: [projects.id] }),
   assignee: one(users, { fields: [punchListItems.assigneeId], references: [users.id], relationName: 'PunchListAssignee' }),
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
-  media: many(updateMedia), // Added relation to updateMedia
+  media: many(updateMedia),
 }));
 
 
@@ -405,11 +503,8 @@ export const insertUpdateMediaSchema = createInsertSchema(updateMedia).omit({
   id: true,
   createdAt: true
 }).extend({
-    // Make sure at least one of updateId or punchListItemId is provided
-    updateId: z.number().optional().nullable(),
-    punchListItemId: z.number().optional().nullable(),
-}).refine(data => data.updateId != null || data.punchListItemId != null, {
-    message: "Either updateId or punchListItemId must be provided",
+  updateId: z.number().optional().nullable(),
+  punchListItemId: z.number().optional().nullable(),
 });
 
 
@@ -486,6 +581,37 @@ export const insertPunchListItemSchema = createInsertSchema(punchListItems).omit
   dueDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
 });
 
+// --- RAG Insert Schemas ---
+export const insertProjectVersionSchema = createInsertSchema(projectVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGenerationPromptSchema = createInsertSchema(generationPrompts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRagTaskSchema = createInsertSchema(ragTasks).omit({
+  id: true,
+  createdAt: true,
+  isGenerated: true, // This has a default value
+});
+
+export const insertRagTaskDependencySchema = createInsertSchema(ragTaskDependencies).omit({
+  id: true,
+});
+
+export const insertTaskFeedbackSchema = createInsertSchema(taskFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
+  id: true,
+  createdAt: true,
+});
+
 // --- Export Types ---
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -495,6 +621,25 @@ export type Project = typeof projects.$inferSelect;
 
 export type InsertClientProject = z.infer<typeof insertClientProjectSchema>;
 export type ClientProject = typeof clientProjects.$inferSelect;
+
+// --- RAG Export Types ---
+export type InsertProjectVersion = z.infer<typeof insertProjectVersionSchema>;
+export type ProjectVersion = typeof projectVersions.$inferSelect;
+
+export type InsertGenerationPrompt = z.infer<typeof insertGenerationPromptSchema>;
+export type GenerationPrompt = typeof generationPrompts.$inferSelect;
+
+export type InsertRagTask = z.infer<typeof insertRagTaskSchema>;
+export type RagTask = typeof ragTasks.$inferSelect;
+
+export type InsertRagTaskDependency = z.infer<typeof insertRagTaskDependencySchema>;
+export type RagTaskDependency = typeof ragTaskDependencies.$inferSelect;
+
+export type InsertTaskFeedback = z.infer<typeof insertTaskFeedbackSchema>;
+export type TaskFeedback = typeof taskFeedback.$inferSelect;
+
+export type InsertTaskChunk = z.infer<typeof insertTaskChunkSchema>;
+export type TaskChunk = typeof taskChunks.$inferSelect;
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
@@ -535,6 +680,8 @@ export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
 
+// These types are already defined above
+
 // --- Export Combined Types ---
 export type DailyLogWithDetails = DailyLog & {
     creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
@@ -544,7 +691,7 @@ export type TaskWithAssignee = Task & { assignee?: Pick<User, 'id' | 'firstName'
 export type PunchListItemWithDetails = PunchListItem & {
     assignee?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
     creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
-    media?: UpdateMedia[]; // Added media relation
+    media?: UpdateMedia[];
 };
 export type ProjectWithDetails = Project & {
     projectManager?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
