@@ -1,9 +1,11 @@
 // shared/schema.ts
 
-import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, decimal, timestamp, boolean, jsonb, foreignKey, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+import { vector } from "pgvector/drizzle-orm";
+import { sql } from "drizzle-orm";
 
 
 // Users table for authentication and profile information
