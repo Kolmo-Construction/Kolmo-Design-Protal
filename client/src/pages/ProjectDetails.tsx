@@ -123,14 +123,24 @@ export default function ProjectDetails() {
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20 overflow-auto">
-        {/* Back Button */}
-        <div className="mb-4">
+        {/* Navigation Buttons */}
+        <div className="mb-4 flex justify-between">
           <Link href="/projects">
             <Button variant="outline" size="sm" className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Projects
             </Button>
           </Link>
+          
+          {/* Only show task generation button for admin and project managers */}
+          {user?.role !== 'client' && (
+            <Link href={`/project-generation/${projectId}`}>
+              <Button variant="default" size="sm" className="gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Generate Tasks
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* --- MODIFIED: Render ProjectHeader component --- */}

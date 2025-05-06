@@ -41,49 +41,59 @@ const ProjectGenerationPage = () => {
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
 
-  // Define interfaces for the data structures
-  interface ProjectVersion {
-    id: string;
-    projectId: number;
-    versionNumber: number;
-    notes: string;
-    createdAt: string;
-  }
-
-  interface RagTask {
-    id: string;
-    versionId: string;
-    phase: string;
-    trade: string;
-    taskName: string;
-    description: string;
-    durationDays: number;
-    requiredMaterials: string[];
-    createdAt: string;
-  }
-
   // Fetch project versions
   const { data: versions, isLoading: isLoadingVersions } = useQuery({
     queryKey: ['/api/rag/projects', projectId, 'versions'],
-    queryFn: () => apiRequest(`/api/rag/projects/${projectId}/versions`),
+    queryFn: async () => {
+      try {
+        const response = await apiRequest(`/api/rag/projects/${projectId}/versions`);
+        // In a real production environment, you'd validate the response structure
+        return (response as unknown) as ProjectVersion[];
+      } catch (error) {
+        console.error('Error fetching versions:', error);
+        return [] as ProjectVersion[];
+      }
+    },
     enabled: !!projectId,
   });
 
   // Fetch tasks for selected version
   const { data: tasks, isLoading: isLoadingTasks } = useQuery({
     queryKey: ['/api/rag/versions', selectedVersionId, 'tasks'],
-    queryFn: () => apiRequest(`/api/rag/versions/${selectedVersionId}/tasks`),
+    queryFn: async () => {
+      try {
+        const response = await apiRequest(`/api/rag/versions/${selectedVersionId}/tasks`);
+        // In a real production environment, you'd validate the response structure
+        return (response as unknown) as RagTask[];
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        return [] as RagTask[];
+      }
+    },
     enabled: !!selectedVersionId,
   });
 
   // Mutation to create a new project version
   const createVersionMutation = useMutation({
-    mutationFn: (data: { notes: string }) => 
-      apiRequest(`/api/rag/projects/${projectId}/versions`, {
-        method: 'POST',
-        data,
-      }),
-    onSuccess: (newVersion: any) => {
+    mutationFn: async (data: { notes: string }) => {
+      try {
+        const response = await apiRequest(`/api/rag/projects/${projectId}/versions`, {
+          method: 'POST',
+          data,
+        } as any);
+        // In a real production environment, you'd validate the response structure
+        return (response as unknown) as ProjectVersion;
+      } catch (error) {
+        console.error('Error creating version:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to create a new version. Please try again.',
+          variant: 'destructive',
+        });
+        throw error;
+      }
+    },
+    onSuccess: (newVersion) => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag/projects', projectId, 'versions'] });
       setSelectedVersionId(newVersion.id);
       toast({
@@ -95,11 +105,23 @@ const ProjectGenerationPage = () => {
 
   // Mutation to create a generation prompt
   const createPromptMutation = useMutation({
-    mutationFn: (data: { inputText: string, rawPrompt: string, modelUsed: string }) => 
-      apiRequest(`/api/rag/versions/${selectedVersionId}/prompts`, {
-        method: 'POST',
-        data,
-      } as any),
+    mutationFn: async (data: { inputText: string, rawPrompt: string, modelUsed: string }) => {
+      try {
+        const response = await apiRequest(`/api/rag/versions/${selectedVersionId}/prompts`, {
+          method: 'POST',
+          data,
+        } as any);
+        return response;
+      } catch (error) {
+        console.error('Error generating tasks:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to generate tasks. Please try again.',
+          variant: 'destructive',
+        });
+        throw error;
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag/versions', selectedVersionId, 'tasks'] });
       setPrompt('');
@@ -112,10 +134,22 @@ const ProjectGenerationPage = () => {
 
   // Mutation to convert tasks to regular project tasks
   const convertTasksMutation = useMutation({
-    mutationFn: () => 
-      apiRequest(`/api/rag/projects/${projectId}/versions/${selectedVersionId}/convert`, {
-        method: 'POST',
-      } as any),
+    mutationFn: async () => {
+      try {
+        const response = await apiRequest(`/api/rag/projects/${projectId}/versions/${selectedVersionId}/convert`, {
+          method: 'POST',
+        } as any);
+        return response;
+      } catch (error) {
+        console.error('Error converting tasks:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to convert tasks to the project. Please try again.',
+          variant: 'destructive',
+        });
+        throw error;
+      }
+    },
     onSuccess: () => {
       toast({
         title: 'Tasks converted',
