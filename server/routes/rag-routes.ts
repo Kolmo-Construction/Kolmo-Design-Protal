@@ -3,7 +3,7 @@
  * Routes for the RAG (Retrieval Augmented Generation) system
  */
 import { Router, Request, Response, NextFunction } from 'express';
-import { isAuthenticated, AuthenticatedRequest } from '../middleware/auth.middleware';
+import { isAuthenticated } from '../middleware/auth.middleware';
 import { hasRole } from '../middleware/role.middleware';
 import * as ragController from '../controllers/rag-controller';
 
@@ -13,40 +13,50 @@ const router = Router();
 router.use(isAuthenticated);
 
 // Project version routes
-router.post('/projects/:projectId/versions', hasRole(['admin', 'project_manager']), 
-  (req: Request, res: Response, next: NextFunction) => ragController.createProjectVersion(req, res, next));
+router.post('/projects/:projectId/versions', 
+  hasRole(['admin', 'project_manager']), 
+  ragController.createProjectVersion);
+
 router.get('/projects/:projectId/versions', 
-  (req: Request, res: Response, next: NextFunction) => ragController.getProjectVersions(req, res, next));
+  ragController.getProjectVersions);
+
 router.get('/versions/:versionId', 
-  (req: Request, res: Response, next: NextFunction) => ragController.getProjectVersion(req, res, next));
+  ragController.getProjectVersion);
 
 // Generation prompt routes
-router.post('/versions/:versionId/prompts', hasRole(['admin', 'project_manager']), 
-  (req: Request, res: Response, next: NextFunction) => ragController.createGenerationPrompt(req, res, next));
+router.post('/versions/:versionId/prompts', 
+  hasRole(['admin', 'project_manager']), 
+  ragController.createGenerationPrompt);
+
 router.get('/versions/:versionId/prompts', 
-  (req: Request, res: Response, next: NextFunction) => ragController.getGenerationPrompts(req, res, next));
+  ragController.getGenerationPrompts);
 
 // RAG task routes
-router.post('/versions/:versionId/tasks', hasRole(['admin', 'project_manager']), 
-  (req: Request, res: Response, next: NextFunction) => ragController.createRagTask(req, res, next));
+router.post('/versions/:versionId/tasks', 
+  hasRole(['admin', 'project_manager']), 
+  ragController.createRagTask);
+
 router.get('/versions/:versionId/tasks', 
-  (req: Request, res: Response, next: NextFunction) => ragController.getRagTasks(req, res, next));
+  ragController.getRagTasks);
 
 // RAG task dependency routes
-router.post('/tasks/:taskId/dependencies', hasRole(['admin', 'project_manager']), 
-  (req: Request, res: Response, next: NextFunction) => ragController.createRagTaskDependency(req, res, next));
+router.post('/tasks/:taskId/dependencies', 
+  hasRole(['admin', 'project_manager']), 
+  ragController.createRagTaskDependency);
+
 router.get('/tasks/:taskId/dependencies', 
-  (req: Request, res: Response, next: NextFunction) => ragController.getRagTaskDependencies(req, res, next));
+  ragController.getRagTaskDependencies);
 
 // Task feedback routes
 router.post('/tasks/:taskId/feedback', 
-  (req: Request, res: Response, next: NextFunction) => ragController.createTaskFeedback(req, res, next));
+  ragController.createTaskFeedback);
+
 router.get('/tasks/:taskId/feedback', 
-  (req: Request, res: Response, next: NextFunction) => ragController.getTaskFeedback(req, res, next));
+  ragController.getTaskFeedback);
 
 // Convert RAG tasks to project tasks
 router.post('/projects/:projectId/versions/:versionId/convert', 
   hasRole(['admin', 'project_manager']), 
-  (req: Request, res: Response, next: NextFunction) => ragController.convertRagTasksToProjectTasks(req, res, next));
+  ragController.convertRagTasksToProjectTasks);
 
 export default router;

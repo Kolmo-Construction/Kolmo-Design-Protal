@@ -12,6 +12,8 @@ import {
   taskFeedback,
   users,
   projects,
+  tasks,
+  taskDependencies,
   ProjectVersion,
   InsertProjectVersion,
   GenerationPrompt,
@@ -419,13 +421,13 @@ export async function convertRagTasksToProjectTasks(versionId: string, projectId
         description: ragTask.description,
         status: 'todo',
         priority: 'medium',
-        estimatedHours: ragTask.durationDays * 8, // Convert days to hours (8-hour days)
+        estimatedHours: Number(ragTask.durationDays) * 8, // Convert days to hours (8-hour days)
         // Don't set publishedAt - tasks start unpublished
       }));
 
-      const insertedTasks = await tx.insert(db.tasks).values(taskInserts).returning({
-        id: db.tasks.id,
-        title: db.tasks.title,
+      const insertedTasks = await tx.insert(tasks).values(taskInserts).returning({
+        id: tasks.id,
+        title: tasks.title,
       });
 
       // Get RAG task dependencies
@@ -459,7 +461,7 @@ export async function convertRagTasksToProjectTasks(versionId: string, projectId
 
         // Insert task dependencies if any
         if (taskDependencyInserts.length > 0) {
-          await tx.insert(db.taskDependencies).values(taskDependencyInserts);
+          await tx.insert(taskDependencies).values(taskDependencyInserts);
         }
       }
     });

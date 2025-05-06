@@ -48,7 +48,7 @@ const ProjectGenerationPage = () => {
       try {
         const response = await apiRequest(`/api/rag/projects/${projectId}/versions`);
         // In a real production environment, you'd validate the response structure
-        return (response as unknown) as ProjectVersion[];
+        return response as ProjectVersion[];
       } catch (error) {
         console.error('Error fetching versions:', error);
         return [] as ProjectVersion[];
