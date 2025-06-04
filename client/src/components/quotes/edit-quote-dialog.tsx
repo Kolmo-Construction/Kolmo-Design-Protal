@@ -35,6 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { CustomerQuote } from "@shared/schema";
 import { ImageUpload } from "./image-upload";
+import BeforeAfterPairsManager from "./before-after-pairs-manager";
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -672,35 +673,13 @@ export default function EditQuoteDialog({
                     />
 
                     {quote && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <ImageUpload
-                          quoteId={quote.id}
-                          imageType="before"
-                          onImageUploaded={(url, key) => {
-                            toast({
-                              title: "Before image uploaded",
-                              description: "The before image has been uploaded successfully.",
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-                          }}
-                          existingImage={quote.beforeImageUrl || undefined}
-                          label="Before Image"
-                        />
-                        
-                        <ImageUpload
-                          quoteId={quote.id}
-                          imageType="after"
-                          onImageUploaded={(url, key) => {
-                            toast({
-                              title: "After image uploaded",
-                              description: "The after image has been uploaded successfully.",
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-                          }}
-                          existingImage={quote.afterImageUrl || undefined}
-                          label="After Image"
-                        />
-                      </div>
+                      <BeforeAfterPairsManager 
+                        quoteId={quote.id}
+                        onPairsChange={() => {
+                          queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+                          if (onSuccess) onSuccess();
+                        }}
+                      />
                     )}
                   </CardContent>
                 </Card>
