@@ -17,9 +17,19 @@ if (!accessKeyId || !secretAccessKey || !bucketName) {
   );
 }
 
+// For Cloudflare R2, we need the account ID to construct the endpoint
+const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+
+if (!accountId) {
+  console.warn(
+    "WARNING: CLOUDFLARE_ACCOUNT_ID environment variable is not set. R2 uploads will fail."
+  );
+}
+
 // For Cloudflare R2, we use auto region and S3-compatible endpoint
 export const r2Client = new S3Client({
-  region: region,
+  region: "auto",
+  endpoint: accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined,
   credentials: {
     accessKeyId: accessKeyId || '',
     secretAccessKey: secretAccessKey || '',
