@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { CheckCircle, XCircle, Calendar, MapPin, Phone, Mail, FileText, Image as ImageIcon, DollarSign, Clock, Building2 } from "lucide-react";
+import kolmoLogoPath from "@assets/kolmo-logo (1).png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -182,8 +183,12 @@ export default function ProfessionalQuoteView() {
         <div className="max-w-5xl mx-auto px-6 py-8">
           <div className="flex justify-between items-start">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-2xl">K</span>
+              <div className="w-16 h-16 flex items-center justify-center">
+                <img 
+                  src={kolmoLogoPath} 
+                  alt="Kolmo Construction" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-slate-800">Kolmo Construction</h1>
@@ -625,8 +630,12 @@ export default function ProfessionalQuoteView() {
             
             <div className="flex justify-center items-center mt-8 pt-6 border-t">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold">K</span>
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <img 
+                    src={kolmoLogoPath} 
+                    alt="Kolmo Construction" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800">Kolmo Construction</p>
