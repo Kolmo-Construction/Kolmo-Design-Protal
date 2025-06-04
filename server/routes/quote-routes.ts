@@ -7,6 +7,39 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+// Custom validation schema for quote creation that handles empty date strings
+const createQuoteSchema = z.object({
+  projectType: z.string().min(1, "Project type is required"),
+  quoteNumber: z.string().min(1, "Quote number is required"),
+  customerName: z.string().min(1, "Customer name is required"),
+  customerEmail: z.string().email("Valid email is required"),
+  customerPhone: z.string().optional(),
+  customerAddress: z.string().optional(),
+  projectTitle: z.string().min(1, "Project title is required"),
+  projectDescription: z.string().min(1, "Project description is required"),
+  projectLocation: z.string().optional(),
+  subtotal: z.string().min(1, "Subtotal is required"),
+  taxAmount: z.string().min(1, "Tax amount is required"),
+  totalAmount: z.string().min(1, "Total amount is required"),
+  estimatedStartDate: z.string().optional().transform(val => val === "" ? undefined : val),
+  estimatedCompletionDate: z.string().optional().transform(val => val === "" ? undefined : val),
+  validUntil: z.string().min(1, "Valid until date is required"),
+  showBeforeAfter: z.boolean().default(false),
+  beforeAfterTitle: z.string().optional(),
+  beforeAfterDescription: z.string().optional(),
+  showColorVerification: z.boolean().default(false),
+  colorVerificationTitle: z.string().optional(),
+  colorVerificationDescription: z.string().optional(),
+  permitRequired: z.boolean().default(false),
+  permitDetails: z.string().optional(),
+  downPaymentPercentage: z.string().optional(),
+  milestonePaymentPercentage: z.string().optional(),
+  finalPaymentPercentage: z.string().optional(),
+  milestoneDescription: z.string().optional(),
+  acceptsCreditCards: z.boolean().default(false),
+  creditCardProcessingFee: z.string().optional(),
+});
+
 export const quoteRoutes = Router();
 
 // Get all quotes (admin)
@@ -63,7 +96,7 @@ quoteRoutes.get("/view/:token", async (req, res) => {
 // Create new quote
 quoteRoutes.post("/", async (req, res) => {
   try {
-    const validatedData = insertCustomerQuoteSchema.parse(req.body);
+    const validatedData = createQuoteSchema.parse(req.body);
     const quote = await quoteStorage.createQuote(validatedData);
     res.status(201).json(quote);
   } catch (error) {

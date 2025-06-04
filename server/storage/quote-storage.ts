@@ -12,7 +12,7 @@ import { eq, desc } from "drizzle-orm";
 
 export class QuoteStorage {
   // Quotes
-  async createQuote(data: InsertCustomerQuote): Promise<CustomerQuote> {
+  async createQuote(data: any): Promise<CustomerQuote> {
     // Convert string dates to Date objects for proper database handling
     const processedData = { ...data };
     if (processedData.validUntil && typeof processedData.validUntil === 'string') {
@@ -27,7 +27,7 @@ export class QuoteStorage {
 
     const [quote] = await db
       .insert(customerQuotes)
-      .values([processedData])
+      .values(processedData)
       .returning();
     return quote;
   }
