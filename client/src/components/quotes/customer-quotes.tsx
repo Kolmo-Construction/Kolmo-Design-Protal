@@ -133,6 +133,33 @@ export default function CustomerQuotes() {
     }
   };
 
+  const handleCopyMagicLink = async (quote: Quote) => {
+    if (!quote.magicToken) {
+      toast({
+        title: "Error",
+        description: "No magic link available for this quote",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const magicLink = `${window.location.origin}/quote/${quote.magicToken}`;
+    
+    try {
+      await navigator.clipboard.writeText(magicLink);
+      toast({
+        title: "Success",
+        description: "Quote link copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "draft": return "bg-gray-100 text-gray-800";
@@ -234,6 +261,16 @@ export default function CustomerQuotes() {
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
+                  {quote.magicToken && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyMagicLink(quote)}
+                      title="Copy customer link"
+                    >
+                      <Link className="h-4 w-4" />
+                    </Button>
+                  )}
                   {quote.status === "draft" && (
                     <Button
                       variant="outline"
