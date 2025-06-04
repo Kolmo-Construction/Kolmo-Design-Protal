@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
@@ -21,8 +21,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+
+const lineItemSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  description: z.string().min(1, "Description is required"),
+  quantity: z.number().min(0.01, "Quantity must be greater than 0"),
+  unit: z.string().min(1, "Unit is required"),
+  unitPrice: z.number().min(0, "Unit price must be non-negative"),
+  discountPercentage: z.number().min(0).max(100).default(0),
+  totalPrice: z.number().min(0, "Total price must be non-negative"),
+});
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -33,9 +46,14 @@ const quoteFormSchema = z.object({
   projectTitle: z.string().min(1, "Project title is required"),
   projectDescription: z.string().min(1, "Project description is required"),
   projectLocation: z.string().optional(),
-  subtotal: z.string().min(1, "Subtotal is required"),
-  taxAmount: z.string().min(1, "Tax amount is required"),
-  totalAmount: z.string().min(1, "Total amount is required"),
+  lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),
+  discountPercentage: z.number().min(0).max(100).default(0),
+  taxPercentage: z.number().min(0).max(100).default(0),
+  subtotal: z.number().min(0, "Subtotal must be non-negative"),
+  discountAmount: z.number().min(0, "Discount amount must be non-negative"),
+  taxableAmount: z.number().min(0, "Taxable amount must be non-negative"),
+  taxAmount: z.number().min(0, "Tax amount must be non-negative"),
+  totalAmount: z.number().min(0, "Total amount must be non-negative"),
   estimatedStartDate: z.string().optional(),
   estimatedCompletionDate: z.string().optional(),
   validUntil: z.string().min(1, "Valid until date is required"),
@@ -70,9 +88,22 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
       projectTitle: "",
       projectDescription: "",
       projectLocation: "",
-      subtotal: "",
-      taxAmount: "",
-      totalAmount: "",
+      lineItems: [{
+        category: "",
+        description: "",
+        quantity: 1,
+        unit: "",
+        unitPrice: 0,
+        discountPercentage: 0,
+        totalPrice: 0,
+      }],
+      discountPercentage: 0,
+      taxPercentage: 0,
+      subtotal: 0,
+      discountAmount: 0,
+      taxableAmount: 0,
+      taxAmount: 0,
+      totalAmount: 0,
       estimatedStartDate: "",
       estimatedCompletionDate: "",
       validUntil: "",
@@ -84,6 +115,55 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
       creditCardProcessingFee: "",
     },
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "lineItems",
+  });
+
+  // Calculate line item total price
+  const calculateLineItemTotal = (quantity: number, unitPrice: number, discountPercentage: number) => {
+    const baseTotal = quantity * unitPrice;
+    const discountAmount = baseTotal * (discountPercentage / 100);
+    return baseTotal - discountAmount;
+  };
+
+  // Recalculate all totals when line items or rates change
+  const recalculateTotals = () => {
+    const lineItems = form.getValues("lineItems");
+    const discountPercentage = form.getValues("discountPercentage");
+    const taxPercentage = form.getValues("taxPercentage");
+
+    // Calculate subtotal from all line items
+    const subtotal = lineItems.reduce((sum, item) => {
+      return sum + calculateLineItemTotal(item.quantity, item.unitPrice, item.discountPercentage);
+    }, 0);
+
+    // Apply gross discount
+    const discountAmount = subtotal * (discountPercentage / 100);
+    const taxableAmount = subtotal - discountAmount;
+
+    // Calculate tax
+    const taxAmount = taxableAmount * (taxPercentage / 100);
+    const totalAmount = taxableAmount + taxAmount;
+
+    // Update form values
+    form.setValue("subtotal", Number(subtotal.toFixed(2)));
+    form.setValue("discountAmount", Number(discountAmount.toFixed(2)));
+    form.setValue("taxableAmount", Number(taxableAmount.toFixed(2)));
+    form.setValue("taxAmount", Number(taxAmount.toFixed(2)));
+    form.setValue("totalAmount", Number(totalAmount.toFixed(2)));
+  };
+
+  // Watch for changes in line items, discount, and tax percentages
+  useEffect(() => {
+    const subscription = form.watch((values, { name }) => {
+      if (name?.includes("lineItems") || name === "discountPercentage" || name === "taxPercentage") {
+        recalculateTotals();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   const createQuoteMutation = useMutation({
     mutationFn: async (data: QuoteFormData) => {
@@ -273,49 +353,266 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Pricing</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="subtotal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subtotal</FormLabel>
-                      <FormControl>
-                        <Input placeholder="15000.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Line Items</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append({
+                    category: "",
+                    description: "",
+                    quantity: 1,
+                    unit: "",
+                    unitPrice: 0,
+                    discountPercentage: 0,
+                    totalPrice: 0,
+                  })}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </div>
 
-                <FormField
-                  control={form.control}
-                  name="taxAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tax Amount</FormLabel>
-                      <FormControl>
-                        <Input placeholder="1200.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="space-y-4">
+                {fields.map((field, index) => (
+                  <Card key={field.id} className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-medium">Item {index + 1}</h4>
+                      {fields.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.category`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Category</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="materials">Materials</SelectItem>
+                                  <SelectItem value="labor">Labor</SelectItem>
+                                  <SelectItem value="equipment">Equipment</SelectItem>
+                                  <SelectItem value="permits">Permits</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                <FormField
-                  control={form.control}
-                  name="totalAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Total Amount</FormLabel>
-                      <FormControl>
-                        <Input placeholder="16200.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.description`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Item description" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quantity</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="0.01"
+                                step="0.01"
+                                placeholder="1"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.unit`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unit</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="each">Each</SelectItem>
+                                  <SelectItem value="hour">Hour</SelectItem>
+                                  <SelectItem value="sq_ft">Sq Ft</SelectItem>
+                                  <SelectItem value="linear_ft">Linear Ft</SelectItem>
+                                  <SelectItem value="gallon">Gallon</SelectItem>
+                                  <SelectItem value="box">Box</SelectItem>
+                                  <SelectItem value="bundle">Bundle</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.unitPrice`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unit Price</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.discountPercentage`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Discount %</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                placeholder="0"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="mt-4 text-right">
+                      <span className="text-sm text-muted-foreground">Item Total: </span>
+                      <span className="font-medium">
+                        ${calculateLineItemTotal(
+                          form.watch(`lineItems.${index}.quantity`) || 0,
+                          form.watch(`lineItems.${index}.unitPrice`) || 0,
+                          form.watch(`lineItems.${index}.discountPercentage`) || 0
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Quote Totals</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="discountPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gross Discount %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="taxPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <Card className="p-4 bg-muted">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>${form.watch("subtotal")?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Discount ({form.watch("discountPercentage") || 0}%):</span>
+                      <span>-${form.watch("discountAmount")?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Taxable Amount:</span>
+                      <span>${form.watch("taxableAmount")?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax ({form.watch("taxPercentage") || 0}%):</span>
+                      <span>${form.watch("taxAmount")?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-semibold text-lg">
+                      <span>Total Amount:</span>
+                      <span>${form.watch("totalAmount")?.toFixed(2) || "0.00"}</span>
+                    </div>
+                  </div>
+                </Card>
               </div>
             </div>
 
