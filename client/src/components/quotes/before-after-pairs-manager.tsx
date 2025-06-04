@@ -47,8 +47,8 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
   };
 
   const handleAddPair = () => {
-    setIsAddDialogOpen(true);
     resetForm();
+    setIsAddDialogOpen(true);
   };
 
   const handleEditPair = (pair: BeforeAfterPair) => {
@@ -115,7 +115,10 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
     }
   };
 
-  const handleSavePair = async () => {
+  const handleSavePair = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     if (!formData.title.trim()) {
       toast({
         title: "Title required",
@@ -393,10 +396,23 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
             </div>
 
             <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button 
+                type="button"
+                variant="outline" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsAddDialogOpen(false);
+                  resetForm();
+                }}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleSavePair} disabled={isUploading}>
+              <Button 
+                type="button"
+                onClick={handleSavePair} 
+                disabled={isUploading || !formData.title.trim() || !formData.beforeImageUrl || !formData.afterImageUrl}
+              >
                 {editingPair ? 'Update Pair' : 'Add Pair'}
               </Button>
             </div>
