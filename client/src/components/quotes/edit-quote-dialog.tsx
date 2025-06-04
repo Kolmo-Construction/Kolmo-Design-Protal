@@ -167,15 +167,24 @@ export default function EditQuoteDialog({
 
   const updateQuoteMutation = useMutation({
     mutationFn: async (data: QuoteFormData) => {
+      // Convert date strings to Date objects for backend validation
+      const processedData = {
+        ...data,
+        estimatedStartDate: data.estimatedStartDate ? new Date(data.estimatedStartDate) : undefined,
+        estimatedCompletionDate: data.estimatedCompletionDate ? new Date(data.estimatedCompletionDate) : undefined,
+        validUntil: data.validUntil ? new Date(data.validUntil) : undefined,
+      };
+
       const response = await fetch(`/api/quotes/${quote?.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(processedData),
       });
       if (!response.ok) {
-        throw new Error('Failed to update quote');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update quote');
       }
       return response.json();
     },
