@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Eye, Edit, Trash2, Send } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Send, Copy, Link } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import CreateQuoteDialog from "./create-quote-dialog";
@@ -15,6 +15,7 @@ interface Quote {
   id: number;
   projectType: string;
   quoteNumber: string;
+  magicToken: string | null;
   customerName: string;
   customerEmail: string;
   customerPhone?: string;

@@ -26,7 +26,6 @@ import { apiRequest } from "@/lib/queryClient";
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
-  quoteNumber: z.string().min(1, "Quote number is required"),
   customerName: z.string().min(1, "Customer name is required"),
   customerEmail: z.string().email("Valid email is required"),
   customerPhone: z.string().optional(),
@@ -64,7 +63,6 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
     resolver: zodResolver(quoteFormSchema),
     defaultValues: {
       projectType: "",
-      quoteNumber: "",
       customerName: "",
       customerEmail: "",
       customerPhone: "",
@@ -133,21 +131,7 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="quoteNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quote Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Q-2024-001" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+            <div className="grid grid-cols-1">
               <FormField
                 control={form.control}
                 name="projectType"

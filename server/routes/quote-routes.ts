@@ -10,7 +10,6 @@ import { z } from "zod";
 // Custom validation schema for quote creation that handles empty date strings
 const createQuoteSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
-  quoteNumber: z.string().min(1, "Quote number is required"),
   customerName: z.string().min(1, "Customer name is required"),
   customerEmail: z.string().email("Valid email is required"),
   customerPhone: z.string().optional(),

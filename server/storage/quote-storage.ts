@@ -13,8 +13,38 @@ import { eq, desc } from "drizzle-orm";
 export class QuoteStorage {
   // Quotes
   async createQuote(data: any): Promise<CustomerQuote> {
+    // Generate unique quote number
+    const year = new Date().getFullYear();
+    const allQuotes = await db
+      .select({ quoteNumber: customerQuotes.quoteNumber })
+      .from(customerQuotes)
+      .orderBy(desc(customerQuotes.id));
+    
+    // Find the highest number for the current year
+    let quoteCounter = 1;
+    const yearPrefix = `Q-${year}-`;
+    for (const quote of allQuotes) {
+      if (quote.quoteNumber.startsWith(yearPrefix)) {
+        const numberPart = quote.quoteNumber.replace(yearPrefix, '');
+        const currentNumber = parseInt(numberPart);
+        if (currentNumber >= quoteCounter) {
+          quoteCounter = currentNumber + 1;
+        }
+      }
+    }
+    
+    const quoteNumber = `Q-${year}-${quoteCounter.toString().padStart(3, '0')}`;
+    
+    // Generate magic token for customer access
+    const magicToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
     // Convert string dates to Date objects for proper database handling
-    const processedData = { ...data };
+    const processedData = { 
+      ...data, 
+      quoteNumber,
+      magicToken
+    };
+    
     if (processedData.validUntil && typeof processedData.validUntil === 'string') {
       processedData.validUntil = new Date(processedData.validUntil);
     }
