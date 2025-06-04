@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Upload, Move, Eye } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Trash2, Upload, Move } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import type { BeforeAfterPair } from "@shared/schema";
 
@@ -18,14 +18,12 @@ interface BeforeAfterPairsManagerProps {
 interface PairFormData {
   title: string;
   description: string;
-  beforeImageFile?: File;
-  afterImageFile?: File;
   beforeImageUrl: string;
   afterImageUrl: string;
 }
 
 export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: BeforeAfterPairsManagerProps) {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPair, setEditingPair] = useState<BeforeAfterPair | null>(null);
   const [formData, setFormData] = useState<PairFormData>({
     title: "",
@@ -46,12 +44,12 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
     setEditingPair(null);
   };
 
-  const handleAddPair = () => {
+  const openAddDialog = () => {
     resetForm();
-    setIsAddDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
-  const handleEditPair = (pair: BeforeAfterPair) => {
+  const openEditDialog = (pair: BeforeAfterPair) => {
     setEditingPair(pair);
     setFormData({
       title: pair.title,
@@ -59,48 +57,41 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
       beforeImageUrl: pair.beforeImageUrl,
       afterImageUrl: pair.afterImageUrl
     });
-    setIsAddDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
-  const handleDeletePair = (pairId: number) => {
-    if (confirm("Are you sure you want to delete this before/after pair?")) {
-      const updatedPairs = pairs.filter(p => p.id !== pairId);
-      onPairsChange(updatedPairs);
-      toast({
-        title: "Pair deleted",
-        description: "The before/after pair has been removed."
-      });
-    }
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    resetForm();
   };
 
   const handleImageUpload = async (file: File, type: 'before' | 'after') => {
-    if (!file) return;
-
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('file', file);
+      formData.append('quoteId', quoteId.toString());
       formData.append('imageType', type);
 
-      const response = await fetch(`/api/storage/upload/quote/${quoteId}`, {
+      const response = await fetch('/api/storage/upload-quote-image', {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
       if (!response.ok) {
         throw new Error('Upload failed');
       }
 
-      const result = await response.json();
+      const { url } = await response.json();
       
       setFormData(prev => ({
         ...prev,
-        [type === 'before' ? 'beforeImageUrl' : 'afterImageUrl']: result.url
+        [`${type}ImageUrl`]: url
       }));
 
       toast({
         title: "Image uploaded",
-        description: `${type} image uploaded successfully.`
+        description: `${type === 'before' ? 'Before' : 'After'} image uploaded successfully.`
       });
 
     } catch (error) {
@@ -115,10 +106,7 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
     }
   };
 
-  const handleSavePair = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    
+  const handleSave = () => {
     if (!formData.title.trim()) {
       toast({
         title: "Title required",
@@ -137,40 +125,40 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
       return;
     }
 
-    try {
-      const newPair: BeforeAfterPair = {
-        id: editingPair?.id || Date.now(), // Temporary ID for new pairs
-        quoteId,
-        title: formData.title,
-        description: formData.description,
-        beforeImageUrl: formData.beforeImageUrl,
-        afterImageUrl: formData.afterImageUrl,
-        sortOrder: editingPair?.sortOrder || pairs.length,
-        createdAt: typeof editingPair?.createdAt === 'string' ? new Date(editingPair.createdAt) : editingPair?.createdAt || new Date()
-      };
+    const newPair: BeforeAfterPair = {
+      id: editingPair?.id || Date.now(),
+      quoteId,
+      title: formData.title,
+      description: formData.description,
+      beforeImageUrl: formData.beforeImageUrl,
+      afterImageUrl: formData.afterImageUrl,
+      sortOrder: editingPair?.sortOrder || pairs.length,
+      createdAt: editingPair?.createdAt || new Date()
+    };
 
-      let updatedPairs;
-      if (editingPair) {
-        updatedPairs = pairs.map(p => p.id === editingPair.id ? newPair : p);
-      } else {
-        updatedPairs = [...pairs, newPair];
-      }
+    let updatedPairs;
+    if (editingPair) {
+      updatedPairs = pairs.map(p => p.id === editingPair.id ? newPair : p);
+    } else {
+      updatedPairs = [...pairs, newPair];
+    }
 
+    onPairsChange(updatedPairs);
+    closeDialog();
+
+    toast({
+      title: editingPair ? "Pair updated" : "Pair added",
+      description: `Before/after pair has been ${editingPair ? 'updated' : 'added'} successfully.`
+    });
+  };
+
+  const deletePair = (pairId: number) => {
+    if (confirm("Are you sure you want to delete this before/after pair?")) {
+      const updatedPairs = pairs.filter(p => p.id !== pairId);
       onPairsChange(updatedPairs);
-      setIsAddDialogOpen(false);
-      resetForm();
-
       toast({
-        title: editingPair ? "Pair updated" : "Pair added",
-        description: `Before/after pair has been ${editingPair ? 'updated' : 'added'} successfully.`
-      });
-
-    } catch (error) {
-      console.error('Save error:', error);
-      toast({
-        title: "Save failed",
-        description: "Failed to save the before/after pair. Please try again.",
-        variant: "destructive"
+        title: "Pair deleted",
+        description: "Before/after pair has been deleted successfully."
       });
     }
   };
@@ -182,7 +170,7 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
     const updatedPairs = [...pairs];
     [updatedPairs[index], updatedPairs[newIndex]] = [updatedPairs[newIndex], updatedPairs[index]];
     
-    // Update sort orders
+    // Update sort order
     updatedPairs.forEach((pair, idx) => {
       pair.sortOrder = idx;
     });
@@ -193,13 +181,8 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-semibold">Before & After Image Pairs</h3>
-          <p className="text-sm text-muted-foreground">
-            Add multiple before/after comparisons for different areas of the project
-          </p>
-        </div>
-        <Button onClick={handleAddPair} size="sm">
+        <h3 className="text-lg font-medium">Before/After Image Pairs</h3>
+        <Button onClick={openAddDialog} size="sm">
           <Plus className="w-4 h-4 mr-2" />
           Add Pair
         </Button>
@@ -210,7 +193,7 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
           <CardContent className="flex flex-col items-center justify-center py-8">
             <div className="text-center space-y-2">
               <p className="text-muted-foreground">No before/after pairs added yet</p>
-              <Button onClick={handleAddPair} variant="outline">
+              <Button onClick={openAddDialog} variant="outline">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Your First Pair
               </Button>
@@ -250,15 +233,14 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEditPair(pair)}
+                      onClick={() => openEditDialog(pair)}
                     >
-                      <Eye className="w-3 h-3" />
+                      Edit
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeletePair(pair.id)}
-                      className="text-red-500 hover:text-red-700"
+                      onClick={() => deletePair(pair.id)}
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -303,7 +285,7 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
@@ -399,18 +381,13 @@ export function BeforeAfterPairsManager({ quoteId, pairs, onPairsChange }: Befor
               <Button 
                 type="button"
                 variant="outline" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsAddDialogOpen(false);
-                  resetForm();
-                }}
+                onClick={closeDialog}
               >
                 Cancel
               </Button>
               <Button 
                 type="button"
-                onClick={handleSavePair} 
+                onClick={handleSave}
                 disabled={isUploading || !formData.title.trim() || !formData.beforeImageUrl || !formData.afterImageUrl}
               >
                 {editingPair ? 'Update Pair' : 'Add Pair'}
