@@ -88,8 +88,8 @@ export async function uploadToR2(options: {
   try {
     await R2.send(command);
 
-    // Construct the public URL for R2 storage
-    const fileUrl = `https://${bucketName}.s3.amazonaws.com/${key}`;
+    // Construct the public URL for R2 storage using Cloudflare public domain
+    const fileUrl = `https://pub-${bucketName}.r2.dev/${key}`;
 
     console.log(`Successfully uploaded ${options.fileName} to ${fileUrl}`);
     return {
