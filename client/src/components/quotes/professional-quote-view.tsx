@@ -168,25 +168,25 @@ export default function ProfessionalQuoteView() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Kolmo Brand Header */}
+      {/* Mobile-First Kolmo Header */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center space-x-6">
-              <div className="w-20 h-20 flex items-center justify-center">
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-start sm:space-y-0">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
                 <img 
                   src={kolmoLogoPath} 
                   alt="Kolmo Construction" 
                   className="w-full h-full object-contain"
                 />
               </div>
-              <div>
-                <h1 className="text-4xl font-bold text-primary tracking-tight">Kolmo Construction</h1>
-                <p className="text-slate-600 text-lg font-medium mt-1">Licensed & Bonded General Contractor</p>
-                <p className="text-muted-foreground text-sm mt-1">WA License #KOLMO*123BC</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary tracking-tight">Kolmo Construction</h1>
+                <p className="text-slate-600 text-sm sm:text-base font-medium mt-1">Licensed & Bonded General Contractor</p>
+                <p className="text-muted-foreground text-xs sm:text-sm mt-1">WA License #KOLMO*123BC</p>
               </div>
             </div>
-            <div className="text-right space-y-2">
+            <div className="text-left sm:text-right space-y-1 text-sm sm:text-base">
               <p className="text-slate-700 font-medium">4018 NE 125th St</p>
               <p className="text-slate-700 font-medium">Seattle, WA 98125</p>
               <p className="text-slate-700 font-medium">(206) 410-5100</p>
@@ -196,97 +196,108 @@ export default function ProfessionalQuoteView() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        {/* Quote Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 mb-8">
-          <div className="flex justify-between items-start mb-10">
-            <div>
-              <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-semibold mb-6">
-                <span className="w-2 h-2 bg-accent rounded-full mr-3"></span>
-                QUOTE PROPOSAL
-              </div>
-              <h2 className="text-4xl font-bold text-primary mb-3">{quote.projectTitle}</h2>
-              <p className="text-slate-600 text-xl">Quote #{quote.quoteNumber}</p>
-              <p className="text-muted-foreground text-base mt-2">Prepared for {quote.customerName}</p>
+      <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {/* Mobile-First Quote Header */}
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 lg:p-8 mb-6">
+          <div className="space-y-6">
+            {/* Quote Badge */}
+            <div className="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-accent/10 text-accent text-xs sm:text-sm font-semibold">
+              <span className="w-2 h-2 bg-accent rounded-full mr-2"></span>
+              QUOTE PROPOSAL
             </div>
-            <div className="text-right">
-              <div className="text-5xl font-bold text-accent mb-3">
-                {formatCurrency(quote.totalAmount)}
-              </div>
-              <p className="text-slate-700 font-semibold text-lg">Total Investment</p>
-              <div className="mt-6 text-sm text-muted-foreground">
-                <p className="font-medium">Valid until {formatDate(quote.validUntil)}</p>
-                {isExpired && (
-                  <Badge variant="destructive" className="mt-3">
-                    Quote Expired
-                  </Badge>
-                )}
-                {hasResponded && (
-                  <Badge variant="secondary" className="mt-3">
-                    Response Received
-                  </Badge>
-                )}
+            
+            {/* Project Title */}
+            <div>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-2 leading-tight">{quote.projectTitle}</h2>
+              <p className="text-slate-600 text-base sm:text-lg lg:text-xl">Quote #{quote.quoteNumber}</p>
+              <p className="text-muted-foreground text-sm sm:text-base mt-1">Prepared for {quote.customerName}</p>
+            </div>
+            
+            {/* Total Investment - Mobile First */}
+            <div className="bg-slate-50 rounded-xl p-4 sm:p-6 border border-slate-100">
+              <div className="text-center">
+                <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-accent mb-2">
+                  {formatCurrency(quote.totalAmount)}
+                </div>
+                <p className="text-slate-700 font-semibold text-base sm:text-lg">Total Investment</p>
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <p className="font-medium">Valid until {formatDate(quote.validUntil)}</p>
+                  <div className="flex justify-center mt-3 space-x-2">
+                    {isExpired && (
+                      <Badge variant="destructive">
+                        Quote Expired
+                      </Badge>
+                    )}
+                    {hasResponded && (
+                      <Badge variant="secondary">
+                        Response Received
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Customer & Project Info Grid */}
-          <div className="grid md:grid-cols-2 gap-10 pt-10 border-t border-slate-100">
+          {/* Mobile-First Info Sections */}
+          <div className="space-y-6 pt-6 border-t border-slate-100">
+            {/* Project Details */}
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-6 flex items-center">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center mr-4">
-                  <Building className="w-5 h-5 text-primary" />
+              <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 flex items-center">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3">
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
                 Project Details
               </h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground font-medium">Project Type:</span>
-                  <span className="font-semibold text-slate-800">{quote.projectType}</span>
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
+                  <span className="text-muted-foreground font-medium text-sm sm:text-base">Project Type:</span>
+                  <span className="font-semibold text-slate-800 text-sm sm:text-base">{quote.projectType}</span>
                 </div>
                 {quote.projectLocation && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-medium">Location:</span>
-                    <span className="font-semibold text-slate-800">{quote.projectLocation}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
+                    <span className="text-muted-foreground font-medium text-sm sm:text-base">Location:</span>
+                    <span className="font-semibold text-slate-800 text-sm sm:text-base">{quote.projectLocation}</span>
                   </div>
                 )}
                 {quote.estimatedStartDate && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-medium">Est. Start:</span>
-                    <span className="font-semibold text-slate-800">{formatDate(quote.estimatedStartDate)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
+                    <span className="text-muted-foreground font-medium text-sm sm:text-base">Est. Start:</span>
+                    <span className="font-semibold text-slate-800 text-sm sm:text-base">{formatDate(quote.estimatedStartDate)}</span>
                   </div>
                 )}
                 {quote.estimatedCompletionDate && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-medium">Est. Completion:</span>
-                    <span className="font-semibold text-slate-800">{formatDate(quote.estimatedCompletionDate)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
+                    <span className="text-muted-foreground font-medium text-sm sm:text-base">Est. Completion:</span>
+                    <span className="font-semibold text-slate-800 text-sm sm:text-base">{formatDate(quote.estimatedCompletionDate)}</span>
                   </div>
                 )}
               </div>
             </div>
             
+            {/* Contact Information */}
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-6 flex items-center">
-                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center mr-4">
-                  <User className="w-5 h-5 text-accent" />
+              <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 flex items-center">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent/10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3">
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
                 </div>
                 Contact Information
               </h3>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <Mail className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-slate-800 font-medium">{quote.customerEmail}</span>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-slate-800 font-medium text-sm sm:text-base break-all">{quote.customerEmail}</span>
                 </div>
                 {quote.customerPhone && (
-                  <div className="flex items-center space-x-4">
-                    <Phone className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-slate-800 font-medium">{quote.customerPhone}</span>
+                  <div className="flex items-center space-x-3">
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
+                    <span className="text-slate-800 font-medium text-sm sm:text-base">{quote.customerPhone}</span>
                   </div>
                 )}
                 {quote.customerAddress && (
-                  <div className="flex items-center space-x-4">
-                    <MapPin className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-slate-800 font-medium">{quote.customerAddress}</span>
+                  <div className="flex items-start space-x-3">
+                    <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-800 font-medium text-sm sm:text-base">{quote.customerAddress}</span>
                   </div>
                 )}
               </div>
@@ -295,9 +306,9 @@ export default function ProfessionalQuoteView() {
         </div>
 
         {/* Project Breakdown */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 mb-8">
-          <h3 className="text-2xl font-semibold text-primary mb-8 flex items-center">
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mr-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 lg:p-8 mb-6">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-primary mb-6 flex items-center">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-primary/10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3">
               <FileText className="w-4 h-4 text-emerald-600" />
             </div>
             Complete Exterior Paint Renovation
@@ -414,12 +425,12 @@ export default function ProfessionalQuoteView() {
 
         {/* Investment & Payment Structure */}
         {(quote.downPaymentPercentage || quote.acceptsCreditCards) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10 mb-8">
-            <h3 className="text-2xl font-semibold text-primary mb-8 flex items-center">
-              <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mr-4">
-                <DollarSign className="w-6 h-6 text-accent" />
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 lg:p-8 mb-6">
+            <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-primary mb-6 flex items-center">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-accent/10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-accent" />
               </div>
-              Investment & Payment Structure
+              Payment Structure
             </h3>
             
             <div className="space-y-8">
@@ -503,37 +514,39 @@ export default function ProfessionalQuoteView() {
           </div>
         )}
 
-        {/* Decision Section */}
+        {/* Mobile-First Decision Section */}
         {!hasResponded && !isExpired && (
-          <div className="bg-gradient-to-br from-primary to-secondary rounded-2xl shadow-lg border border-primary/20 p-6 sm:p-10 mb-8">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Start Your Project?</h3>
-              <p className="text-primary-foreground/90 text-base sm:text-lg max-w-2xl mx-auto">
-                Let's bring your vision to life with Kolmo's expert craftsmanship and innovative approach to construction.
+          <div className="bg-gradient-to-br from-primary to-secondary rounded-xl sm:rounded-2xl shadow-lg border border-primary/20 p-4 sm:p-6 lg:p-8 mb-6">
+            <div className="text-center mb-6">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-3">Ready to Start Your Project?</h3>
+              <p className="text-primary-foreground/90 text-sm sm:text-base lg:text-lg px-2">
+                Let's bring your vision to life with Kolmo's expert craftsmanship.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
+            <div className="space-y-3 sm:space-y-0 sm:flex sm:gap-4">
               <Button 
                 onClick={() => handleResponse("accepted")}
-                className="flex-1 bg-accent hover:bg-accent/90 text-white py-4 sm:py-5 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-full sm:flex-1 bg-accent hover:bg-accent/90 text-white py-4 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                 size="lg"
               >
-                <CheckCircle className="w-6 h-6 mr-3" />
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                 Yes, Let's Begin
               </Button>
               <Button 
                 onClick={() => handleResponse("declined")}
                 variant="outline"
-                className="flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20 py-4 sm:py-5 text-lg font-semibold rounded-xl backdrop-blur-sm transition-all duration-200"
+                className="w-full sm:flex-1 bg-white/10 border-white/30 text-white hover:bg-white/20 py-4 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl backdrop-blur-sm transition-all duration-200"
                 size="lg"
               >
-                <XCircle className="w-6 h-6 mr-3" />
+                <XCircle className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                 Not Right Now
               </Button>
             </div>
             <div className="text-center mt-6">
-              <p className="text-primary-foreground/80 text-sm">
-                Questions? Contact us at <span className="font-semibold text-accent">(206) 410-5100</span> or <span className="font-semibold text-accent">projects@kolmo.io</span>
+              <p className="text-primary-foreground/80 text-xs sm:text-sm px-2">
+                Questions? Contact us at <br className="sm:hidden" />
+                <span className="font-semibold text-accent">(206) 410-5100</span> or <br className="sm:hidden" />
+                <span className="font-semibold text-accent">projects@kolmo.io</span>
               </p>
             </div>
           </div>
