@@ -26,7 +26,6 @@ import ragRouter from "./routes/rag-routes"; // RAG system router
 import { quoteRoutes } from "./routes/quote-routes"; // Quote management router
 import { publicQuoteRoutes } from "./routes/public-quote-routes"; // Public quote access router
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
-import { beforeAfterRoutes } from "./routes/before-after-routes"; // Before/after pairs management
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";
@@ -162,9 +161,6 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);
-  
-  // Mount Before/After Pairs management routes (authenticated)
-  app.use("/api", beforeAfterRoutes);
 
   // --- REMOVED: Old inline route definitions and local router variables ---
   // const taskRouter = Router(...) // REMOVED

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MultipleBeforeAfterSlider } from "./multiple-before-after-slider";
+import { BeforeAfterSlider } from "./before-after-slider";
 
 interface QuoteData {
   id: number;
@@ -65,14 +65,6 @@ interface QuoteData {
     imageUrl: string;
     caption?: string;
     imageType: string;
-  }>;
-  beforeAfterPairs?: Array<{
-    id: number;
-    title: string;
-    description?: string;
-    beforeImageUrl: string;
-    afterImageUrl: string;
-    sortOrder: number;
   }>;
 }
 
@@ -385,9 +377,22 @@ export default function ProfessionalQuoteView() {
           )}
         </div>
 
-        {/* Multiple Before/After Image Pairs */}
-        {quote.beforeAfterPairs && quote.beforeAfterPairs.length > 0 && (
-          <MultipleBeforeAfterSlider pairs={quote.beforeAfterPairs} />
+        {/* Before/After Images */}
+        {quote.showBeforeAfter && (quote.beforeImageUrl || quote.afterImageUrl) && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+            <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
+              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
+                <Camera className="w-4 h-4 text-teal-600" />
+              </div>
+              Project Transformation
+            </h3>
+            <BeforeAfterSlider
+              beforeImageUrl={quote.beforeImageUrl}
+              afterImageUrl={quote.afterImageUrl}
+              title={quote.beforeAfterTitle}
+              description={quote.beforeAfterDescription}
+            />
+          </div>
         )}
 
         {/* Additional Project Images */}
