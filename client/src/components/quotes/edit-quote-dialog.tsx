@@ -86,6 +86,13 @@ export default function EditQuoteDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Helper function to convert Date to string for form inputs
+  const formatDateForInput = (date: string | Date | undefined): string => {
+    if (!date) return "";
+    if (typeof date === "string") return date;
+    return date.toISOString().split('T')[0];
+  };
+
   const form = useForm<QuoteFormData>({
     resolver: zodResolver(quoteFormSchema),
     defaultValues: {
@@ -101,9 +108,9 @@ export default function EditQuoteDialog({
       subtotal: quote?.subtotal || "",
       taxAmount: quote?.taxAmount || "",
       totalAmount: quote?.totalAmount || "",
-      estimatedStartDate: quote?.estimatedStartDate || "",
-      estimatedCompletionDate: quote?.estimatedCompletionDate || "",
-      validUntil: quote?.validUntil || "",
+      estimatedStartDate: formatDateForInput(quote?.estimatedStartDate),
+      estimatedCompletionDate: formatDateForInput(quote?.estimatedCompletionDate),
+      validUntil: formatDateForInput(quote?.validUntil),
       showBeforeAfter: quote?.showBeforeAfter || false,
       beforeAfterTitle: quote?.beforeAfterTitle || "",
       beforeAfterDescription: quote?.beforeAfterDescription || "",
