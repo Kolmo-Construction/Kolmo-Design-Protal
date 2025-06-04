@@ -379,6 +379,18 @@ export const quoteImages = pgTable("quote_images", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Before/After image pairs table for multiple comparisons
+export const beforeAfterPairs = pgTable("before_after_pairs", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => customerQuotes.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(), // e.g., "Kitchen Cabinets", "Bathroom Tile", "Living Room Paint"
+  description: text("description"), // Optional description of what's being shown
+  beforeImageUrl: text("before_image_url").notNull(),
+  afterImageUrl: text("after_image_url").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0), // For ordering multiple pairs
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // --- RAG Relations ---
 export const projectVersionRelations = relations(projectVersions, ({ one, many }) => ({
   project: one(projects, { fields: [projectVersions.projectId], references: [projects.id] }),
@@ -730,6 +742,11 @@ export const insertQuoteImageSchema = createInsertSchema(quoteImages).omit({
   createdAt: true,
 });
 
+export const insertBeforeAfterPairSchema = createInsertSchema(beforeAfterPairs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // --- Export Types ---
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -807,6 +824,9 @@ export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
 
 export type InsertQuoteImage = z.infer<typeof insertQuoteImageSchema>;
 export type QuoteImage = typeof quoteImages.$inferSelect;
+
+export type InsertBeforeAfterPair = z.infer<typeof insertBeforeAfterPairSchema>;
+export type BeforeAfterPair = typeof beforeAfterPairs.$inferSelect;
 
 export type QuoteStatus = typeof customerQuotes.status.enumValues[number];
 
