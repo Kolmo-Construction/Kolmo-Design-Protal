@@ -11,10 +11,11 @@ import { apiRequest } from "@/lib/queryClient";
 interface ImageUploadProps {
   quoteId: number;
   imageType: 'project' | 'before' | 'after' | 'reference';
-  onImageUploaded: (imageUrl: string, imageKey: string) => void;
+  onImageUploaded: (imageUrl: string, imageKey?: string) => void;
   existingImage?: string;
   label?: string;
   className?: string;
+  pairId?: number;
 }
 
 export function ImageUpload({ 
@@ -23,7 +24,8 @@ export function ImageUpload({
   onImageUploaded, 
   existingImage, 
   label,
-  className = ""
+  className = "",
+  pairId
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);

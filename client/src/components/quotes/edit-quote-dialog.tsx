@@ -35,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { CustomerQuote } from "@shared/schema";
 import { ImageUpload } from "./image-upload";
-import BeforeAfterPairsManager from "./before-after-pairs-manager";
+import SimpleBeforeAfterManager from "./simple-before-after-manager";
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -673,7 +673,7 @@ export default function EditQuoteDialog({
                     />
 
                     {quote && (
-                      <BeforeAfterPairsManager 
+                      <SimpleBeforeAfterManager 
                         quoteId={quote.id}
                         onPairsChange={() => {
                           queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
