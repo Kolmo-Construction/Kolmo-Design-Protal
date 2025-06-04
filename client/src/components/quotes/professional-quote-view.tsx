@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
-import { CheckCircle, XCircle, Calendar, MapPin, Phone, Mail, FileText, Camera, DollarSign, Clock, Building, Palette, User, Home } from "lucide-react";
+import { CheckCircle, XCircle, Calendar, MapPin, Phone, Mail, FileText, Camera, DollarSign, Clock, Building, Palette, User, Home, Shield } from "lucide-react";
 import kolmoLogoPath from "@assets/kolmo-logo (1).png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -234,8 +234,8 @@ export default function ProfessionalQuoteView() {
           <div className="grid md:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
             <div>
               <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center font-montserrat">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                  <Home className="w-4 h-4 text-blue-600" />
+                <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
+                  <Building className="w-4 h-4 text-teal-600" />
                 </div>
                 Project Details
               </h3>
@@ -267,8 +267,8 @@ export default function ProfessionalQuoteView() {
             
             <div>
               <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center font-montserrat">
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                  <User className="w-4 h-4 text-green-600" />
+                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                  <User className="w-4 h-4 text-orange-600" />
                 </div>
                 Contact Information
               </h3>
@@ -370,10 +370,10 @@ export default function ProfessionalQuoteView() {
         {quote.showBeforeAfter && (quote.beforeImageUrl || quote.afterImageUrl) && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
             <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-                <Camera className="w-4 h-4 text-purple-600" />
+              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
+                <Camera className="w-4 h-4 text-teal-600" />
               </div>
-              Project Images
+              Project Transformation
             </h3>
             <BeforeAfterSlider
               beforeImageUrl={quote.beforeImageUrl}
@@ -388,10 +388,10 @@ export default function ProfessionalQuoteView() {
         {quote.images && quote.images.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
             <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
-              <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
-                <Camera className="w-4 h-4 text-indigo-600" />
+              <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center mr-3">
+                <Camera className="w-4 h-4 text-slate-600" />
               </div>
-              Exterior Transformation Preview
+              Additional Project Gallery
             </h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {quote.images.map((image) => (
@@ -416,8 +416,8 @@ export default function ProfessionalQuoteView() {
         {(quote.downPaymentPercentage || quote.acceptsCreditCards) && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
             <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
-              <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
-                <DollarSign className="w-4 h-4 text-yellow-600" />
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                <DollarSign className="w-4 h-4 text-orange-600" />
               </div>
               Payment Schedule
             </h3>
