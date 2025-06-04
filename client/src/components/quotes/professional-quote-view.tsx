@@ -165,6 +165,16 @@ export default function ProfessionalQuoteView() {
   const isExpired = new Date(quote.validUntil) < new Date();
   const hasResponded = quote.respondedAt;
 
+  // Debug logging
+  console.log("Quote debug:", {
+    validUntil: quote.validUntil,
+    currentDate: new Date(),
+    isExpired,
+    respondedAt: quote.respondedAt,
+    hasResponded,
+    shouldShowButtons: !hasResponded && !isExpired
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Professional Header */}
