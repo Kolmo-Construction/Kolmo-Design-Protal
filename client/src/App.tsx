@@ -19,6 +19,8 @@ import Settings from "@/pages/settings";
 import SetupProfile from "@/pages/setup-profile";
 import UserManagement from "@/pages/UserManagement";
 import DevTools from "@/pages/dev-tools";
+import CustomerQuotesPage from "@/pages/quotes/customer-quotes-page";
+import QuoteViewPage from "@/pages/quotes/quote-view-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 
@@ -48,6 +50,8 @@ function Router() {
       <ProtectedRoute path="/selections" component={Selections} />
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/user-management" component={UserManagement} />
+      <ProtectedRoute path="/quotes" component={CustomerQuotesPage} />
+      <Route path="/quote/:token" component={QuoteViewPage} />
       {/* Development-only routes */}
       {import.meta.env.DEV && (
         <Route path="/dev-tools">
