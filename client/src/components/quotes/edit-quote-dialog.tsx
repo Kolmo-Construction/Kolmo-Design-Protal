@@ -1,21 +1,31 @@
-import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { CustomerQuote } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
-const editQuoteSchema = z.object({
+const quoteFormSchema = z.object({
+  projectType: z.string().min(1, "Project type is required"),
   quoteNumber: z.string().min(1, "Quote number is required"),
   customerName: z.string().min(1, "Customer name is required"),
   customerEmail: z.string().email("Valid email is required"),
@@ -23,7 +33,6 @@ const editQuoteSchema = z.object({
   customerAddress: z.string().optional(),
   projectTitle: z.string().min(1, "Project title is required"),
   projectDescription: z.string().min(1, "Project description is required"),
-  projectType: z.string().min(1, "Project type is required"),
   projectLocation: z.string().optional(),
   subtotal: z.string().min(1, "Subtotal is required"),
   taxAmount: z.string().min(1, "Tax amount is required"),
@@ -35,224 +44,112 @@ const editQuoteSchema = z.object({
   milestonePaymentPercentage: z.string().optional(),
   finalPaymentPercentage: z.string().optional(),
   milestoneDescription: z.string().optional(),
+  acceptsCreditCards: z.boolean().default(false),
   creditCardProcessingFee: z.string().optional(),
-  acceptsCreditCards: z.boolean().default(true),
-  permitRequired: z.boolean().default(false),
-  permitDetails: z.string().optional(),
 });
 
-type EditQuoteForm = z.infer<typeof editQuoteSchema>;
+type QuoteFormData = z.infer<typeof quoteFormSchema>;
 
-interface LineItem {
-  id?: number;
-  category: string;
-  description: string;
-  quantity: string;
-  unit: string;
-  unitPrice: string;
-  totalPrice: string;
-}
-
-interface QuoteImage {
-  id?: number;
-  imageUrl: string;
-  caption?: string;
-  imageType: string;
+interface QuoteData {
+  id: number;
+  projectType: string;
+  quoteNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  projectTitle: string;
+  projectDescription: string;
+  projectLocation?: string;
+  subtotal: string;
+  taxAmount: string;
+  totalAmount: string;
+  estimatedStartDate?: string;
+  estimatedCompletionDate?: string;
+  validUntil: string;
+  downPaymentPercentage?: string;
+  milestonePaymentPercentage?: string;
+  finalPaymentPercentage?: string;
+  milestoneDescription?: string;
+  acceptsCreditCards?: boolean;
+  creditCardProcessingFee?: string;
 }
 
 interface EditQuoteDialogProps {
-  quote: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  quote: QuoteData | null;
+  onSuccess?: () => void;
 }
 
-export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogProps) {
-  const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [images, setImages] = useState<QuoteImage[]>([]);
-  const [newImages, setNewImages] = useState<File[]>([]);
+export default function EditQuoteDialog({ open, onOpenChange, quote, onSuccess }: EditQuoteDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const form = useForm<EditQuoteForm>({
-    resolver: zodResolver(editQuoteSchema),
+  const form = useForm<QuoteFormData>({
+    resolver: zodResolver(quoteFormSchema),
     defaultValues: {
-      acceptsCreditCards: true,
-      permitRequired: false,
+      projectType: quote?.projectType || "",
+      quoteNumber: quote?.quoteNumber || "",
+      customerName: quote?.customerName || "",
+      customerEmail: quote?.customerEmail || "",
+      customerPhone: quote?.customerPhone || "",
+      customerAddress: quote?.customerAddress || "",
+      projectTitle: quote?.projectTitle || "",
+      projectDescription: quote?.projectDescription || "",
+      projectLocation: quote?.projectLocation || "",
+      subtotal: quote?.subtotal || "",
+      taxAmount: quote?.taxAmount || "",
+      totalAmount: quote?.totalAmount || "",
+      estimatedStartDate: quote?.estimatedStartDate || "",
+      estimatedCompletionDate: quote?.estimatedCompletionDate || "",
+      validUntil: quote?.validUntil || "",
+      downPaymentPercentage: quote?.downPaymentPercentage || "",
+      milestonePaymentPercentage: quote?.milestonePaymentPercentage || "",
+      finalPaymentPercentage: quote?.finalPaymentPercentage || "",
+      milestoneDescription: quote?.milestoneDescription || "",
+      acceptsCreditCards: quote?.acceptsCreditCards || false,
+      creditCardProcessingFee: quote?.creditCardProcessingFee || "",
     },
   });
 
-  useEffect(() => {
-    if (quote) {
-      // Format dates for input fields
-      const formatDate = (dateString: string | null) => {
-        if (!dateString) return "";
-        return new Date(dateString).toISOString().split('T')[0];
-      };
-
-      form.reset({
-        quoteNumber: quote.quoteNumber || "",
-        customerName: quote.customerName || "",
-        customerEmail: quote.customerEmail || "",
-        customerPhone: quote.customerPhone || "",
-        customerAddress: quote.customerAddress || "",
-        projectTitle: quote.projectTitle || "",
-        projectDescription: quote.projectDescription || "",
-        projectType: quote.projectType || "",
-        projectLocation: quote.projectLocation || "",
-        subtotal: quote.subtotal?.toString() || "",
-        taxAmount: quote.taxAmount?.toString() || "",
-        totalAmount: quote.totalAmount?.toString() || "",
-        estimatedStartDate: formatDate(quote.estimatedStartDate),
-        estimatedCompletionDate: formatDate(quote.estimatedCompletionDate),
-        validUntil: formatDate(quote.validUntil),
-        downPaymentPercentage: quote.downPaymentPercentage?.toString() || "",
-        milestonePaymentPercentage: quote.milestonePaymentPercentage?.toString() || "",
-        finalPaymentPercentage: quote.finalPaymentPercentage?.toString() || "",
-        milestoneDescription: quote.milestoneDescription || "",
-        creditCardProcessingFee: quote.creditCardProcessingFee?.toString() || "",
-        acceptsCreditCards: quote.acceptsCreditCards ?? true,
-        permitRequired: quote.permitRequired ?? false,
-        permitDetails: quote.permitDetails || "",
-      });
-
-      setLineItems(quote.lineItems || []);
-      setImages(quote.images || []);
-    }
-  }, [quote, form]);
-
-  const updateMutation = useMutation({
-    mutationFn: async (data: EditQuoteForm) => {
-      // Update the quote
-      const updatedQuote = await apiRequest(`/api/quotes/${quote.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      // Handle line items - delete all existing and recreate
-      await apiRequest(`/api/quotes/${quote.id}/line-items`, {
-        method: "DELETE",
-      });
-
-      for (const item of lineItems) {
-        await apiRequest(`/api/quotes/${quote.id}/line-items`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(item),
-        });
-      }
-
-      // Upload new images
-      for (const image of newImages) {
-        const formData = new FormData();
-        formData.append('image', image);
-        
-        const uploadResponse = await fetch('/api/storage/upload/quote-image', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (uploadResponse.ok) {
-          const { imageUrl } = await uploadResponse.json();
-          await apiRequest(`/api/quotes/${quote.id}/images`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              imageUrl,
-              imageType: 'project',
-              caption: image.name,
-            }),
-          });
-        }
-      }
-
-      return updatedQuote;
-    },
+  const updateQuoteMutation = useMutation({
+    mutationFn: (data: QuoteFormData) => apiRequest(`/api/quotes/${quote?.id}`, {
+      method: "PUT",
+      body: data,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
-      toast({ title: "Quote updated successfully" });
+      toast({
+        title: "Success",
+        description: "Quote updated successfully",
+      });
       onOpenChange(false);
-      setNewImages([]);
+      onSuccess?.();
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Failed to update quote", 
-        description: error?.message || "Please try again",
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update quote",
+        variant: "destructive",
       });
     },
   });
 
-  const addLineItem = () => {
-    setLineItems([...lineItems, {
-      category: "",
-      description: "",
-      quantity: "1",
-      unit: "ea",
-      unitPrice: "0",
-      totalPrice: "0",
-    }]);
-  };
-
-  const updateLineItem = (index: number, field: keyof LineItem, value: string) => {
-    const updated = [...lineItems];
-    updated[index] = { ...updated[index], [field]: value };
-    
-    // Auto-calculate total price
-    if (field === 'quantity' || field === 'unitPrice') {
-      const quantity = parseFloat(field === 'quantity' ? value : updated[index].quantity) || 0;
-      const unitPrice = parseFloat(field === 'unitPrice' ? value : updated[index].unitPrice) || 0;
-      updated[index].totalPrice = (quantity * unitPrice).toFixed(2);
-    }
-    
-    setLineItems(updated);
-  };
-
-  const removeLineItem = (index: number) => {
-    setLineItems(lineItems.filter((_, i) => i !== index));
-  };
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setNewImages([...newImages, ...files]);
-  };
-
-  const removeNewImage = (index: number) => {
-    setNewImages(newImages.filter((_, i) => i !== index));
-  };
-
-  const removeExistingImage = async (imageId: number) => {
-    try {
-      await apiRequest(`/api/quotes/images/${imageId}`, {
-        method: "DELETE",
-      });
-      setImages(images.filter(img => img.id !== imageId));
-      toast({ title: "Image removed successfully" });
-    } catch (error) {
-      toast({ title: "Failed to remove image", variant: "destructive" });
-    }
-  };
-
-  const onSubmit = (data: EditQuoteForm) => {
-    updateMutation.mutate(data);
+  const onSubmit = (data: QuoteFormData) => {
+    updateQuoteMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Quote {quote?.quoteNumber}</DialogTitle>
+          <DialogTitle>Edit Quote #{quote?.quoteNumber}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="quoteNumber"
@@ -260,31 +157,44 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
                   <FormItem>
                     <FormLabel>Quote Number</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Q-2024-001" />
+                      <Input placeholder="Q-2024-001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
-                name="validUntil"
+                name="projectType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valid Until</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
+                    <FormLabel>Project Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="kitchen">Kitchen Renovation</SelectItem>
+                        <SelectItem value="bathroom">Bathroom Renovation</SelectItem>
+                        <SelectItem value="addition">Home Addition</SelectItem>
+                        <SelectItem value="exterior">Exterior Work</SelectItem>
+                        <SelectItem value="flooring">Flooring</SelectItem>
+                        <SelectItem value="roofing">Roofing</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            {/* Customer Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Customer Information</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <h3 className="text-lg font-semibold">Customer Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="customerName"
@@ -292,46 +202,49 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
                     <FormItem>
                       <FormLabel>Customer Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="John Smith" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="customerEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Customer Email</FormLabel>
                       <FormControl>
-                        <Input {...field} type="email" />
+                        <Input type="email" placeholder="john@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="customerPhone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone (Optional)</FormLabel>
+                      <FormLabel>Customer Phone</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="(555) 123-4567" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="customerAddress"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address (Optional)</FormLabel>
+                      <FormLabel>Customer Address</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="123 Main St, City, State 12345" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -340,10 +253,9 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
               </div>
             </div>
 
-            {/* Project Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Project Information</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <h3 className="text-lg font-semibold">Project Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="projectTitle"
@@ -351,37 +263,28 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
                     <FormItem>
                       <FormLabel>Project Title</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="Kitchen Renovation Project" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
-                  name="projectType"
+                  name="projectLocation"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project Type</FormLabel>
+                      <FormLabel>Project Location</FormLabel>
                       <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select project type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="residential">Residential</SelectItem>
-                            <SelectItem value="commercial">Commercial</SelectItem>
-                            <SelectItem value="renovation">Renovation</SelectItem>
-                            <SelectItem value="new-construction">New Construction</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Input placeholder="123 Main St, City, State" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+
               <FormField
                 control={form.control}
                 name="projectDescription"
@@ -389,7 +292,11 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
                   <FormItem>
                     <FormLabel>Project Description</FormLabel>
                     <FormControl>
-                      <Textarea {...field} rows={3} />
+                      <Textarea 
+                        placeholder="Detailed description of the project scope and work to be performed..." 
+                        rows={4}
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -397,141 +304,9 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
               />
             </div>
 
-            {/* Line Items */}
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Line Items</h3>
-                <Button type="button" onClick={addLineItem} variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Item
-                </Button>
-              </div>
-              
-              {lineItems.map((item, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-3">
-                    <Input
-                      placeholder="Category"
-                      value={item.category}
-                      onChange={(e) => updateLineItem(index, 'category', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-4">
-                    <Input
-                      placeholder="Description"
-                      value={item.description}
-                      onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Input
-                      placeholder="Qty"
-                      value={item.quantity}
-                      onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Input
-                      placeholder="Unit"
-                      value={item.unit}
-                      onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Input
-                      placeholder="Unit Price"
-                      value={item.unitPrice}
-                      onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeLineItem(index)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Existing Images */}
-            {images.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Current Images</h3>
-                <div className="grid grid-cols-4 gap-4">
-                  {images.map((image) => (
-                    <div key={image.id} className="relative">
-                      <img
-                        src={image.imageUrl}
-                        alt={image.caption || "Quote image"}
-                        className="w-full h-24 object-cover rounded"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-1 right-1"
-                        onClick={() => image.id && removeExistingImage(image.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* New Images */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Add New Images</h3>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="image-upload"
-                />
-                <label htmlFor="image-upload" className="cursor-pointer">
-                  <div className="text-center">
-                    <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600">Click to upload images</p>
-                  </div>
-                </label>
-              </div>
-              {newImages.length > 0 && (
-                <div className="grid grid-cols-4 gap-4">
-                  {newImages.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt="Preview"
-                        className="w-full h-24 object-cover rounded"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-1 right-1"
-                        onClick={() => removeNewImage(index)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Pricing */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Pricing</h3>
-              <div className="grid md:grid-cols-3 gap-4">
+              <h3 className="text-lg font-semibold">Pricing</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="subtotal"
@@ -539,12 +314,13 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
                     <FormItem>
                       <FormLabel>Subtotal</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.01" />
+                        <Input placeholder="15000.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="taxAmount"
@@ -552,12 +328,13 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
                     <FormItem>
                       <FormLabel>Tax Amount</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.01" />
+                        <Input placeholder="1200.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="totalAmount"
@@ -565,7 +342,7 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
                     <FormItem>
                       <FormLabel>Total Amount</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.01" />
+                        <Input placeholder="16200.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -574,12 +351,66 @@ export function EditQuoteDialog({ quote, open, onOpenChange }: EditQuoteDialogPr
               </div>
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Timeline & Terms</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="estimatedStartDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estimated Start Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="estimatedCompletionDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estimated Completion Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="validUntil"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valid Until</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Updating..." : "Update Quote"}
+              <Button
+                type="submit"
+                disabled={updateQuoteMutation.isPending}
+              >
+                {updateQuoteMutation.isPending ? "Updating..." : "Update Quote"}
               </Button>
             </div>
           </form>
