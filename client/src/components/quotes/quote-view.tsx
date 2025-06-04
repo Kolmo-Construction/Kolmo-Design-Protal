@@ -77,16 +77,28 @@ export default function QuoteView() {
 
   const { data: quote, isLoading, error } = useQuery({
     queryKey: [`/api/quotes/view/${token}`],
-    queryFn: () => apiRequest(`/api/quotes/view/${token}`),
+    queryFn: async () => {
+      const response = await fetch(`/api/quotes/view/${token}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch quote');
+      }
+      return response.json();
+    },
     enabled: !!token
   });
 
   const respondMutation = useMutation({
-    mutationFn: ({ response, notes }: { response: string; notes?: string }) =>
-      apiRequest(`/api/quotes/respond/${token}`, {
+    mutationFn: async ({ response, notes }: { response: string; notes?: string }) => {
+      const res = await fetch(`/api/quotes/respond/${token}`, {
         method: "POST",
-        body: { response, notes }
-      }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response, notes })
+      });
+      if (!res.ok) {
+        throw new Error('Failed to respond to quote');
+      }
+      return res.json();
+    },
     onSuccess: () => {
       toast({ title: "Response submitted successfully" });
       setShowResponseDialog(false);
