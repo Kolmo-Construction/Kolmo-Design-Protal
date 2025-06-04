@@ -35,6 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { CustomerQuote } from "@shared/schema";
 import { ImageUpload } from "./image-upload";
+import { BeforeAfterPairsManager } from "./before-after-pairs-manager";
 
 const quoteFormSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -85,6 +86,7 @@ export default function EditQuoteDialog({
 }: EditQuoteDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [beforeAfterPairs, setBeforeAfterPairs] = useState<any[]>([]);
 
   // Helper function to convert Date to string for form inputs
   const formatDateForInput = (date: string | Date | undefined): string => {
@@ -162,6 +164,11 @@ export default function EditQuoteDialog({
         acceptsCreditCards: quote.acceptsCreditCards || false,
         creditCardProcessingFee: quote.creditCardProcessingFee || "",
       });
+      
+      // Load existing before/after pairs
+      if (quote.beforeAfterPairs) {
+        setBeforeAfterPairs(quote.beforeAfterPairs);
+      }
     }
   }, [quote, open, form]);
 
