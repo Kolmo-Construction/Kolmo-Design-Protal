@@ -26,6 +26,7 @@ import ragRouter from "./routes/rag-routes"; // RAG system router
 import { quoteRoutes } from "./routes/quote-routes"; // Quote management router
 import { publicQuoteRoutes } from "./routes/public-quote-routes"; // Public quote access router
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
+import { beforeAfterRoutes } from "./routes/before-after-routes"; // Before/after pairs management
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";

@@ -2,13 +2,13 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { beforeAfterPairs } from "@shared/schema";
-import { authenticateToken } from "../auth";
+import { isAuthenticated } from "../middleware/auth.middleware";
 import { createBadRequestError, createNotFoundError } from "../errors";
 
 export const beforeAfterRoutes = Router();
 
 // Get all before/after pairs for a quote
-beforeAfterRoutes.get('/quotes/:quoteId/before-after-pairs', authenticateToken, async (req, res) => {
+beforeAfterRoutes.get('/quotes/:quoteId/before-after-pairs', isAuthenticated, async (req, res) => {
   try {
     const quoteId = parseInt(req.params.quoteId);
     if (isNaN(quoteId)) {
@@ -29,7 +29,7 @@ beforeAfterRoutes.get('/quotes/:quoteId/before-after-pairs', authenticateToken, 
 });
 
 // Create a new before/after pair
-beforeAfterRoutes.post('/quotes/:quoteId/before-after-pairs', authenticateToken, async (req, res) => {
+beforeAfterRoutes.post('/quotes/:quoteId/before-after-pairs', isAuthenticated, async (req, res) => {
   try {
     const quoteId = parseInt(req.params.quoteId);
     if (isNaN(quoteId)) {
@@ -62,7 +62,7 @@ beforeAfterRoutes.post('/quotes/:quoteId/before-after-pairs', authenticateToken,
 });
 
 // Update a before/after pair
-beforeAfterRoutes.put('/before-after-pairs/:id', authenticateToken, async (req, res) => {
+beforeAfterRoutes.put('/before-after-pairs/:id', isAuthenticated, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -95,7 +95,7 @@ beforeAfterRoutes.put('/before-after-pairs/:id', authenticateToken, async (req, 
 });
 
 // Delete a before/after pair
-beforeAfterRoutes.delete('/before-after-pairs/:id', authenticateToken, async (req, res) => {
+beforeAfterRoutes.delete('/before-after-pairs/:id', isAuthenticated, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -118,7 +118,7 @@ beforeAfterRoutes.delete('/before-after-pairs/:id', authenticateToken, async (re
 });
 
 // Bulk update sort order for before/after pairs
-beforeAfterRoutes.put('/quotes/:quoteId/before-after-pairs/reorder', authenticateToken, async (req, res) => {
+beforeAfterRoutes.put('/quotes/:quoteId/before-after-pairs/reorder', isAuthenticated, async (req, res) => {
   try {
     const quoteId = parseInt(req.params.quoteId);
     if (isNaN(quoteId)) {
