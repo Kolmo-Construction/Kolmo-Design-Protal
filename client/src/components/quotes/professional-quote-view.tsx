@@ -296,7 +296,7 @@ export default function ProfessionalQuoteView() {
 
         {/* Project Breakdown */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-          <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
+          <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center font-montserrat">
             <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
               <FileText className="w-4 h-4 text-emerald-600" />
             </div>
