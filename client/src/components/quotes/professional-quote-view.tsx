@@ -167,13 +167,13 @@ export default function ProfessionalQuoteView() {
   const hasResponded = quote.respondedAt;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Professional Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-slate-50">
+      {/* Kolmo Brand Header */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-6 py-8">
           <div className="flex justify-between items-start">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 flex items-center justify-center">
+            <div className="flex items-center space-x-6">
+              <div className="w-20 h-20 flex items-center justify-center">
                 <img 
                   src={kolmoLogoPath} 
                   alt="Kolmo Construction" 
@@ -181,48 +181,48 @@ export default function ProfessionalQuoteView() {
                 />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-slate-800 font-montserrat">Kolmo Construction</h1>
-                <p className="text-slate-600 text-lg">Licensed & Bonded General Contractor</p>
-                <p className="text-slate-500 text-sm mt-1">WA License #KOLMO*123BC</p>
+                <h1 className="text-4xl font-bold text-primary tracking-tight">Kolmo Construction</h1>
+                <p className="text-slate-600 text-lg font-medium mt-1">Licensed & Bonded General Contractor</p>
+                <p className="text-muted-foreground text-sm mt-1">WA License #KOLMO*123BC</p>
               </div>
             </div>
-            <div className="text-right space-y-1">
-              <p className="text-slate-600 font-medium">4018 NE 125th St</p>
-              <p className="text-slate-600 font-medium">Seattle, WA 98125</p>
-              <p className="text-slate-600 font-medium">(206) 410-5100</p>
-              <p className="text-orange-600 font-medium">projects@kolmo.io</p>
+            <div className="text-right space-y-2">
+              <p className="text-slate-700 font-medium">4018 NE 125th St</p>
+              <p className="text-slate-700 font-medium">Seattle, WA 98125</p>
+              <p className="text-slate-700 font-medium">(206) 410-5100</p>
+              <p className="text-accent font-semibold">projects@kolmo.io</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-10">
         {/* Quote Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-          <div className="flex justify-between items-start mb-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 mb-8">
+          <div className="flex justify-between items-start mb-10">
             <div>
-              <div className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium mb-4">
-                <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+              <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-semibold mb-6">
+                <span className="w-2 h-2 bg-accent rounded-full mr-3"></span>
                 QUOTE PROPOSAL
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-2 font-montserrat">{quote.projectTitle}</h2>
-              <p className="text-slate-600 text-lg">Quote #{quote.quoteNumber}</p>
-              <p className="text-slate-500 text-sm mt-1">Prepared for {quote.customerName}</p>
+              <h2 className="text-4xl font-bold text-primary mb-3">{quote.projectTitle}</h2>
+              <p className="text-slate-600 text-xl">Quote #{quote.quoteNumber}</p>
+              <p className="text-muted-foreground text-base mt-2">Prepared for {quote.customerName}</p>
             </div>
             <div className="text-right">
-              <div className="text-4xl font-bold text-orange-500 mb-2">
+              <div className="text-5xl font-bold text-accent mb-3">
                 {formatCurrency(quote.totalAmount)}
               </div>
-              <p className="text-slate-600 font-medium">Total Investment</p>
-              <div className="mt-4 text-sm text-slate-500">
-                <p>Valid until {formatDate(quote.validUntil)}</p>
+              <p className="text-slate-700 font-semibold text-lg">Total Investment</p>
+              <div className="mt-6 text-sm text-muted-foreground">
+                <p className="font-medium">Valid until {formatDate(quote.validUntil)}</p>
                 {isExpired && (
-                  <Badge variant="destructive" className="mt-2">
+                  <Badge variant="destructive" className="mt-3">
                     Quote Expired
                   </Badge>
                 )}
                 {hasResponded && (
-                  <Badge variant="secondary" className="mt-2">
+                  <Badge variant="secondary" className="mt-3">
                     Response Received
                   </Badge>
                 )}
@@ -231,62 +231,62 @@ export default function ProfessionalQuoteView() {
           </div>
 
           {/* Customer & Project Info Grid */}
-          <div className="grid md:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
+          <div className="grid md:grid-cols-2 gap-10 pt-10 border-t border-slate-100">
             <div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center font-montserrat">
-                <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
-                  <Building className="w-4 h-4 text-teal-600" />
+              <h3 className="text-xl font-semibold text-primary mb-6 flex items-center">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center mr-4">
+                  <Building className="w-5 h-5 text-primary" />
                 </div>
                 Project Details
               </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Project Type:</span>
-                  <span className="font-medium text-slate-800">{quote.projectType}</span>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground font-medium">Project Type:</span>
+                  <span className="font-semibold text-slate-800">{quote.projectType}</span>
                 </div>
                 {quote.projectLocation && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Location:</span>
-                    <span className="font-medium text-slate-800">{quote.projectLocation}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground font-medium">Location:</span>
+                    <span className="font-semibold text-slate-800">{quote.projectLocation}</span>
                   </div>
                 )}
                 {quote.estimatedStartDate && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Est. Start:</span>
-                    <span className="font-medium text-slate-800">{formatDate(quote.estimatedStartDate)}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground font-medium">Est. Start:</span>
+                    <span className="font-semibold text-slate-800">{formatDate(quote.estimatedStartDate)}</span>
                   </div>
                 )}
                 {quote.estimatedCompletionDate && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Est. Completion:</span>
-                    <span className="font-medium text-slate-800">{formatDate(quote.estimatedCompletionDate)}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground font-medium">Est. Completion:</span>
+                    <span className="font-semibold text-slate-800">{formatDate(quote.estimatedCompletionDate)}</span>
                   </div>
                 )}
               </div>
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center font-montserrat">
-                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
-                  <User className="w-4 h-4 text-orange-600" />
+              <h3 className="text-xl font-semibold text-primary mb-6 flex items-center">
+                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center mr-4">
+                  <User className="w-5 h-5 text-accent" />
                 </div>
                 Contact Information
               </h3>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <Mail className="w-4 h-4 text-slate-500" />
-                  <span className="text-slate-800">{quote.customerEmail}</span>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <Mail className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-slate-800 font-medium">{quote.customerEmail}</span>
                 </div>
                 {quote.customerPhone && (
-                  <div className="flex items-center space-x-3">
-                    <Phone className="w-4 h-4 text-slate-500" />
-                    <span className="text-slate-800">{quote.customerPhone}</span>
+                  <div className="flex items-center space-x-4">
+                    <Phone className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-slate-800 font-medium">{quote.customerPhone}</span>
                   </div>
                 )}
                 {quote.customerAddress && (
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="w-4 h-4 text-slate-500" />
-                    <span className="text-slate-800">{quote.customerAddress}</span>
+                  <div className="flex items-center space-x-4">
+                    <MapPin className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-slate-800 font-medium">{quote.customerAddress}</span>
                   </div>
                 )}
               </div>
@@ -295,9 +295,9 @@ export default function ProfessionalQuoteView() {
         </div>
 
         {/* Project Breakdown */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-          <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center font-montserrat">
-            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 mb-8">
+          <h3 className="text-2xl font-semibold text-primary mb-8 flex items-center">
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mr-4">
               <FileText className="w-4 h-4 text-emerald-600" />
             </div>
             Complete Exterior Paint Renovation
