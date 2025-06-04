@@ -7,6 +7,17 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+// Line item schema for validation
+const lineItemSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  description: z.string().min(1, "Description is required"),
+  quantity: z.string().transform(val => parseFloat(val) || 0),
+  unit: z.string().min(1, "Unit is required"),
+  unitPrice: z.string().transform(val => parseFloat(val) || 0),
+  discountPercentage: z.string().transform(val => parseFloat(val) || 0),
+  totalPrice: z.string().transform(val => parseFloat(val) || 0),
+});
+
 // Custom validation schema for quote creation that handles empty date strings
 const createQuoteSchema = z.object({
   projectType: z.string().min(1, "Project type is required"),
@@ -17,9 +28,13 @@ const createQuoteSchema = z.object({
   projectTitle: z.string().min(1, "Project title is required"),
   projectDescription: z.string().min(1, "Project description is required"),
   projectLocation: z.string().optional(),
-  subtotal: z.string().min(1, "Subtotal is required").transform(val => parseFloat(val) || 0),
-  taxAmount: z.string().min(1, "Tax amount is required").transform(val => parseFloat(val) || 0),
-  totalAmount: z.string().min(1, "Total amount is required").transform(val => parseFloat(val) || 0),
+  subtotal: z.string().transform(val => parseFloat(val) || 0),
+  discountPercentage: z.string().transform(val => parseFloat(val) || 0),
+  discountAmount: z.string().transform(val => parseFloat(val) || 0),
+  taxPercentage: z.string().transform(val => parseFloat(val) || 0),
+  taxableAmount: z.string().transform(val => parseFloat(val) || 0),
+  taxAmount: z.string().transform(val => parseFloat(val) || 0),
+  totalAmount: z.string().transform(val => parseFloat(val) || 0),
   estimatedStartDate: z.string().optional().transform(val => val === "" ? undefined : val),
   estimatedCompletionDate: z.string().optional().transform(val => val === "" ? undefined : val),
   validUntil: z.string().min(1, "Valid until date is required"),
@@ -37,6 +52,7 @@ const createQuoteSchema = z.object({
   milestoneDescription: z.string().optional(),
   acceptsCreditCards: z.boolean().default(false),
   creditCardProcessingFee: z.string().optional().transform(val => val === "" ? undefined : parseFloat(val)),
+  lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),
 });
 
 export const quoteRoutes = Router();
