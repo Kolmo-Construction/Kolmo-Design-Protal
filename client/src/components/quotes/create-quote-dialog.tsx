@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,10 @@ const quoteFormSchema = z.object({
   // Project details
   permitRequired: z.boolean().default(false),
   permitDetails: z.string().optional(),
+  // Before/After images
+  showBeforeAfter: z.boolean().default(false),
+  beforeAfterTitle: z.string().optional(),
+  beforeAfterDescription: z.string().optional(),
 });
 
 type QuoteFormData = z.infer<typeof quoteFormSchema>;
@@ -110,6 +114,9 @@ export default function CreateQuoteDialog({ open, onOpenChange, onSuccess }: Cre
       creditCardProcessingFee: "",
       permitRequired: false,
       permitDetails: "",
+      showBeforeAfter: false,
+      beforeAfterTitle: "",
+      beforeAfterDescription: "",
     },
   });
 
