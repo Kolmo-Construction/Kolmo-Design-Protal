@@ -407,16 +407,16 @@ export default function ProfessionalQuoteView() {
                   )}
                   {(pair.beforeImageUrl && pair.afterImageUrl) ? (
                     <BeforeAfterSlider
-                      beforeImageUrl={pair.beforeImageUrl}
-                      afterImageUrl={pair.afterImageUrl}
-                      title={pair.title}
-                      description={pair.description}
+                      beforeImageUrl={pair.beforeImageUrl || undefined}
+                      afterImageUrl={pair.afterImageUrl || undefined}
+                      title={pair.title || undefined}
+                      description={pair.description || undefined}
                     />
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {pair.beforeImageUrl && (
-                        <div className="space-y-3">
-                          <div className="aspect-video rounded-lg overflow-hidden border">
+                        <div className="space-y-2">
+                          <div className="aspect-[4/3] h-48 rounded-lg overflow-hidden border">
                             <img 
                               src={pair.beforeImageUrl} 
                               alt="Before"
@@ -435,8 +435,8 @@ export default function ProfessionalQuoteView() {
                         </div>
                       )}
                       {pair.afterImageUrl && (
-                        <div className="space-y-3">
-                          <div className="aspect-video rounded-lg overflow-hidden border">
+                        <div className="space-y-2">
+                          <div className="aspect-[4/3] h-48 rounded-lg overflow-hidden border">
                             <img 
                               src={pair.afterImageUrl} 
                               alt="After"

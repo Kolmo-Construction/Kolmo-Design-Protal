@@ -73,7 +73,8 @@ storageRoutes.get('/proxy/:key(*)', async (req, res, next) => {
       console.log('Storage proxy error: Empty key received');
       console.log('Full URL:', req.originalUrl);
       console.log('Params:', req.params);
-      throw createBadRequestError('Image key is required');
+      // Return a 204 No Content instead of error for empty keys to avoid console spam
+      return res.status(204).end();
     }
 
     // Decode the URL-encoded key
