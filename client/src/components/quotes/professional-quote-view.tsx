@@ -389,21 +389,76 @@ export default function ProfessionalQuoteView() {
           )}
         </div>
 
-        {/* Before/After Images */}
-        {quote.showBeforeAfter && (quote.beforeImageUrl || quote.afterImageUrl) && (
+        {/* Multiple Before/After Pairs */}
+        {beforeAfterPairs && beforeAfterPairs.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
             <h3 className="text-xl font-semibold text-slate-800 mb-6 flex items-center">
               <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
                 <Camera className="w-4 h-4 text-teal-600" />
               </div>
-              Project Transformation
+              Project Transformations
             </h3>
-            <BeforeAfterSlider
-              beforeImageUrl={quote.beforeImageUrl}
-              afterImageUrl={quote.afterImageUrl}
-              title={quote.beforeAfterTitle}
-              description={quote.beforeAfterDescription}
-            />
+            <div className="space-y-8">
+              {beforeAfterPairs.map((pair) => (
+                <div key={pair.id} className="border border-gray-200 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-slate-800 mb-2">{pair.title}</h4>
+                  {pair.description && (
+                    <p className="text-slate-600 mb-4">{pair.description}</p>
+                  )}
+                  {(pair.beforeImageUrl && pair.afterImageUrl) ? (
+                    <BeforeAfterSlider
+                      beforeImageUrl={pair.beforeImageUrl}
+                      afterImageUrl={pair.afterImageUrl}
+                      title={pair.title}
+                      description={pair.description}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {pair.beforeImageUrl && (
+                        <div className="space-y-3">
+                          <div className="aspect-video rounded-lg overflow-hidden border">
+                            <img 
+                              src={pair.beforeImageUrl} 
+                              alt="Before"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Failed to load before image:', pair.beforeImageUrl);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                          <div className="text-center">
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                              Before
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                      {pair.afterImageUrl && (
+                        <div className="space-y-3">
+                          <div className="aspect-video rounded-lg overflow-hidden border">
+                            <img 
+                              src={pair.afterImageUrl} 
+                              alt="After"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Failed to load after image:', pair.afterImageUrl);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                          <div className="text-center">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              After
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
