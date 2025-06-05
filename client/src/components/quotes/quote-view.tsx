@@ -330,17 +330,7 @@ export default function QuoteView() {
           </CardContent>
         </Card>
 
-        {/* Before/After Images */}
-        {quote.showBeforeAfter && (quote.beforeImageUrl || quote.afterImageUrl) && (
-          <div className="mb-6">
-            <BeforeAfterSlider
-              beforeImageUrl={quote.beforeImageUrl}
-              afterImageUrl={quote.afterImageUrl}
-              title={quote.beforeAfterTitle}
-              description={quote.beforeAfterDescription}
-            />
-          </div>
-        )}
+
 
         {/* Other Project Images */}
         {quote.images && quote.images.length > 0 && (

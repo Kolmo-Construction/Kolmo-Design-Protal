@@ -54,7 +54,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
       setIsAdding(false);
       setNewTitle("");
       setNewDescription("");
-      onPairsChange?.();
+      //onPairsChange?.();
       toast({ title: "Success", description: "Before/after pair created successfully." });
     },
     onError: () => {
@@ -75,7 +75,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes", quoteId, "before-after-pairs"] });
-      onPairsChange?.();
+      //onPairsChange?.();
       toast({ title: "Success", description: "Pair updated successfully." });
     },
   });
@@ -91,7 +91,7 @@ export default function SimpleBeforeAfterManager({ quoteId, onPairsChange }: Sim
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes", quoteId, "before-after-pairs"] });
-      onPairsChange?.();
+      //onPairsChange?.();
       toast({ title: "Success", description: "Pair deleted successfully." });
     },
   });

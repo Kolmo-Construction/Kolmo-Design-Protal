@@ -89,69 +89,7 @@ quoteRoutes.get("/:id", async (req, res) => {
   }
 });
 
-// Get quote by magic token (customer view)
-quoteRoutes.get("/view/:token", async (req, res) => {
-  try {
-    const { token } = req.params;
 
-    // Mark quote as viewed and get details
-    await quoteStorage.markQuoteAsViewed(token);
-    const quote = await quoteStorage.getQuoteWithDetailsByToken(token);
-    
-    if (!quote) {
-      return res.status(404).json({ error: "Quote not found or expired" });
-    }
-
-    res.json(quote);
-  } catch (error) {
-    console.error("Error fetching quote by token:", error);
-    res.status(500).json({ error: "Failed to fetch quote" });
-  }
-});
-
-// Customer response to quote (accept/decline)
-quoteRoutes.post("/respond/:token", async (req, res) => {
-  try {
-    const { token } = req.params;
-    const { response, notes } = req.body;
-
-    if (!response || !["accepted", "declined"].includes(response)) {
-      return res.status(400).json({ error: "Invalid response. Must be 'accepted' or 'declined'" });
-    }
-
-    const quote = await quoteStorage.getQuoteByToken(token);
-    if (!quote) {
-      return res.status(404).json({ error: "Quote not found or expired" });
-    }
-
-    // Check if quote is still valid
-    if (new Date(quote.validUntil) < new Date()) {
-      return res.status(400).json({ error: "Quote has expired" });
-    }
-
-    // Check if already responded
-    if (quote.respondedAt) {
-      return res.status(400).json({ error: "Quote has already been responded to" });
-    }
-
-    // Update quote with customer response
-    const updatedQuote = await quoteStorage.updateQuote(quote.id, {
-      customerResponse: response,
-      customerNotes: notes || null,
-      respondedAt: new Date(),
-      status: response === "accepted" ? "accepted" : "declined"
-    });
-
-    res.json({ 
-      success: true, 
-      message: `Quote ${response} successfully`,
-      quote: updatedQuote 
-    });
-  } catch (error) {
-    console.error("Error responding to quote:", error);
-    res.status(500).json({ error: "Failed to respond to quote" });
-  }
-});
 
 // Create new quote
 quoteRoutes.post("/", async (req, res) => {
@@ -213,27 +151,7 @@ quoteRoutes.delete("/:id", async (req, res) => {
   }
 });
 
-// Customer response to quote
-quoteRoutes.post("/respond/:token", async (req, res) => {
-  try {
-    const { token } = req.params;
-    const { response, notes } = req.body;
 
-    if (!response || !['accepted', 'declined'].includes(response)) {
-      return res.status(400).json({ error: "Response must be 'accepted' or 'declined'" });
-    }
-
-    const quote = await quoteStorage.respondToQuote(token, response, notes);
-    if (!quote) {
-      return res.status(404).json({ error: "Quote not found or expired" });
-    }
-
-    res.json(quote);
-  } catch (error) {
-    console.error("Error responding to quote:", error);
-    res.status(500).json({ error: "Failed to respond to quote" });
-  }
-});
 
 // Line Items Routes
 
