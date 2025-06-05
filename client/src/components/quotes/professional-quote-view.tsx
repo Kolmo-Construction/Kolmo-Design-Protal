@@ -413,10 +413,10 @@ export default function ProfessionalQuoteView() {
                       description={pair.description || undefined}
                     />
                   ) : (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex gap-2">
                       {pair.beforeImageUrl && (
-                        <div className="space-y-1">
-                          <div className="aspect-[3/2] h-32 rounded-md overflow-hidden border">
+                        <div className="flex-1 space-y-1">
+                          <div className="aspect-[4/3] h-20 rounded overflow-hidden border">
                             <img 
                               src={pair.beforeImageUrl} 
                               alt="Before"
@@ -428,15 +428,15 @@ export default function ProfessionalQuoteView() {
                             />
                           </div>
                           <div className="text-center">
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-1 py-0">
                               Before
                             </Badge>
                           </div>
                         </div>
                       )}
                       {pair.afterImageUrl && (
-                        <div className="space-y-1">
-                          <div className="aspect-[3/2] h-32 rounded-md overflow-hidden border">
+                        <div className="flex-1 space-y-1">
+                          <div className="aspect-[4/3] h-20 rounded overflow-hidden border">
                             <img 
                               src={pair.afterImageUrl} 
                               alt="After"
@@ -448,7 +448,7 @@ export default function ProfessionalQuoteView() {
                             />
                           </div>
                           <div className="text-center">
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs px-1 py-0">
                               After
                             </Badge>
                           </div>
