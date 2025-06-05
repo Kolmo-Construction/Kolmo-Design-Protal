@@ -118,6 +118,19 @@ export class QuoteStorage {
       processedData.estimatedCompletionDate = new Date(processedData.estimatedCompletionDate);
     }
 
+    // Handle numeric fields - remove empty strings and undefined values to prevent database errors
+    const numericFields = [
+      'subtotal', 'discountPercentage', 'discountAmount', 'taxPercentage', 
+      'taxableAmount', 'taxAmount', 'totalAmount', 'downPaymentPercentage', 
+      'milestonePaymentPercentage', 'finalPaymentPercentage', 'creditCardProcessingFee'
+    ] as const;
+    
+    numericFields.forEach(field => {
+      if (processedData[field] === '' || processedData[field] === undefined || processedData[field] === null) {
+        delete processedData[field];
+      }
+    });
+
     const [quote] = await db
       .update(customerQuotes)
       .set({ ...processedData, updatedAt: new Date() })
