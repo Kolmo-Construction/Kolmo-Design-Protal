@@ -53,9 +53,7 @@ const quoteFormSchema = z.object({
   estimatedStartDate: z.string().optional(),
   estimatedCompletionDate: z.string().optional(),
   validUntil: z.string().min(1, "Valid until date is required"),
-  showBeforeAfter: z.boolean().default(false),
-  beforeAfterTitle: z.string().optional(),
-  beforeAfterDescription: z.string().optional(),
+
   showColorVerification: z.boolean().default(false),
   colorVerificationTitle: z.string().optional(),
   colorVerificationDescription: z.string().optional(),
@@ -90,7 +88,13 @@ export default function EditQuoteDialog({
   // Helper function to convert Date to string for form inputs
   const formatDateForInput = (date: string | Date | undefined): string => {
     if (!date) return "";
-    if (typeof date === "string") return date;
+    if (typeof date === "string") {
+      // If it's already an ISO string, extract just the date part
+      if (date.includes('T')) {
+        return date.split('T')[0];
+      }
+      return date;
+    }
     return date.toISOString().split('T')[0];
   };
 
@@ -112,9 +116,7 @@ export default function EditQuoteDialog({
       estimatedStartDate: "",
       estimatedCompletionDate: "",
       validUntil: "",
-      showBeforeAfter: false,
-      beforeAfterTitle: "",
-      beforeAfterDescription: "",
+
       showColorVerification: false,
       colorVerificationTitle: "",
       colorVerificationDescription: "",
@@ -148,9 +150,7 @@ export default function EditQuoteDialog({
         estimatedStartDate: formatDateForInput(quote.estimatedStartDate),
         estimatedCompletionDate: formatDateForInput(quote.estimatedCompletionDate),
         validUntil: formatDateForInput(quote.validUntil),
-        showBeforeAfter: quote.showBeforeAfter || false,
-        beforeAfterTitle: quote.beforeAfterTitle || "",
-        beforeAfterDescription: quote.beforeAfterDescription || "",
+
         showColorVerification: quote.showColorVerification || false,
         colorVerificationTitle: quote.colorVerificationTitle || "",
         colorVerificationDescription: quote.colorVerificationDescription || "",
