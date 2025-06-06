@@ -12,8 +12,6 @@ export const projectStatusEnum = pgEnum('project_status', ['draft', 'finalized',
 // Define feedback types enum
 export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'reject']);
 
-
-
 // Define RAG Tables
 
 // Project versions table for immutable versioning of task bundles
@@ -302,10 +300,6 @@ export const punchListItems = pgTable("punch_list_items", {
   resolvedAt: timestamp("resolved_at"),
 });
 
-
-
-
-
 // --- RAG Relations ---
 export const projectVersionRelations = relations(projectVersions, ({ one, many }) => ({
   project: one(projects, { fields: [projectVersions.projectId], references: [projects.id] }),
@@ -446,9 +440,6 @@ export const punchListItemRelations = relations(punchListItems, ({ one, many }) 
   creator: one(users, { fields: [punchListItems.createdById], references: [users.id] }),
   media: many(updateMedia),
 }));
-
-
-
 
 
 // --- Insert Schemas (with Zod validations) ---
@@ -621,8 +612,6 @@ export const insertTaskChunkSchema = createInsertSchema(taskChunks).omit({
   createdAt: true,
 });
 
-
-
 // --- Export Types ---
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -690,8 +679,6 @@ export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
-
-
 
 // These types are already defined above
 
