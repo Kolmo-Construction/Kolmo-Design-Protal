@@ -242,7 +242,7 @@ export const uploadQuoteMedia = async (req: Request, res: Response, next: NextFu
       buffer: req.file.buffer,
       fileName: req.file.originalname,
       mimetype: req.file.mimetype,
-      folder: 'quotes',
+      path: 'quotes/',
     });
 
     // Save media record
