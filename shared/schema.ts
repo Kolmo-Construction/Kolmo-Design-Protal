@@ -806,7 +806,54 @@ export type DailyLogPhoto = typeof dailyLogPhotos.$inferSelect;
 export type InsertPunchListItem = z.infer<typeof insertPunchListItemSchema>;
 export type PunchListItem = typeof punchListItems.$inferSelect;
 
+// --- Quote Insert Schemas ---
+export const insertQuoteSchema = createInsertSchema(quotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  accessToken: true, // Generated automatically
+}).extend({
+  validUntil: z.union([z.string().datetime(), z.date()]),
+  estimatedStartDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+  estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
+  subtotal: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+  taxRate: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+  taxAmount: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+  total: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+});
 
+export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  quantity: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+  unitPrice: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+  totalPrice: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+});
+
+export const insertQuoteMediaSchema = createInsertSchema(quoteMedia).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertQuoteResponseSchema = createInsertSchema(quoteResponses).omit({
+  id: true,
+  createdAt: true,
+});
+
+// --- Quote Types ---
+export type InsertQuote = z.infer<typeof insertQuoteSchema>;
+export type Quote = typeof quotes.$inferSelect;
+
+export type InsertQuoteLineItem = z.infer<typeof insertQuoteLineItemSchema>;
+export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
+
+export type InsertQuoteMedia = z.infer<typeof insertQuoteMediaSchema>;
+export type QuoteMedia = typeof quoteMedia.$inferSelect;
+
+export type InsertQuoteResponse = z.infer<typeof insertQuoteResponseSchema>;
+export type QuoteResponse = typeof quoteResponses.$inferSelect;
 
 // These types are already defined above
 
@@ -827,4 +874,16 @@ export type ProjectWithDetails = Project & {
 };
 export type DocumentWithUploader = Document & {
     uploader?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+};
+
+// --- Quote Combined Types ---
+export type QuoteWithDetails = Quote & {
+    creator?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+    lineItems?: QuoteLineItem[];
+    media?: QuoteMedia[];
+    responses?: QuoteResponse[];
+};
+
+export type QuoteLineItemWithDetails = QuoteLineItem & {
+    quote?: Pick<Quote, 'id' | 'quoteNumber' | 'title'> | null;
 };
