@@ -34,10 +34,17 @@ export class QuoteRepository {
 
   // Create a new quote
   async createQuote(data: InsertQuote): Promise<Quote> {
-    const quoteData = {
+    const quoteData: any = {
       ...data,
       quoteNumber: this.generateQuoteNumber(),
       accessToken: this.generateAccessToken(),
+      validUntil: typeof data.validUntil === 'string' ? new Date(data.validUntil) : data.validUntil,
+      estimatedStartDate: data.estimatedStartDate ? (typeof data.estimatedStartDate === 'string' ? new Date(data.estimatedStartDate) : data.estimatedStartDate) : null,
+      estimatedCompletionDate: data.estimatedCompletionDate ? (typeof data.estimatedCompletionDate === 'string' ? new Date(data.estimatedCompletionDate) : data.estimatedCompletionDate) : null,
+      subtotal: data.subtotal?.toString() || '0',
+      taxRate: data.taxRate?.toString() || '0.1060',
+      taxAmount: data.taxAmount?.toString() || '0',
+      total: data.total?.toString() || '0',
     };
 
     const [quote] = await db
@@ -138,12 +145,22 @@ export class QuoteRepository {
 
   // Update quote
   async updateQuote(id: number, data: Partial<InsertQuote>): Promise<Quote> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    
+    // Handle date conversions
+    if (updateData.validUntil && typeof updateData.validUntil === 'string') {
+      updateData.validUntil = new Date(updateData.validUntil);
+    }
+    if (updateData.estimatedStartDate && typeof updateData.estimatedStartDate === 'string') {
+      updateData.estimatedStartDate = new Date(updateData.estimatedStartDate);
+    }
+    if (updateData.estimatedCompletionDate && typeof updateData.estimatedCompletionDate === 'string') {
+      updateData.estimatedCompletionDate = new Date(updateData.estimatedCompletionDate);
+    }
+
     const [updated] = await db
       .update(quotes)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(quotes.id, id))
       .returning();
 
@@ -194,9 +211,16 @@ export class QuoteRepository {
   }
 
   async createQuoteLineItem(data: InsertQuoteLineItem): Promise<QuoteLineItem> {
+    const lineItemData = {
+      ...data,
+      quantity: data.quantity.toString(),
+      unitPrice: data.unitPrice.toString(),
+      totalPrice: data.totalPrice.toString(),
+    };
+
     const [lineItem] = await db
       .insert(quoteLineItems)
-      .values(data)
+      .values(lineItemData)
       .returning();
 
     // Recalculate quote totals
@@ -206,12 +230,19 @@ export class QuoteRepository {
   }
 
   async updateQuoteLineItem(id: number, data: Partial<InsertQuoteLineItem>): Promise<QuoteLineItem> {
+    const updateData: any = {
+      ...data,
+      updatedAt: new Date(),
+    };
+
+    // Convert numeric values to strings for database
+    if (updateData.quantity !== undefined) updateData.quantity = updateData.quantity.toString();
+    if (updateData.unitPrice !== undefined) updateData.unitPrice = updateData.unitPrice.toString();
+    if (updateData.totalPrice !== undefined) updateData.totalPrice = updateData.totalPrice.toString();
+
     const [updated] = await db
       .update(quoteLineItems)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(quoteLineItems.id, id))
       .returning();
 
@@ -251,7 +282,7 @@ export class QuoteRepository {
 
     if (!quote) return;
 
-    const taxAmount = subtotal * parseFloat(quote.taxRate.toString());
+    const taxAmount = subtotal * parseFloat((quote.taxRate || '0.1060').toString());
     const total = subtotal + taxAmount;
 
     await db
