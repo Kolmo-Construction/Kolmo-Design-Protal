@@ -1,8 +1,10 @@
 import { useState } from "react";
+import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +26,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 
 const updateFinancialsSchema = z.object({
@@ -59,17 +60,33 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
     },
   });
 
+  // Reset form and state when dialog opens or quote changes
+  React.useEffect(() => {
+    if (open) {
+      setIsManualTax(quote.isManualTax || false);
+      form.reset({
+        discountPercentage: quote.discountPercentage?.toString() || "0",
+        discountAmount: quote.discountAmount?.toString() || "0",
+        taxRate: quote.taxRate?.toString() || "10.60",
+        taxAmount: quote.taxAmount?.toString() || "0",
+        isManualTax: quote.isManualTax || false,
+      });
+    }
+  }, [open, quote, form]);
+
   const updateFinancialsMutation = useMutation({
     mutationFn: async (data: UpdateFinancialsForm) => {
       return await apiRequest("PATCH", `/api/quotes/${quote.id}/financials`, data);
     },
-    onSuccess: () => {
+    onSuccess: (updatedQuote) => {
       toast({
         title: "Quote Updated",
         description: "Quote financials have been updated successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       queryClient.invalidateQueries({ queryKey: [`/api/quotes/${quote.id}`] });
+      // Update the local quote object to reflect changes immediately
+      queryClient.setQueryData([`/api/quotes/${quote.id}`], updatedQuote);
       onOpenChange(false);
     },
     onError: () => {
@@ -86,6 +103,35 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
       ...data,
       isManualTax,
     });
+  };
+
+  // Handle manual tax toggle change
+  const handleManualTaxToggle = async (checked: boolean) => {
+    setIsManualTax(checked);
+    
+    // Create a separate mutation for real-time updates that doesn't close the dialog
+    try {
+      const updatedQuote = await apiRequest("PATCH", `/api/quotes/${quote.id}/financials`, {
+        ...form.getValues(),
+        isManualTax: checked,
+      });
+      
+      // Update the cache immediately
+      queryClient.setQueryData([`/api/quotes/${quote.id}`], updatedQuote);
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      
+      // Show updated totals without closing dialog
+      toast({
+        title: "Tax Mode Updated",
+        description: "Tax calculations have been refreshed",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update tax settings",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatCurrency = (amount: string | number) => {
@@ -199,7 +245,7 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
                     <Switch
                       id="manual-tax"
                       checked={isManualTax}
-                      onCheckedChange={setIsManualTax}
+                      onCheckedChange={handleManualTaxToggle}
                     />
                     <Label htmlFor="manual-tax" className="text-sm">Manual Tax Entry</Label>
                   </div>
