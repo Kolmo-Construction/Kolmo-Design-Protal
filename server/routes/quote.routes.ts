@@ -12,6 +12,7 @@ router.get("/:id", isAuthenticated, quoteController.getQuoteById.bind(quoteContr
 router.patch("/:id", isAuthenticated, quoteController.updateQuote.bind(quoteController));
 router.delete("/:id", isAuthenticated, quoteController.deleteQuote.bind(quoteController));
 router.post("/:id/send", isAuthenticated, quoteController.sendQuote.bind(quoteController));
+router.patch("/:id/financials", isAuthenticated, quoteController.updateQuoteFinancials.bind(quoteController));
 
 // Line item routes
 router.get("/:id/line-items", isAuthenticated, quoteController.getQuoteLineItems.bind(quoteController));

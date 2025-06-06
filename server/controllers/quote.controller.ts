@@ -318,4 +318,35 @@ export class QuoteController {
       res.status(500).json({ error: "Failed to create response" });
     }
   }
+
+  async updateQuoteFinancials(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const validatedData = z.object({
+        discountPercentage: z.string().optional(),
+        discountAmount: z.string().optional(),
+        taxRate: z.string().optional(),
+        taxAmount: z.string().optional(),
+        isManualTax: z.boolean().optional(),
+      }).parse(req.body);
+
+      const updatedQuote = await this.quoteRepository.updateQuoteFinancials(quoteId, validatedData);
+      
+      if (!updatedQuote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      res.json(updatedQuote);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error updating quote financials:", error);
+      res.status(500).json({ error: "Failed to update quote financials" });
+    }
+  }
 }

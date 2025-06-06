@@ -337,6 +337,51 @@ export class QuoteRepository {
     }
   }
 
+  async updateQuoteFinancials(quoteId: number, data: {
+    discountPercentage?: string;
+    discountAmount?: string;
+    taxRate?: string;
+    taxAmount?: string;
+    isManualTax?: boolean;
+  }) {
+    try {
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+
+      if (data.discountPercentage !== undefined) {
+        updateData.discountPercentage = data.discountPercentage;
+      }
+      if (data.discountAmount !== undefined) {
+        updateData.discountAmount = data.discountAmount;
+      }
+      if (data.taxRate !== undefined) {
+        updateData.taxRate = data.taxRate;
+      }
+      if (data.taxAmount !== undefined) {
+        updateData.taxAmount = data.taxAmount;
+      }
+      if (data.isManualTax !== undefined) {
+        updateData.isManualTax = data.isManualTax;
+      }
+
+      const [updatedQuote] = await db
+        .update(quotes)
+        .set(updateData)
+        .where(eq(quotes.id, quoteId))
+        .returning();
+
+      if (updatedQuote) {
+        await this.recalculateQuoteTotals(quoteId);
+      }
+
+      return updatedQuote;
+    } catch (error) {
+      console.error("Error updating quote financials:", error);
+      throw error;
+    }
+  }
+
   private async recalculateQuoteTotals(quoteId: number) {
     try {
       const lineItems = await db
@@ -354,14 +399,38 @@ export class QuoteRepository {
         .where(eq(quotes.id, quoteId));
 
       if (quote) {
-        const taxRate = parseFloat(quote.taxRate || "0.1060");
-        const taxAmount = subtotal * taxRate;
-        const total = subtotal + taxAmount;
+        // Calculate quote-level discount
+        const discountPercentage = parseFloat(quote.discountPercentage || "0");
+        const discountAmount = parseFloat(quote.discountAmount || "0");
+        
+        let totalDiscount = 0;
+        if (discountPercentage > 0) {
+          totalDiscount = (subtotal * discountPercentage) / 100;
+        } else if (discountAmount > 0) {
+          totalDiscount = discountAmount;
+        }
+        
+        const discountedSubtotal = subtotal - totalDiscount;
+
+        // Calculate tax
+        let taxAmount = 0;
+        if (quote.isManualTax) {
+          // Use manually entered tax amount
+          taxAmount = parseFloat(quote.taxAmount || "0");
+        } else {
+          // Calculate tax based on rate
+          const taxRate = parseFloat(quote.taxRate || "0.1060");
+          taxAmount = discountedSubtotal * taxRate;
+        }
+
+        const total = discountedSubtotal + taxAmount;
 
         await db
           .update(quotes)
           .set({
             subtotal: subtotal.toString(),
+            discountAmount: totalDiscount.toString(),
+            discountedSubtotal: discountedSubtotal.toString(),
             taxAmount: taxAmount.toString(),
             total: total.toString(),
             updatedAt: new Date(),
