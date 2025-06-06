@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Upload, Download, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Upload, Download, Eye, Mail, Copy, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +20,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
@@ -35,6 +37,9 @@ interface QuoteDetailsDialogProps {
 export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDialogProps) {
   const [showCreateLineItem, setShowCreateLineItem] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<QuoteLineItem | null>(null);
+  const [showSendQuote, setShowSendQuote] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -64,6 +69,41 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
       });
     },
   });
+
+  const sendQuoteMutation = useMutation({
+    mutationFn: async (emailData: { customerEmail: string; customerName: string }) => {
+      return await apiRequest(`/api/quotes/${quote.id}/send`, "POST", emailData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Quote Sent",
+        description: "Quote has been sent to customer successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      setShowSendQuote(false);
+      setCustomerEmail("");
+      setCustomerName("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send quote",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendQuote = () => {
+    if (!customerEmail || !customerName) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both customer name and email",
+        variant: "destructive",
+      });
+      return;
+    }
+    sendQuoteMutation.mutate({ customerEmail, customerName });
+  };
 
   const formatCurrency = (amount: string | number) => {
     return new Intl.NumberFormat('en-US', {
