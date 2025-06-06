@@ -302,6 +302,119 @@ export const punchListItems = pgTable("punch_list_items", {
   resolvedAt: timestamp("resolved_at"),
 });
 
+// --- Quotes System Tables ---
+
+// Quotes table
+export const quotes = pgTable("quotes", {
+  id: serial("id").primaryKey(),
+  quoteNumber: text("quote_number").notNull().unique(), // QUO-1749156350551
+  title: text("title").notNull(),
+  description: text("description"),
+  
+  // Customer information
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull(),
+  customerPhone: text("customer_phone"),
+  customerAddress: text("customer_address"),
+  
+  // Quote details
+  projectType: text("project_type").notNull(), // e.g., "Landscape Design"
+  location: text("location"), // e.g., "Outside backyard"
+  
+  // Financial
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull().default('0'),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 4 }).default('0.1060'), // 10.60%
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull().default('0'),
+  
+  // Payment schedule
+  downPaymentPercentage: integer("down_payment_percentage").default(40),
+  milestonePaymentPercentage: integer("milestone_payment_percentage").default(40),
+  finalPaymentPercentage: integer("final_payment_percentage").default(20),
+  milestoneDescription: text("milestone_description"),
+  
+  // Dates
+  estimatedStartDate: timestamp("estimated_start_date"),
+  estimatedCompletionDate: timestamp("estimated_completion_date"),
+  validUntil: timestamp("valid_until").notNull(),
+  
+  // Status and workflow
+  status: text("status").notNull().default("draft"), // draft, sent, pending, accepted, declined, expired
+  
+  // Before/after images
+  beforeImageUrl: text("before_image_url"),
+  afterImageUrl: text("after_image_url"),
+  beforeImageCaption: text("before_image_caption").default("Before"),
+  afterImageCaption: text("after_image_caption").default("After"),
+  
+  // Magic link for customer access
+  accessToken: text("access_token").notNull().unique(),
+  
+  // Notes and scope
+  projectNotes: text("project_notes"),
+  scopeDescription: text("scope_description"),
+  
+  // Tracking
+  createdById: integer("created_by_id").notNull().references(() => users.id),
+  sentAt: timestamp("sent_at"),
+  viewedAt: timestamp("viewed_at"),
+  respondedAt: timestamp("responded_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Quote line items table
+export const quoteLineItems = pgTable("quote_line_items", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  
+  // Item details
+  category: text("category").notNull(), // "Labor", "Materials", "Equipment"
+  description: text("description").notNull(),
+  
+  // Pricing
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default('1'),
+  unit: text("unit").default("each"), // each, sq ft, linear ft, hours
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  
+  // Display order
+  sortOrder: integer("sort_order").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Quote media table for additional images
+export const quoteMedia = pgTable("quote_media", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  
+  mediaUrl: text("media_url").notNull(),
+  mediaType: text("media_type").notNull().default("image"), // image, video
+  caption: text("caption"),
+  category: text("category"), // "before", "after", "reference", "scope"
+  sortOrder: integer("sort_order").default(0),
+  
+  uploadedById: integer("uploaded_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Quote responses/actions table
+export const quoteResponses = pgTable("quote_responses", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  
+  action: text("action").notNull(), // "accepted", "declined", "requested_changes"
+  customerName: text("customer_name"),
+  customerEmail: text("customer_email"),
+  message: text("message"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 
 
 
@@ -369,6 +482,8 @@ export const userRelations = relations(users, ({ many }) => ({
   createdProgressUpdates: many(progressUpdates),
   uploadedUpdateMedia: many(updateMedia),
   taskFeedback: many(taskFeedback),
+  createdQuotes: many(quotes),
+  uploadedQuoteMedia: many(quoteMedia),
 }));
 
 export const clientProjectRelations = relations(clientProjects, ({ one }) => ({
