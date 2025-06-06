@@ -17,6 +17,12 @@ const createLineItemSchema = createInsertSchema(quoteLineItems).omit({
   quoteId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  quantity: z.union([z.number(), z.string().transform(val => parseFloat(val))]).default(1),
+  unitPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
+  totalPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
+  discountPercentage: z.union([z.number(), z.string().transform(val => parseFloat(val))]).default(0).optional(),
+  discountAmount: z.union([z.string(), z.number().transform(val => val.toString())]).default('0').optional(),
 });
 
 const createResponseSchema = createInsertSchema(quoteResponses).omit({
