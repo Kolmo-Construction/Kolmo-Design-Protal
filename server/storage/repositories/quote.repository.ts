@@ -432,9 +432,19 @@ export class QuoteRepository {
           // Use manually entered tax amount
           taxAmount = parseFloat(quote.taxAmount || "0");
         } else {
-          // Calculate tax based on rate (stored as percentage, e.g., 10.60 for 10.60%)
-          const taxRatePercent = parseFloat(quote.taxRate || "10.60");
-          const taxRate = taxRatePercent / 100; // Convert percentage to decimal
+          // Calculate tax based on rate
+          const taxRateValue = parseFloat(quote.taxRate || "10.60");
+          let taxRate;
+          
+          // Handle both old decimal format (0.1060) and new percentage format (10.60)
+          if (taxRateValue <= 1) {
+            // Old decimal format - use as is
+            taxRate = taxRateValue;
+          } else {
+            // New percentage format - convert to decimal
+            taxRate = taxRateValue / 100;
+          }
+          
           taxAmount = discountedSubtotal * taxRate;
         }
 
