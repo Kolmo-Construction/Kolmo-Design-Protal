@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Upload, Download, Eye, Mail, Copy, ExternalLink } from "lucide-react";
+import { Plus, Edit, Trash2, Upload, Download, Eye, Mail, Copy, ExternalLink, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +27,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
 import { CreateLineItemDialog } from "./CreateLineItemDialog";
 import { EditLineItemDialog } from "./EditLineItemDialog";
+import { QuoteFinancialsDialog } from "./QuoteFinancialsDialog";
 
 interface QuoteDetailsDialogProps {
   quote: QuoteWithDetails;
@@ -38,6 +39,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
   const [showCreateLineItem, setShowCreateLineItem] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<QuoteLineItem | null>(null);
   const [showSendQuote, setShowSendQuote] = useState(false);
+  const [showFinancials, setShowFinancials] = useState(false);
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerName, setCustomerName] = useState("");
   const { toast } = useToast();
@@ -333,22 +335,61 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
             {/* Quote Summary */}
             <Card>
               <CardHeader>
-                <CardTitle>Quote Summary</CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Quote Summary</CardTitle>
+                  <Button
+                    onClick={() => setShowFinancials(true)}
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Calculator className="h-4 w-4" />
+                    Manage Financials
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(quote.subtotal)}</span>
+                    <span>{formatCurrency(quote.subtotal || "0")}</span>
                   </div>
+                  
+                  {/* Show discount if any */}
+                  {(quote.discountAmount && parseFloat(quote.discountAmount.toString()) > 0) && (
+                    <div className="flex justify-between text-red-600">
+                      <span>
+                        Discount
+                        {quote.discountPercentage && parseFloat(quote.discountPercentage.toString()) > 0 && 
+                          ` (${parseFloat(quote.discountPercentage.toString())}%)`
+                        }
+                      </span>
+                      <span>-{formatCurrency(quote.discountAmount)}</span>
+                    </div>
+                  )}
+                  
+                  {/* Show discounted subtotal if there's a discount */}
+                  {(quote.discountAmount && parseFloat(quote.discountAmount.toString()) > 0) && (
+                    <div className="flex justify-between">
+                      <span>Discounted Subtotal</span>
+                      <span>{formatCurrency(quote.discountedSubtotal || "0")}</span>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between">
-                    <span>Tax ({(parseFloat(quote.taxRate.toString()) * 100).toFixed(2)}%)</span>
-                    <span>{formatCurrency(quote.taxAmount)}</span>
+                    <span>
+                      Tax 
+                      {quote.isManualTax ? " (Manual)" : 
+                        quote.taxRate ? ` (${(parseFloat(quote.taxRate.toString()) * 100).toFixed(2)}%)` : ""
+                      }
+                    </span>
+                    <span>{formatCurrency(quote.taxAmount || "0")}</span>
                   </div>
+                  
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>{formatCurrency(quote.total)}</span>
+                    <span>{formatCurrency(quote.total || "0")}</span>
                   </div>
                 </div>
               </CardContent>
@@ -490,6 +531,12 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
           onOpenChange={(open) => !open && setEditingLineItem(null)}
         />
       )}
+
+      <QuoteFinancialsDialog
+        quote={quote}
+        open={showFinancials}
+        onOpenChange={setShowFinancials}
+      />
     </>
   );
 }
