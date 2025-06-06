@@ -12,8 +12,7 @@ export const projectStatusEnum = pgEnum('project_status', ['draft', 'finalized',
 // Define feedback types enum
 export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'reject']);
 
-// Define quote status enum
-export const quoteStatusEnum = pgEnum('quote_status', ['draft', 'sent', 'viewed', 'accepted', 'declined', 'expired']);
+
 
 // Define RAG Tables
 
@@ -303,53 +302,7 @@ export const punchListItems = pgTable("punch_list_items", {
   resolvedAt: timestamp("resolved_at"),
 });
 
-// --- Quote Management Tables ---
 
-// Customer quotes table
-export const customerQuotes = pgTable("customer_quotes", {
-  id: serial("id").primaryKey(),
-  quoteNumber: text("quote_number").notNull().unique(),
-  magicToken: pgUuid("magic_token").notNull().unique().default(sql`uuid_generate_v4()`),
-  customerName: text("customer_name").notNull(),
-  customerEmail: text("customer_email").notNull(),
-  customerPhone: text("customer_phone"),
-  customerAddress: text("customer_address"),
-  projectTitle: text("project_title").notNull(),
-  projectDescription: text("project_description").notNull(),
-  projectType: text("project_type").notNull(),
-  projectLocation: text("project_location"),
-  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
-  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default("0"),
-  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default("0"),
-  taxPercentage: decimal("tax_percentage", { precision: 5, scale: 2 }).default("0"),
-  taxableAmount: decimal("taxable_amount", { precision: 10, scale: 2 }).notNull(),
-  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull(),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  estimatedStartDate: timestamp("estimated_start_date"),
-  estimatedCompletionDate: timestamp("estimated_completion_date"),
-  validUntil: timestamp("valid_until").notNull(),
-  status: quoteStatusEnum("status").notNull().default("draft"),
-  viewedAt: timestamp("viewed_at"),
-  respondedAt: timestamp("responded_at"),
-  customerResponse: text("customer_response"), // 'accepted' or 'declined'
-  customerNotes: text("customer_notes"),
-
-  showColorVerification: boolean("show_color_verification").default(false),
-  colorVerificationTitle: text("color_verification_title"),
-  colorVerificationDescription: text("color_verification_description"),
-  paintColors: jsonb("paint_colors"), // Object of area: color mappings
-  permitRequired: boolean("permit_required").default(false),
-  permitDetails: text("permit_details"),
-  downPaymentPercentage: decimal("down_payment_percentage", { precision: 5, scale: 2 }),
-  milestonePaymentPercentage: decimal("milestone_payment_percentage", { precision: 5, scale: 2 }),
-  finalPaymentPercentage: decimal("final_payment_percentage", { precision: 5, scale: 2 }),
-  milestoneDescription: text("milestone_description"),
-  creditCardProcessingFee: decimal("credit_card_processing_fee", { precision: 5, scale: 2 }),
-  acceptsCreditCards: boolean("accepts_credit_cards").default(true),
-  createdBy: integer("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
 // Quote line items table
 export const quoteLineItems = pgTable("quote_line_items", {
