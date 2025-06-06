@@ -283,7 +283,7 @@ export class QuoteController {
       }
 
       const validatedData = createResponseSchema.parse(req.body);
-      const response = await this.quoteRepository.createQuoteResponse(token, validatedData);
+      const response = await this.quoteRepository.createQuoteResponseByToken(token, validatedData);
       
       if (!response) {
         return res.status(404).json({ error: "Quote not found or expired" });
