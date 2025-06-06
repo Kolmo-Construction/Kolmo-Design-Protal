@@ -825,10 +825,6 @@ export const insertQuoteSchema = createInsertSchema(quotes).omit({
   validUntil: z.union([z.string().datetime(), z.date()]),
   estimatedStartDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
   estimatedCompletionDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
-  subtotal: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
-  taxRate: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
-  taxAmount: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
-  total: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
 });
 
 export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit({
@@ -836,9 +832,9 @@ export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems).omit
   createdAt: true,
   updatedAt: true,
 }).extend({
-  quantity: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
-  unitPrice: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
-  totalPrice: z.union([z.string(), z.number()]).transform(val => parseFloat(val.toString())),
+  quantity: z.union([z.number(), z.string().transform(val => parseFloat(val))]).default(1),
+  unitPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
+  totalPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
 });
 
 export const insertQuoteMediaSchema = createInsertSchema(quoteMedia).omit({
@@ -863,8 +859,6 @@ export type QuoteMedia = typeof quoteMedia.$inferSelect;
 
 export type InsertQuoteResponse = z.infer<typeof insertQuoteResponseSchema>;
 export type QuoteResponse = typeof quoteResponses.$inferSelect;
-
-// These types are already defined above
 
 // --- Export Combined Types ---
 export type DailyLogWithDetails = DailyLog & {
