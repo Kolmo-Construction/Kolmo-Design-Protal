@@ -377,12 +377,13 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                   Share this link with your customer to view and respond to the quote
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="flex gap-2">
                   <div className="flex-1 p-2 bg-gray-50 rounded text-sm font-mono break-all">
                     {generateQuoteLink()}
                   </div>
                   <Button onClick={copyQuoteLink} variant="outline">
+                    <Copy className="h-4 w-4 mr-2" />
                     Copy Link
                   </Button>
                   <Button 
@@ -393,8 +394,71 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                     Preview
                   </Button>
                 </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => setShowSendQuote(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Send Quote via Email
+                  </Button>
+                  <Button 
+                    onClick={() => window.open(generateQuoteLink(), '_blank')}
+                    variant="outline"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Customer View
+                  </Button>
+                </div>
               </CardContent>
             </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Quote Dialog */}
+      <Dialog open={showSendQuote} onOpenChange={setShowSendQuote}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Quote via Email</DialogTitle>
+            <DialogDescription>
+              Enter customer details to send the quote link via email
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="customerName">Customer Name</Label>
+              <Input
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter customer name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customerEmail">Customer Email</Label>
+              <Input
+                id="customerEmail"
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="Enter customer email"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowSendQuote(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendQuote}
+                disabled={sendQuoteMutation.isPending}
+              >
+                {sendQuoteMutation.isPending ? "Sending..." : "Send Quote"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
