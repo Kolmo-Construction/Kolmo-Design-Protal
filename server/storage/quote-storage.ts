@@ -174,7 +174,7 @@ export class QuoteStorage {
     ] as const;
     
     numericFields.forEach(field => {
-      if (processedData[field] === '' || processedData[field] === undefined || processedData[field] === null) {
+      if (processedData[field] === '' || processedData[field] === undefined || processedData[field] === null || processedData[field] === 'null') {
         delete processedData[field];
       }
     });
