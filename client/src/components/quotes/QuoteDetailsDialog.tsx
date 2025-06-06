@@ -46,6 +46,17 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch the latest quote data to ensure we have up-to-date financials
+  const { data: freshQuote, isLoading: quoteLoading } = useQuery<QuoteWithDetails>({
+    queryKey: [`/api/quotes/${quote.id}`],
+    enabled: !!quote.id && open,
+    retry: false,
+    initialData: quote, // Use the prop as initial data
+  });
+
+  // Use the fresh quote data or fall back to the prop
+  const currentQuote = freshQuote || quote;
+
   const { data: lineItems = [], isLoading: lineItemsLoading } = useQuery<QuoteLineItem[]>({
     queryKey: [`/api/quotes/${quote.id}/line-items`],
     enabled: !!quote.id,
@@ -152,19 +163,19 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
             <div className="flex justify-between items-start">
               <div>
                 <DialogTitle className="flex items-center gap-2">
-                  {quote.quoteNumber}
-                  <Badge className={getStatusColor(quote.status)}>
-                    {quote.status}
+                  {currentQuote.quoteNumber}
+                  <Badge className={getStatusColor(currentQuote.status)}>
+                    {currentQuote.status}
                   </Badge>
                 </DialogTitle>
-                <DialogDescription>{quote.title}</DialogDescription>
+                <DialogDescription>{currentQuote.title}</DialogDescription>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(quote.total)}
+                  {formatCurrency(currentQuote.total)}
                 </div>
                 <div className="text-sm text-gray-500">
-                  Valid until {formatDate(quote.validUntil)}
+                  Valid until {formatDate(currentQuote.validUntil)}
                 </div>
               </div>
             </div>
@@ -180,19 +191,19 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <div className="text-sm font-medium text-gray-500">Name</div>
-                    <div>{quote.customerName}</div>
+                    <div>{currentQuote.customerName}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Email</div>
-                    <div>{quote.customerEmail}</div>
+                    <div>{currentQuote.customerEmail}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Phone</div>
-                    <div>{quote.customerPhone || "Not provided"}</div>
+                    <div>{currentQuote.customerPhone || "Not provided"}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Address</div>
-                    <div>{quote.customerAddress || "Not provided"}</div>
+                    <div>{currentQuote.customerAddress || "Not provided"}</div>
                   </div>
                 </div>
               </CardContent>
@@ -207,31 +218,31 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <div className="text-sm font-medium text-gray-500">Project Type</div>
-                    <div>{quote.projectType}</div>
+                    <div>{currentQuote.projectType}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Location</div>
-                    <div>{quote.location || "Not specified"}</div>
+                    <div>{currentQuote.location || "Not specified"}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Estimated Start</div>
-                    <div>{quote.estimatedStartDate ? formatDate(quote.estimatedStartDate) : "TBD"}</div>
+                    <div>{currentQuote.estimatedStartDate ? formatDate(currentQuote.estimatedStartDate) : "TBD"}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Estimated Completion</div>
-                    <div>{quote.estimatedCompletionDate ? formatDate(quote.estimatedCompletionDate) : "TBD"}</div>
+                    <div>{currentQuote.estimatedCompletionDate ? formatDate(currentQuote.estimatedCompletionDate) : "TBD"}</div>
                   </div>
                 </div>
-                {quote.scopeDescription && (
+                {currentQuote.scopeDescription && (
                   <div className="mt-4">
                     <div className="text-sm font-medium text-gray-500 mb-2">Project Scope</div>
-                    <div className="text-sm">{quote.scopeDescription}</div>
+                    <div className="text-sm">{currentQuote.scopeDescription}</div>
                   </div>
                 )}
-                {quote.projectNotes && (
+                {currentQuote.projectNotes && (
                   <div className="mt-4">
                     <div className="text-sm font-medium text-gray-500 mb-2">Project Notes</div>
-                    <div className="text-sm">{quote.projectNotes}</div>
+                    <div className="text-sm">{currentQuote.projectNotes}</div>
                   </div>
                 )}
               </CardContent>
@@ -345,44 +356,44 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(quote.subtotal || "0")}</span>
+                    <span>{formatCurrency(currentQuote.subtotal || "0")}</span>
                   </div>
                   
                   {/* Show discount if any */}
-                  {(quote.discountAmount && parseFloat(quote.discountAmount.toString()) > 0) && (
+                  {(currentQuote.discountAmount && parseFloat(currentQuote.discountAmount.toString()) > 0) && (
                     <div className="flex justify-between text-red-600">
                       <span>
                         Discount
-                        {quote.discountPercentage && parseFloat(quote.discountPercentage.toString()) > 0 && 
-                          ` (${parseFloat(quote.discountPercentage.toString())}%)`
+                        {currentQuote.discountPercentage && parseFloat(currentQuote.discountPercentage.toString()) > 0 && 
+                          ` (${parseFloat(currentQuote.discountPercentage.toString())}%)`
                         }
                       </span>
-                      <span>-{formatCurrency(quote.discountAmount)}</span>
+                      <span>-{formatCurrency(currentQuote.discountAmount)}</span>
                     </div>
                   )}
                   
                   {/* Show discounted subtotal if there's a discount */}
-                  {(quote.discountAmount && parseFloat(quote.discountAmount.toString()) > 0) && (
+                  {(currentQuote.discountAmount && parseFloat(currentQuote.discountAmount.toString()) > 0) && (
                     <div className="flex justify-between">
                       <span>Discounted Subtotal</span>
-                      <span>{formatCurrency(quote.discountedSubtotal || "0")}</span>
+                      <span>{formatCurrency(currentQuote.discountedSubtotal || "0")}</span>
                     </div>
                   )}
                   
                   <div className="flex justify-between">
                     <span>
                       Tax 
-                      {quote.isManualTax ? " (Manual)" : 
-                        quote.taxRate ? ` (${parseFloat(quote.taxRate.toString()).toFixed(2)}%)` : ""
+                      {currentQuote.isManualTax ? " (Manual)" : 
+                        currentQuote.taxRate ? ` (${parseFloat(currentQuote.taxRate.toString()).toFixed(2)}%)` : ""
                       }
                     </span>
-                    <span>{formatCurrency(quote.taxAmount || "0")}</span>
+                    <span>{formatCurrency(currentQuote.taxAmount || "0")}</span>
                   </div>
                   
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>{formatCurrency(quote.total || "0")}</span>
+                    <span>{formatCurrency(currentQuote.total || "0")}</span>
                   </div>
                 </div>
               </CardContent>
@@ -396,16 +407,16 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Down Payment ({quote.downPaymentPercentage}%)</span>
-                    <span>{formatCurrency((parseFloat(quote.total.toString()) * (quote.downPaymentPercentage || 0)) / 100)}</span>
+                    <span>Down Payment ({currentQuote.downPaymentPercentage}%)</span>
+                    <span>{formatCurrency((parseFloat(currentQuote.total.toString()) * (currentQuote.downPaymentPercentage || 0)) / 100)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Milestone Payment ({quote.milestonePaymentPercentage}%)</span>
-                    <span>{formatCurrency((parseFloat(quote.total.toString()) * (quote.milestonePaymentPercentage || 0)) / 100)}</span>
+                    <span>Milestone Payment ({currentQuote.milestonePaymentPercentage}%)</span>
+                    <span>{formatCurrency((parseFloat(currentQuote.total.toString()) * (currentQuote.milestonePaymentPercentage || 0)) / 100)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Final Payment ({quote.finalPaymentPercentage}%)</span>
-                    <span>{formatCurrency((parseFloat(quote.total.toString()) * (quote.finalPaymentPercentage || 0)) / 100)}</span>
+                    <span>Final Payment ({currentQuote.finalPaymentPercentage}%)</span>
+                    <span>{formatCurrency((parseFloat(currentQuote.total.toString()) * (currentQuote.finalPaymentPercentage || 0)) / 100)}</span>
                   </div>
                   {quote.milestoneDescription && (
                     <div className="mt-4">
