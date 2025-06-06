@@ -330,7 +330,7 @@ export const quotes = pgTable("quotes", {
   discountedSubtotal: decimal("discounted_subtotal", { precision: 10, scale: 2 }).notNull().default('0'),
   
   // Tax handling - can be rate-based or manual amount
-  taxRate: decimal("tax_rate", { precision: 5, scale: 4 }).default('0.1060'), // 10.60%
+  taxRate: decimal("tax_rate", { precision: 6, scale: 2 }).default('10.60'), // 10.60%
   taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull().default('0'),
   isManualTax: boolean("is_manual_tax").default(false), // true if tax amount is manually entered
   

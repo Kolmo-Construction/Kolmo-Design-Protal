@@ -37,6 +37,8 @@ const editLineItemSchema = z.object({
   quantity: z.string().min(1, "Quantity is required"),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit price is required"),
+  discountPercentage: z.string().optional(),
+  discountAmount: z.string().optional(),
 });
 
 type EditLineItemForm = z.infer<typeof editLineItemSchema>;
@@ -59,6 +61,8 @@ export function EditLineItemDialog({ lineItem, open, onOpenChange }: EditLineIte
       quantity: lineItem.quantity.toString(),
       unit: lineItem.unit || "",
       unitPrice: lineItem.unitPrice.toString(),
+      discountPercentage: lineItem.discountPercentage?.toString() || "0",
+      discountAmount: lineItem.discountAmount?.toString() || "0",
     },
   });
 
@@ -66,12 +70,28 @@ export function EditLineItemDialog({ lineItem, open, onOpenChange }: EditLineIte
     mutationFn: async (data: EditLineItemForm) => {
       const quantity = parseFloat(data.quantity);
       const unitPrice = parseFloat(data.unitPrice);
-      const totalPrice = quantity * unitPrice;
+      const discountPercentage = parseFloat(data.discountPercentage || "0");
+      const discountAmount = parseFloat(data.discountAmount || "0");
+      
+      // Calculate total before discount
+      const subtotal = quantity * unitPrice;
+      
+      // Apply discount (percentage takes precedence over fixed amount)
+      let discount = 0;
+      if (discountPercentage > 0) {
+        discount = (subtotal * discountPercentage) / 100;
+      } else if (discountAmount > 0) {
+        discount = discountAmount;
+      }
+      
+      const totalPrice = subtotal - discount;
 
       return await apiRequest("PATCH", `/api/quotes/line-items/${lineItem.id}`, {
         ...data,
         quantity: quantity.toString(),
         unitPrice: unitPrice.toString(),
+        discountPercentage: discountPercentage.toString(),
+        discountAmount: discount.toString(),
         totalPrice: totalPrice.toString(),
       });
     },
@@ -252,6 +272,56 @@ export function EditLineItemDialog({ lineItem, open, onOpenChange }: EditLineIte
                 </FormItem>
               )}
             />
+
+            {/* Discount Section */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-700">Item Discount (Optional)</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="discountPercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Discount Percentage (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="0.00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="discountAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Discount Amount ($)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="text-xs text-gray-500">
+                Note: Percentage discount takes precedence over fixed amount
+              </div>
+            </div>
 
             <div className="flex justify-end space-x-2 pt-4">
               <Button
