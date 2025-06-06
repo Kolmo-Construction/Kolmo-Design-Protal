@@ -129,21 +129,94 @@ storageRoutes.head('/check/:key(*)', isAuthenticated, async (req, res, next) => 
   }
 });
 
+/**
+ * Upload a quote image
+ */
+storageRoutes.post('/upload/quote/:quoteId', isAuthenticated, upload.single('image'), async (req, res, next) => {
+  try {
+    const { quoteId } = req.params;
+    const { imageType, caption } = req.body;
+    
+    if (!req.file) {
+      throw createBadRequestError('No file uploaded');
+    }
 
+    if (!quoteId || isNaN(parseInt(quoteId))) {
+      throw createBadRequestError('Valid quote ID is required');
+    }
+
+    const result = await uploadToR2({
+      quoteId: parseInt(quoteId),
+      fileName: req.file.originalname,
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
+      imageType: imageType || 'general',
+    });
+
+    // Update database with the R2 URL based on image type
+    const { db } = await import('../db');
+    const { quoteImages, customerQuotes } = await import('../../shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+
+    if (imageType === 'before') {
+      // Update the before image record
+      await db.update(quoteImages)
+        .set({ imageUrl: result.url, caption: caption || null })
+        .where(and(
+          eq(quoteImages.quoteId, parseInt(quoteId)),
+          eq(quoteImages.imageType, 'before')
+        ));
+    } else if (imageType === 'after') {
+      // Update the after image record
+      await db.update(quoteImages)
+        .set({ imageUrl: result.url, caption: caption || null })
+        .where(and(
+          eq(quoteImages.quoteId, parseInt(quoteId)),
+          eq(quoteImages.imageType, 'after')
+        ));
+    } else {
+      // For other image types, update the corresponding image record
+      await db.update(quoteImages)
+        .set({ imageUrl: result.url, caption: caption || null })
+        .where(and(
+          eq(quoteImages.quoteId, parseInt(quoteId)),
+          eq(quoteImages.imageType, imageType || 'general')
+        ));
+    }
+
+    res.json({
+      success: true,
+      url: result.url,
+      key: result.key,
+      imageType: imageType || 'general',
+      caption: caption || null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * Upload a file to R2 storage
  */
 storageRoutes.post('/upload', isAuthenticated, upload.single('file'), async (req, res, next) => {
   try {
+    const { quoteId, imageType } = req.body;
+    
     if (!req.file) {
       throw createBadRequestError('No file uploaded');
     }
 
+    if (!quoteId || isNaN(parseInt(quoteId))) {
+      throw createBadRequestError('Valid quote ID is required');
+    }
+
     const result = await uploadToR2({
+      quoteId: parseInt(quoteId),
       fileName: req.file.originalname,
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
+      imageType: imageType || 'general',
     });
 
     res.json({
@@ -164,19 +237,21 @@ storageRoutes.post('/upload', isAuthenticated, upload.single('file'), async (req
  */
 storageRoutes.post('/upload-local', isAuthenticated, async (req, res, next) => {
   try {
-    const { fileName, base64Data, mimeType } = req.body;
+    const { quoteId, fileName, base64Data, mimeType, imageType } = req.body;
     
-    if (!fileName || !base64Data) {
-      throw createBadRequestError('File name and base64 data are required');
+    if (!quoteId || !fileName || !base64Data) {
+      throw createBadRequestError('Quote ID, file name, and base64 data are required');
     }
 
     // Convert base64 to buffer
     const buffer = Buffer.from(base64Data, 'base64');
 
     const result = await uploadToR2({
+      quoteId: parseInt(quoteId),
       fileName,
       buffer,
       mimetype: mimeType || 'application/octet-stream',
+      imageType: imageType || 'general',
     });
 
     res.json({
