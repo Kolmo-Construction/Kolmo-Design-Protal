@@ -275,6 +275,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                         <TableHead>Description</TableHead>
                         <TableHead>Quantity</TableHead>
                         <TableHead>Unit Price</TableHead>
+                        <TableHead>Discount</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -288,6 +289,19 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                             {parseFloat(item.quantity.toString())} {item.unit}
                           </TableCell>
                           <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
+                          <TableCell>
+                            {item.discountPercentage && parseFloat(item.discountPercentage.toString()) > 0 ? (
+                              <span className="text-green-600">
+                                {parseFloat(item.discountPercentage.toString())}%
+                              </span>
+                            ) : item.discountAmount && parseFloat(item.discountAmount.toString()) > 0 ? (
+                              <span className="text-green-600">
+                                -{formatCurrency(item.discountAmount)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
