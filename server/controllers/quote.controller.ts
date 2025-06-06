@@ -12,17 +12,16 @@ const createQuoteSchema = createInsertSchema(quotes).omit({
   updatedAt: true,
 });
 
-const createLineItemSchema = createInsertSchema(quoteLineItems).omit({
-  id: true,
-  quoteId: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  quantity: z.union([z.number(), z.string().transform(val => parseFloat(val))]).default(1),
-  unitPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
-  totalPrice: z.union([z.string(), z.number().transform(val => val.toString())]),
-  discountPercentage: z.union([z.number(), z.string().transform(val => parseFloat(val))]).default(0).optional(),
-  discountAmount: z.union([z.string(), z.number().transform(val => val.toString())]).default('0').optional(),
+const createLineItemSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  description: z.string().min(1, "Description is required"),
+  quantity: z.string(),
+  unit: z.string(),
+  unitPrice: z.string(),
+  discountPercentage: z.string().optional().default("0"),
+  discountAmount: z.string().optional().default("0"),
+  totalPrice: z.string(),
+  sortOrder: z.number().optional().default(0),
 });
 
 const createResponseSchema = createInsertSchema(quoteResponses).omit({
@@ -160,19 +159,28 @@ export class QuoteController {
 
   async createLineItem(req: Request, res: Response) {
     try {
+      console.log("CreateLineItem - Request body:", JSON.stringify(req.body, null, 2));
+      
       const quoteId = parseInt(req.params.id);
       if (isNaN(quoteId)) {
         return res.status(400).json({ error: "Invalid quote ID" });
       }
 
+      console.log("CreateLineItem - Quote ID:", quoteId);
+      
       const validatedData = createLineItemSchema.parse(req.body);
+      console.log("CreateLineItem - Validated data:", JSON.stringify(validatedData, null, 2));
+      
       const lineItem = await this.quoteRepository.createLineItem(quoteId, validatedData);
+      console.log("CreateLineItem - Created line item:", JSON.stringify(lineItem, null, 2));
+      
       res.status(201).json(lineItem);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("CreateLineItem - Validation error:", error.errors);
         return res.status(400).json({ error: "Invalid data", details: error.errors });
       }
-      console.error("Error creating line item:", error);
+      console.error("CreateLineItem - Error:", error);
       res.status(500).json({ error: "Failed to create line item" });
     }
   }
