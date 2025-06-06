@@ -13,7 +13,8 @@ import {
   LogOut,
   HelpCircle,
   Phone,
-  ClipboardList
+  ClipboardList,
+  Receipt
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -68,6 +69,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   const adminNavLinks = [
     { href: "/", icon: <HomeIcon className="h-5 w-5 mr-3" />, label: "Dashboard" },
     { href: "/projects", icon: <Building2 className="h-5 w-5 mr-3" />, label: "Projects" },
+    { href: "/quotes", icon: <Receipt className="h-5 w-5 mr-3" />, label: "Quotes" },
     { href: "/documents", icon: <FileText className="h-5 w-5 mr-3" />, label: "Documents" },
     { href: "/financials", icon: <ClipboardList className="h-5 w-5 mr-3" />, label: "Financials" },
     { href: "/messages", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Messages" },
