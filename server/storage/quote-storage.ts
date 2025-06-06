@@ -150,13 +150,24 @@ export class QuoteStorage {
   }
 
   async updateQuote(id: number, data: Partial<InsertCustomerQuote & { lineItems?: any[] }>): Promise<CustomerQuote | null> {
-    // Extract line items from the data
     const { lineItems, ...quoteData } = data;
-    
-    // Convert string dates to Date objects for proper database handling
     const processedData: any = { ...quoteData };
+
+    // --- FIX: Convert all top-level numeric fields from string to number ---
+    const numericFields = [
+      'subtotal', 'discountPercentage', 'discountAmount', 'taxPercentage', 
+      'taxableAmount', 'taxAmount', 'totalAmount', 'downPaymentPercentage', 
+      'milestonePaymentPercentage', 'finalPaymentPercentage', 'creditCardProcessingFee'
+    ] as const;
     
-    // Handle date fields specifically
+    numericFields.forEach(field => {
+      if (processedData[field] !== undefined && processedData[field] !== null) {
+        const numValue = parseFloat(String(processedData[field]));
+        processedData[field] = isNaN(numValue) ? null : numValue;
+      }
+    });
+    // --- END FIX ---
+
     const dateFields = ['validUntil', 'estimatedStartDate', 'estimatedCompletionDate'] as const;
     dateFields.forEach(field => {
       if (processedData[field]) {
@@ -166,20 +177,6 @@ export class QuoteStorage {
       }
     });
 
-    // Handle numeric fields - remove empty strings and undefined values to prevent database errors
-    const numericFields = [
-      'subtotal', 'discountPercentage', 'discountAmount', 'taxPercentage', 
-      'taxableAmount', 'taxAmount', 'totalAmount', 'downPaymentPercentage', 
-      'milestonePaymentPercentage', 'finalPaymentPercentage', 'creditCardProcessingFee'
-    ] as const;
-    
-    numericFields.forEach(field => {
-      if (processedData[field] === '' || processedData[field] === undefined || processedData[field] === null || processedData[field] === 'null') {
-        delete processedData[field];
-      }
-    });
-
-    // Update the quote
     const updateData = { ...processedData, updatedAt: new Date() };
     const [quote] = await db
       .update(customerQuotes)
@@ -187,26 +184,22 @@ export class QuoteStorage {
       .where(eq(customerQuotes.id, id))
       .returning();
 
-    // Handle line items if provided
     if (lineItems && Array.isArray(lineItems)) {
-      // Delete existing line items
-      await db
-        .delete(quoteLineItems)
-        .where(eq(quoteLineItems.quoteId, id));
+      await db.delete(quoteLineItems).where(eq(quoteLineItems.quoteId, id));
 
-      // Insert new line items
       if (lineItems.length > 0) {
-        // Process line items for database insertion
+        // --- FIX: Convert line item numeric fields from string to number ---
         const lineItemsToInsert = lineItems.map(item => ({
           quoteId: id,
           category: item.category || '',
           description: item.description || '',
-          quantity: item.quantity || '0',
+          quantity: parseFloat(String(item.quantity) || '0'),
           unit: item.unit || '',
-          unitPrice: item.unitPrice || '0',
-          discountPercentage: item.discountPercentage || '0',
-          totalPrice: item.totalPrice || '0'
+          unitPrice: parseFloat(String(item.unitPrice) || '0'),
+          discountPercentage: parseFloat(String(item.discountPercentage) || '0'),
+          totalPrice: parseFloat(String(item.totalPrice) || '0')
         }));
+        // --- END FIX ---
 
         await db.insert(quoteLineItems).values(lineItemsToInsert);
       }
@@ -216,8 +209,7 @@ export class QuoteStorage {
       return null;
     }
 
-    // Fetch and return the full quote with the updated line items
-    return this.getQuoteById(id);
+    return this.getQuoteWithDetails(id);
   }
 
   async deleteQuote(id: number): Promise<boolean> {
