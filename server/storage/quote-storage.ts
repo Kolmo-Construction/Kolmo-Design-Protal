@@ -196,11 +196,12 @@ export class QuoteStorage {
 
       // Insert new line items
       if (lineItems.length > 0) {
+        // Process line items for database insertion
         const lineItemsToInsert = lineItems.map(item => ({
           quoteId: id,
           category: item.category || '',
           description: item.description || '',
-          quantity: item.quantity || '1',
+          quantity: item.quantity || '0',
           unit: item.unit || '',
           unitPrice: item.unitPrice || '0',
           discountPercentage: item.discountPercentage || '0',
