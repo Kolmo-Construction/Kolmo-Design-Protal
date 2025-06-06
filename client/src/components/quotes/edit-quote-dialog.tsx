@@ -215,9 +215,13 @@ export default function EditQuoteDialog({
     return () => subscription.unsubscribe();
   }, [form, calculateTotals]);
 
-  // Reset form values when quote data changes
+  // Track if form has been initialized to prevent unnecessary resets
+  const initializedQuoteId = React.useRef<number | null>(null);
+
+  // Reset form values only when quote changes (not on every open)
   React.useEffect(() => {
-    if (quote && open) {
+    if (quote && open && quote.id !== initializedQuoteId.current) {
+      initializedQuoteId.current = quote.id;
       form.reset({
         projectType: quote.projectType || "",
         quoteNumber: quote.quoteNumber || "",
@@ -266,6 +270,13 @@ export default function EditQuoteDialog({
       });
     }
   }, [quote, open, form]);
+
+  // Clear initialized quote ID when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      initializedQuoteId.current = null;
+    }
+  }, [open]);
 
   const updateQuoteMutation = useMutation({
     mutationFn: async (data: QuoteFormData) => {
