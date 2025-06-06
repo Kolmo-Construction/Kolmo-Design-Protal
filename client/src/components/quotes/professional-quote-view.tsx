@@ -84,15 +84,15 @@ export default function ProfessionalQuoteView() {
     enabled: !!token
   });
 
-  // Fetch before/after pairs for this quote
+  // Fetch before/after pairs for this quote using public endpoint
   const { data: beforeAfterPairs = [] } = useQuery({
-    queryKey: [`/api/quotes/${quote?.id}/before-after-pairs`],
+    queryKey: [`/api/quotes/view/${token}/before-after-pairs`],
     queryFn: async (): Promise<QuoteBeforeAfterPair[]> => {
-      const response = await fetch(`/api/quotes/${quote.id}/before-after-pairs`);
+      const response = await fetch(`/api/quotes/view/${token}/before-after-pairs`);
       if (!response.ok) throw new Error('Failed to fetch before/after pairs');
       return response.json();
     },
-    enabled: !!quote?.id
+    enabled: !!token
   });
 
   const respondMutation = useMutation({
