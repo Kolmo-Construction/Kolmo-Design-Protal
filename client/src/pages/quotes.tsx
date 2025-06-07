@@ -80,7 +80,7 @@ export default function QuotesPage() {
     }).format(parseFloat(amount));
   };
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | Date) => {
     return new Date(date).toLocaleDateString();
   };
 
@@ -100,10 +100,10 @@ export default function QuotesPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Quotes</h1>
-          <p className="text-gray-600">Manage project quotes and proposals</p>
+          <h1 className="text-3xl font-bold text-slate-900">Quotes</h1>
+          <p className="text-slate-600">Manage project quotes and proposals</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
+        <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700">
           <Plus className="h-4 w-4" />
           Create Quote
         </Button>
@@ -138,11 +138,11 @@ export default function QuotesPage() {
                     <CardDescription>{quote.title}</CardDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-emerald-600">
                       {formatCurrency(quote.total)}
                     </div>
-                    <div className="text-sm text-gray-500">
-                      Valid until {formatDate(quote.validUntil)}
+                    <div className="text-sm text-slate-500">
+                      Valid until {formatDate(quote.validUntil.toString())}
                     </div>
                   </div>
                 </div>
@@ -150,21 +150,21 @@ export default function QuotesPage() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
-                    <div className="text-sm font-medium text-gray-500">Customer</div>
+                    <div className="text-sm font-medium text-slate-500">Customer</div>
                     <div className="text-sm">{quote.customerName}</div>
-                    <div className="text-sm text-gray-500">{quote.customerEmail}</div>
+                    <div className="text-sm text-slate-500">{quote.customerEmail}</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-500">Project Type</div>
+                    <div className="text-sm font-medium text-slate-500">Project Type</div>
                     <div className="text-sm">{quote.projectType}</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-500">Line Items</div>
-                    <div className="text-sm">{quote.lineItems?.length || 0} items</div>
+                    <div className="text-sm font-medium text-slate-500">Line Items</div>
+                    <div className="text-sm font-semibold text-emerald-600">{quote.lineItems?.length || 0} items</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-500">Created</div>
-                    <div className="text-sm">{formatDate(quote.createdAt)}</div>
+                    <div className="text-sm font-medium text-slate-500">Created</div>
+                    <div className="text-sm">{formatDate(quote.createdAt.toString())}</div>
                   </div>
                 </div>
 
