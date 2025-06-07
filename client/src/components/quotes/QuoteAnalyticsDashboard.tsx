@@ -110,7 +110,10 @@ export default function QuoteAnalyticsDashboard({ quoteId }: { quoteId: number }
     );
   }
 
-  const { summary, sessions, deviceStats, geoStats } = analyticsData;
+  const summary = (analyticsData as any)?.summary || { totalViews: 0, uniqueSessions: 0, totalTimeOnPage: 0, avgScrollDepth: 0 };
+  const sessions = (analyticsData as any)?.sessions || [];
+  const deviceStats = (analyticsData as any)?.deviceStats || [];
+  const geoStats = (analyticsData as any)?.geoStats || [];
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;
@@ -323,7 +326,7 @@ export default function QuoteAnalyticsDashboard({ quoteId }: { quoteId: number }
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {events?.map((event: AnalyticsEvent) => (
+                {Array.isArray(events) && events.map((event: AnalyticsEvent) => (
                   <div key={event.id} className="border-l-2 border-gray-200 pl-4 pb-4">
                     <div className="flex items-start justify-between">
                       <div>
