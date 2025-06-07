@@ -7,7 +7,9 @@ import { sendEmail } from "../email";
 
 const createQuoteSchema = createInsertSchema(quotes).omit({
   id: true,
+  quoteNumber: true,
   accessToken: true,
+  createdById: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -69,7 +71,11 @@ export class QuoteController {
   async createQuote(req: Request, res: Response) {
     try {
       const validatedData = createQuoteSchema.parse(req.body);
-      const quote = await this.quoteRepository.createQuote(validatedData);
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      const quote = await this.quoteRepository.createQuote(validatedData, userId);
       res.status(201).json(quote);
     } catch (error) {
       if (error instanceof z.ZodError) {

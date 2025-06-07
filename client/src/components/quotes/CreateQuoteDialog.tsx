@@ -165,10 +165,16 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
         validUntil: data.validUntil.toISOString(),
         estimatedStartDate: data.estimatedStartDate?.toISOString(),
         estimatedCompletionDate: data.estimatedCompletionDate?.toISOString(),
-        subtotal: subtotal,
-        discountAmount: discountAmount,
-        taxAmount: taxAmount,
-        total: total,
+        subtotal: subtotal.toString(),
+        discountedSubtotal: afterDiscount.toString(),
+        discountAmount: discountAmount.toString(),
+        taxAmount: taxAmount.toString(),
+        total: total.toString(),
+        // Ensure string values for decimal fields
+        discountPercentage: (data.discountPercentage || 0).toString(),
+        taxRate: (data.taxRate || 8.5).toString(),
+        // Remove undefined fields that might cause validation issues
+        lineItems: undefined,
       };
       
       const response = await apiRequest("POST", "/api/quotes", quoteData);

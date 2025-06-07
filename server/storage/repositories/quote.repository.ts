@@ -61,17 +61,21 @@ export class QuoteRepository {
     }
   }
 
-  async createQuote(data: any) {
+  async createQuote(data: any, userId: number) {
     try {
-      // Generate unique access token
+      // Generate unique access token and quote number
       const accessToken = uuidv4();
+      const quoteNumber = `KOL-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
       const [quote] = await db
         .insert(quotes)
         .values({
           ...data,
+          quoteNumber,
           accessToken,
+          createdById: userId,
           subtotal: data.subtotal || "0",
+          discountedSubtotal: data.discountedSubtotal || data.subtotal || "0",
           taxRate: data.taxRate || "10.60",
           taxAmount: data.taxAmount || "0",
           total: data.total || "0",
