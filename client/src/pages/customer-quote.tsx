@@ -171,11 +171,11 @@ export default function CustomerQuotePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="bg-white/10 backdrop-blur-sm rounded-full p-3">
-                <Home className="h-8 w-8" />
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
+                <img src="@assets/kolmo-logo (1).png" alt="Kolmo Constructions" className="h-12 w-12" />
               </div>
               <div className="text-center sm:text-left">
-                <h1 className="text-2xl sm:text-3xl font-bold">Kolmo Construction</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold">Kolmo Constructions</h1>
                 <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-emerald-100 mt-1">
                   <div className="flex items-center gap-1">
                     <Shield className="h-4 w-4" />
@@ -629,11 +629,11 @@ export default function CustomerQuotePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
           <div className="text-center">
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="bg-emerald-600 rounded-full p-3">
-                <Home className="h-8 w-8" />
+              <div className="bg-slate-800 rounded-lg p-3">
+                <img src="@assets/kolmo-logo (1).png" alt="Kolmo Constructions" className="h-12 w-12" />
               </div>
               <div className="text-left">
-                <h3 className="text-2xl font-bold">Kolmo Construction</h3>
+                <h3 className="text-2xl font-bold">Kolmo Constructions</h3>
                 <p className="text-slate-300">Building Excellence Since 2010</p>
               </div>
             </div>
@@ -664,7 +664,7 @@ export default function CustomerQuotePage() {
             
             <div className="border-t border-slate-700 pt-6">
               <p className="text-slate-400 text-sm">
-                © 2024 Kolmo Construction. All rights reserved. | 
+                © 2024 Kolmo Constructions. All rights reserved. | 
                 Professional home improvement services with over a decade of experience in the Pacific Northwest.
               </p>
             </div>
