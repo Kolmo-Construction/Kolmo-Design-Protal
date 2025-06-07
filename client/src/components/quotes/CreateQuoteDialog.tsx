@@ -191,7 +191,8 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
           if (lineItem.description && lineItem.quantity > 0) {
             await apiRequest("POST", `/api/quotes/${quote.id}/line-items`, {
               ...lineItem,
-              total: lineItem.quantity * lineItem.unitPrice,
+              category: lineItem.category || "Materials",
+              totalPrice: lineItem.quantity * lineItem.unitPrice,
             });
           }
         }
