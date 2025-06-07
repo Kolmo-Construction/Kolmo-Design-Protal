@@ -131,8 +131,18 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
   });
 
   const handleSave = () => {
+    console.log("Save clicked - starting validation");
+    console.log("Current form data:", {
+      customerName: customerName.trim(),
+      customerEmail: customerEmail.trim(), 
+      title: title.trim(),
+      projectType: projectType.trim(),
+      milestones
+    });
+
     // Validate required fields
     if (!customerName.trim() || !customerEmail.trim() || !title.trim() || !projectType.trim()) {
+      console.log("Required field validation failed");
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields (Customer Name, Email, Title, Project Type)",
@@ -144,6 +154,7 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(customerEmail)) {
+      console.log("Email validation failed");
       toast({
         title: "Validation Error",
         description: "Please enter a valid email address",
@@ -154,7 +165,11 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
 
     // Validate milestone percentages add up to 100
     const totalPercentage = milestones.reduce((sum, milestone) => sum + milestone.percentage, 0);
+    console.log("Total percentage calculated:", totalPercentage);
+    console.log("Milestones data:", milestones);
+    
     if (Math.abs(totalPercentage - 100) > 0.01) {
+      console.log("Percentage validation failed - total:", totalPercentage);
       toast({
         title: "Validation Error",
         description: `Milestone percentages must add up to 100%. Current total: ${totalPercentage}%`,
@@ -162,6 +177,8 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
       });
       return;
     }
+
+    console.log("All validations passed, proceeding with save");
 
     const updatedData = {
       customerName: customerName.trim(),
