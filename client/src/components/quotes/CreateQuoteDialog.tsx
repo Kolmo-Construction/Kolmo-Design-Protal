@@ -54,6 +54,11 @@ const lineItemSchema = z.object({
   quantity: z.number().min(0.01, "Quantity must be greater than 0"),
   unitPrice: z.number().min(0, "Unit price must be positive"),
   category: z.string().optional(),
+  unit: z.string().optional(),
+  discountPercentage: z.number().optional(),
+  discountAmount: z.number().optional(),
+  totalPrice: z.number().optional(),
+  sortOrder: z.number().optional(),
 });
 
 const createQuoteSchema = z.object({
@@ -142,11 +147,6 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
       quantity: 1,
       unitPrice: 0,
       category: "",
-      unit: "",
-      discountPercentage: 0,
-      discountAmount: 0,
-      totalPrice: 0,
-      sortOrder: currentItems.length,
     }]);
   };
 
