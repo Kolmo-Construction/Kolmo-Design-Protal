@@ -68,6 +68,16 @@ export default function QuotePaymentPage() {
       const quoteData = await response.json();
       setQuote(quoteData);
       
+      // Pre-fill customer information from quote
+      if (quoteData.customerName) {
+        setCustomerInfo(prev => ({
+          ...prev,
+          name: quoteData.customerName,
+          email: quoteData.customerEmail || '',
+          phone: quoteData.customerPhone || '',
+        }));
+      }
+      
       if (quoteData.status === 'accepted') {
         toast({
           title: "Quote Already Accepted",
@@ -266,44 +276,80 @@ export default function QuotePaymentPage() {
             {!showPaymentForm ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Your Information</CardTitle>
+                  <CardTitle>Customer Information</CardTitle>
                   <CardDescription>
-                    Please provide your contact information to proceed with payment
+                    {quote?.customerName 
+                      ? "Please confirm your information and proceed to payment"
+                      : "Please provide your contact information to proceed with payment"
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleCustomerInfoSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Full Name *</Label>
-                      <Input
-                        id="name"
-                        type="text"
-                        value={customerInfo.name}
-                        onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="email">Email Address *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={customerInfo.email}
-                        onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={customerInfo.phone}
-                        onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
-                      />
-                    </div>
+                    {quote?.customerName ? (
+                      <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Customer Name</Label>
+                          <div className="font-semibold text-gray-900">{quote.customerName}</div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Email Address</Label>
+                          <div className="font-semibold text-gray-900">{quote.customerEmail || customerInfo.email}</div>
+                        </div>
+                        {(quote.customerPhone || customerInfo.phone) && (
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Phone Number</Label>
+                            <div className="font-semibold text-gray-900">{quote.customerPhone || customerInfo.phone}</div>
+                          </div>
+                        )}
+                        {!quote.customerPhone && (
+                          <div>
+                            <Label htmlFor="phone">Phone Number (Optional)</Label>
+                            <Input
+                              id="phone"
+                              type="tel"
+                              value={customerInfo.phone}
+                              onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
+                              placeholder="Add your phone number"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <Label htmlFor="name">Full Name *</Label>
+                          <Input
+                            id="name"
+                            type="text"
+                            value={customerInfo.name}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
+                            required
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="email">Email Address *</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={customerInfo.email}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
+                            required
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="phone">Phone Number</Label>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            value={customerInfo.phone}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
+                          />
+                        </div>
+                      </>
+                    )}
                     
                     <Button 
                       type="submit" 

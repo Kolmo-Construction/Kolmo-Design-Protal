@@ -170,19 +170,32 @@ export default function CustomerQuotePage() {
   });
 
   const handleResponse = (action: 'accepted' | 'declined') => {
-    if (!customerName || !customerEmail) {
+    const quoteData = quote as QuoteResponse;
+    
+    // Use existing customer information from the quote
+    const finalCustomerName = customerName || quoteData?.customerName || '';
+    const finalCustomerEmail = customerEmail || quoteData?.customerEmail || '';
+
+    if (!finalCustomerName || !finalCustomerEmail) {
       toast({
         title: "Missing Information",
-        description: "Please provide your name and email",
+        description: "Customer information is required",
         variant: "destructive",
       });
       return;
     }
 
+    if (action === 'accepted') {
+      // For acceptance, redirect to payment flow
+      window.location.href = `/quote-payment/${quoteData.id}`;
+      return;
+    }
+
+    // For decline, submit the response
     respondMutation.mutate({
       action,
-      customerName,
-      customerEmail,
+      customerName: finalCustomerName,
+      customerEmail: finalCustomerEmail,
       message,
     });
   };
@@ -883,32 +896,47 @@ export default function CustomerQuotePage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <Card className="max-w-md w-full">
             <CardHeader>
-              <CardTitle>Respond to Quote</CardTitle>
+              <CardTitle>Quote Response</CardTitle>
               <CardDescription>
-                Please provide your contact information and response
+                {quoteData?.customerName ? `Hello ${quoteData.customerName}` : 'Please respond to this quote'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="customerName">Your Name</Label>
-                  <Input
-                    id="customerName"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="John Smith"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customerEmail">Email Address</Label>
-                  <Input
-                    id="customerEmail"
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="john@example.com"
-                  />
-                </div>
+                {/* Only show customer info fields if they're missing */}
+                {(!quoteData?.customerName || !quoteData?.customerEmail) && (
+                  <>
+                    <div>
+                      <Label htmlFor="customerName">Your Name</Label>
+                      <Input
+                        id="customerName"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="John Smith"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="customerEmail">Email Address</Label>
+                      <Input
+                        id="customerEmail"
+                        type="email"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                  </>
+                )}
+                
+                {/* Show customer info summary if available */}
+                {quoteData?.customerName && quoteData?.customerEmail && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-gray-700">Quote prepared for:</div>
+                    <div className="font-semibold">{quoteData.customerName}</div>
+                    <div className="text-sm text-gray-600">{quoteData.customerEmail}</div>
+                  </div>
+                )}
+                
                 <div>
                   <Label htmlFor="message">Message (Optional)</Label>
                   <Textarea
@@ -931,13 +959,16 @@ export default function CustomerQuotePage() {
                   disabled={respondMutation.isPending}
                   className="text-red-600 hover:text-red-700"
                 >
-                  Decline Quote
+                  <X className="h-4 w-4 mr-2" />
+                  Decline Proposal
                 </Button>
                 <Button
                   onClick={() => handleResponse('accepted')}
                   disabled={respondMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
                 >
-                  Accept Quote
+                  <Check className="h-4 w-4 mr-2" />
+                  Accept Proposal
                 </Button>
               </div>
             </div>
