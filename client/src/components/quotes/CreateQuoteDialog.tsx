@@ -105,12 +105,14 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
       milestonePaymentPercentage: 40,
       finalPaymentPercentage: 20,
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      lineItems: [],
+      subtotal: 0,
       discountPercentage: 0,
       discountAmount: 0,
       taxRate: 8.5,
       taxAmount: 0,
+      total: 0,
       isManualTax: false,
+      lineItems: [],
     },
   });
 
@@ -118,14 +120,11 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
   const watchedValues = form.watch();
   const lineItems = form.watch("lineItems");
   const isManualTax = form.watch("isManualTax");
-  const isManualDiscount = form.watch("isManualDiscount");
   
   // Calculate totals
   const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   
-  const discountAmount = isManualDiscount 
-    ? watchedValues.discountAmount || 0
-    : (subtotal * (watchedValues.discountPercentage || 0)) / 100;
+  const discountAmount = (subtotal * (watchedValues.discountPercentage || 0)) / 100;
     
   const afterDiscount = subtotal - discountAmount;
   
@@ -453,58 +452,27 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                         <CardDescription>Apply discounts to the quote</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={isManualDiscount}
-                            onCheckedChange={(checked) => form.setValue("isManualDiscount", checked)}
-                          />
-                          <Label>Manual discount amount</Label>
-                        </div>
-
-                        {isManualDiscount ? (
-                          <FormField
-                            control={form.control}
-                            name="discountAmount"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Discount Amount ($)</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="0" 
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    {...field}
-                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        ) : (
-                          <FormField
-                            control={form.control}
-                            name="discountPercentage"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Discount Percentage (%)</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="0" 
-                                    max="100" 
-                                    step="0.01"
-                                    placeholder="0"
-                                    {...field}
-                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        )}
+                        <FormField
+                          control={form.control}
+                          name="discountPercentage"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Discount Percentage (%)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  max="100" 
+                                  step="0.01"
+                                  placeholder="0"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </CardContent>
                     </Card>
 
