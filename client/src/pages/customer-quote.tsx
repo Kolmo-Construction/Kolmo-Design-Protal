@@ -118,10 +118,13 @@ export default function CustomerQuotePage() {
     retry: false,
   });
 
-  // Initialize analytics when quote data is loaded
+  // Initialize analytics when quote data is loaded - ONLY for customer quote pages
   useEffect(() => {
     const quoteData = quote as QuoteResponse;
-    if (quoteData?.id && !analyticsRef.current) {
+    // Only track analytics for actual customer quote views (not admin dashboard)
+    const isCustomerView = window.location.pathname.includes('/customer/quote/');
+    
+    if (quoteData?.id && !analyticsRef.current && isCustomerView) {
       analyticsRef.current = new QuoteAnalytics(quoteData.id);
     }
     

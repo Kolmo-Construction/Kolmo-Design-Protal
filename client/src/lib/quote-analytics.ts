@@ -34,11 +34,18 @@ class QuoteAnalytics {
   private actionsPerformed: any[] = [];
   private timeOnPageInterval: NodeJS.Timeout | null = null;
   private scrollTrackingInterval: NodeJS.Timeout | null = null;
+  private lastEventTime: number = 0;
+  private eventCooldown: number = 3000; // 3 seconds between events
+  private isCustomerView: boolean = false;
 
   constructor(quoteId: number) {
     this.quoteId = quoteId;
     this.sessionId = this.generateSessionId();
-    this.initializeTracking();
+    // Only track if this is a customer quote page
+    this.isCustomerView = window.location.pathname.includes('/customer/quote/');
+    if (this.isCustomerView) {
+      this.initializeTracking();
+    }
   }
 
   private generateSessionId(): string {
@@ -109,7 +116,14 @@ class QuoteAnalytics {
   }
 
   private async trackEvent(event: string, eventData?: any) {
-    if (!this.quoteId) return;
+    if (!this.quoteId || !this.isCustomerView) return;
+
+    // Rate limiting - prevent duplicate events
+    const now = Date.now();
+    if (now - this.lastEventTime < this.eventCooldown) {
+      return;
+    }
+    this.lastEventTime = now;
 
     const deviceInfo = this.getDeviceInfo();
     const locationInfo = this.getLocationInfo();
