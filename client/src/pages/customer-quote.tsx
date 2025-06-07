@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home } from "lucide-react";
+import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,33 @@ interface QuoteResponse {
   createdAt: string;
   updatedAt: string;
 }
+
+// Function to get appropriate icon for line item category
+const getCategoryIcon = (category: string) => {
+  const categoryLower = category.toLowerCase();
+  
+  if (categoryLower.includes('labor') || categoryLower.includes('labour')) {
+    return Users;
+  } else if (categoryLower.includes('material') || categoryLower.includes('supply')) {
+    return Package;
+  } else if (categoryLower.includes('electrical') || categoryLower.includes('electric')) {
+    return Zap;
+  } else if (categoryLower.includes('plumbing') || categoryLower.includes('water')) {
+    return Wrench;
+  } else if (categoryLower.includes('paint') || categoryLower.includes('finish')) {
+    return Paintbrush;
+  } else if (categoryLower.includes('demolition') || categoryLower.includes('demo')) {
+    return Hammer;
+  } else if (categoryLower.includes('equipment') || categoryLower.includes('rental')) {
+    return HardHat;
+  } else if (categoryLower.includes('delivery') || categoryLower.includes('transport')) {
+    return Truck;
+  } else if (categoryLower.includes('permit') || categoryLower.includes('admin')) {
+    return FileText;
+  } else {
+    return Hammer; // Default construction icon
+  }
+};
 
 export default function CustomerQuotePage() {
   const { token } = useParams<{ token: string }>();
@@ -378,7 +405,10 @@ export default function CustomerQuotePage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <div className="rounded-full p-2" style={{backgroundColor: '#f5f5f5'}}>
-                            <Wrench className="h-4 w-4" style={{color: '#db973c'}} />
+                            {(() => {
+                              const IconComponent = getCategoryIcon(item.category);
+                              return <IconComponent className="h-4 w-4" style={{color: '#db973c'}} />;
+                            })()}
                           </div>
                           <div>
                             <h4 className="font-semibold" style={{color: '#1a1a1a'}}>{item.category}</h4>
