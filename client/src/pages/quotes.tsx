@@ -7,18 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CreateQuoteDialog } from "@/components/quotes/CreateQuoteDialog";
 import { QuoteDetailsDialog } from "@/components/quotes/QuoteDetailsDialog";
-import { ComprehensiveEditQuoteDialog } from "@/components/quotes/ComprehensiveEditQuoteDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 
 export default function QuotesPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<QuoteWithDetails | null>(null);
-  const [editingQuote, setEditingQuote] = useState<QuoteWithDetails | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: quotes = [], isLoading } = useQuery<QuoteWithDetails[]>({
+  const { data: quotes = [], isLoading } = useQuery({
     queryKey: ["/api/quotes"],
     retry: false,
   });
@@ -82,7 +80,7 @@ export default function QuotesPage() {
     }).format(parseFloat(amount));
   };
 
-  const formatDate = (date: string | Date) => {
+  const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString();
   };
 
@@ -198,7 +196,7 @@ export default function QuotesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setEditingQuote(quote)}
+                      onClick={() => setSelectedQuote(quote)}
                       className="flex items-center gap-1"
                     >
                       <Edit className="h-4 w-4" />
@@ -232,18 +230,6 @@ export default function QuotesPage() {
           quote={selectedQuote}
           open={!!selectedQuote}
           onOpenChange={(open) => !open && setSelectedQuote(null)}
-          onEditQuote={(quote) => {
-            setSelectedQuote(null);
-            setEditingQuote(quote);
-          }}
-        />
-      )}
-
-      {editingQuote && (
-        <ComprehensiveEditQuoteDialog
-          quote={editingQuote}
-          open={!!editingQuote}
-          onOpenChange={(open) => !open && setEditingQuote(null)}
         />
       )}
     </div>
