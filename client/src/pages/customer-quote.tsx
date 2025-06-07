@@ -1032,27 +1032,56 @@ export default function CustomerQuotePage() {
               </div>
             </CardContent>
             <div className="flex justify-between p-6 pt-0">
-              <Button variant="outline" onClick={() => setShowResponse(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowResponse(false);
+                setShowDeclineReason(false);
+                setMessage("");
+              }}>
                 Cancel
               </Button>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleResponse('declined')}
-                  disabled={respondMutation.isPending}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Decline Proposal
-                </Button>
-                <Button
-                  onClick={() => handleResponse('accepted')}
-                  disabled={respondMutation.isPending}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Accept Proposal
-                </Button>
+                {!showDeclineReason ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowDeclineReason(true)}
+                      disabled={respondMutation.isPending}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Decline Proposal
+                    </Button>
+                    <Button
+                      onClick={() => handleResponse('accepted')}
+                      disabled={respondMutation.isPending}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Accept Proposal
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDeclineReason(false);
+                        setMessage("");
+                      }}
+                      disabled={respondMutation.isPending}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      onClick={() => handleResponse('declined')}
+                      disabled={respondMutation.isPending || !message.trim()}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Confirm Decline
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </Card>

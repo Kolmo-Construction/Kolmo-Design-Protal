@@ -56,6 +56,7 @@ function Router() {
       
       {/* Public customer quote routes */}
       <Route path="/quote/:token" component={CustomerQuote} />
+      <Route path="/customer/quote/:token" component={CustomerQuote} />
       <Route path="/quote-payment/:id" component={QuotePaymentPage} />
 
       {/* Development-only routes */}
