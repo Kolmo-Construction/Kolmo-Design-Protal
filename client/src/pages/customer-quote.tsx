@@ -208,7 +208,7 @@ export default function CustomerQuotePage() {
                 <img src={kolmoLogo} alt="Kolmo Construction" className="h-12 w-12 object-contain" />
               </div>
               <div className="text-center sm:text-left">
-                <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Constructions</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Construction</h1>
                 <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-1" style={{color: '#4a6670'}}>
                   <div className="flex items-center gap-1">
                     <Shield className="h-4 w-4" style={{color: '#db973c'}} />
@@ -712,7 +712,7 @@ export default function CustomerQuotePage() {
                 <img src="Kolmo (1).png" alt="Kolmo Construction" className="h-12 w-12" />
               </div>
               <div className="text-left">
-                <h3 className="text-2xl font-bold">Kolmo Constructions</h3>
+                <h3 className="text-2xl font-bold">Kolmo Construction</h3>
                 <p style={{color: 'rgba(255,255,255,0.7)'}}>Building Excellence Since 2010</p>
               </div>
             </div>
@@ -743,7 +743,7 @@ export default function CustomerQuotePage() {
             
             <div className="border-t pt-6" style={{borderColor: '#4a6670'}}>
               <p className="text-sm" style={{color: 'rgba(255,255,255,0.6)'}}>
-                © 2024 Kolmo Constructions. All rights reserved. | 
+                © 2024 Kolmo. All rights reserved. | 
                 Professional home improvement services with over a decade of experience in the Pacific Northwest.
               </p>
             </div>
