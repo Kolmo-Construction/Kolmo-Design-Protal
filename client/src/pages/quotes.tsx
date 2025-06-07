@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CreateQuoteDialog } from "@/components/quotes/CreateQuoteDialog";
 import { QuoteDetailsDialog } from "@/components/quotes/QuoteDetailsDialog";
+import { SimpleEditQuoteDialog } from "@/components/quotes/SimpleEditQuoteDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 
 export default function QuotesPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<QuoteWithDetails | null>(null);
+  const [editingQuote, setEditingQuote] = useState<QuoteWithDetails | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -196,7 +198,7 @@ export default function QuotesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setSelectedQuote(quote)}
+                      onClick={() => setEditingQuote(quote)}
                       className="flex items-center gap-1"
                     >
                       <Edit className="h-4 w-4" />
@@ -230,6 +232,14 @@ export default function QuotesPage() {
           quote={selectedQuote}
           open={!!selectedQuote}
           onOpenChange={(open) => !open && setSelectedQuote(null)}
+        />
+      )}
+
+      {editingQuote && (
+        <SimpleEditQuoteDialog
+          quote={editingQuote}
+          open={!!editingQuote}
+          onOpenChange={(open) => !open && setEditingQuote(null)}
         />
       )}
     </div>

@@ -35,14 +35,15 @@ interface QuoteDetailsDialogProps {
   quote: QuoteWithDetails;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEditQuote?: (quote: QuoteWithDetails) => void;
 }
 
-export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDialogProps) {
+export function QuoteDetailsDialog({ quote, open, onOpenChange, onEditQuote }: QuoteDetailsDialogProps) {
   const [showCreateLineItem, setShowCreateLineItem] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<QuoteLineItem | null>(null);
   const [showSendQuote, setShowSendQuote] = useState(false);
   const [showFinancials, setShowFinancials] = useState(false);
-  const [showEditQuote, setShowEditQuote] = useState(false);
+
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerName, setCustomerName] = useState("");
   const { toast } = useToast();
@@ -174,7 +175,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
               </div>
               <div className="flex items-center gap-4">
                 <Button
-                  onClick={() => setShowEditQuote(true)}
+                  onClick={() => onEditQuote?.(currentQuote)}
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2"
@@ -555,11 +556,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
         onOpenChange={setShowFinancials}
       />
 
-      <SimpleEditQuoteDialog
-        quote={currentQuote}
-        open={showEditQuote}
-        onOpenChange={setShowEditQuote}
-      />
+
     </>
   );
 }
