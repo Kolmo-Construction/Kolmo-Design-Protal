@@ -368,7 +368,7 @@ export default function CustomerQuotePage() {
             <div className="p-6">
               <div className="space-y-4">
                 {quoteData.lineItems.map((item, index) => (
-                  <div key={item.id} className="group rounded-xl p-4 transition-colors border border-gray-100" style={{'&:hover': {backgroundColor: '#f5f5f5'}}}>
+                  <div key={item.id} className="group hover:bg-gray-50 rounded-xl p-4 transition-colors border border-gray-100">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -632,36 +632,36 @@ export default function CustomerQuotePage() {
       </div>
 
       {/* Professional Footer */}
-      <div className="bg-slate-900 text-white mt-12">
+      <div className="text-white mt-12" style={{backgroundColor: '#3d452'}}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
           <div className="text-center">
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="bg-slate-800 rounded-lg p-3">
+              <div className="rounded-lg p-3" style={{backgroundColor: '#4a6670'}}>
                 <img src="@assets/kolmo-logo (1).png" alt="Kolmo Constructions" className="h-12 w-12" />
               </div>
               <div className="text-left">
                 <h3 className="text-2xl font-bold">Kolmo Constructions</h3>
-                <p className="text-slate-300">Building Excellence Since 2010</p>
+                <p style={{color: 'rgba(255,255,255,0.7)'}}>Building Excellence Since 2010</p>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-              <div className="flex items-center justify-center gap-3 text-slate-300">
-                <Shield className="h-6 w-6 text-emerald-400" />
+              <div className="flex items-center justify-center gap-3" style={{color: 'rgba(255,255,255,0.7)'}}>
+                <Shield className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
                   <div className="font-semibold text-white">Licensed & Insured</div>
                   <div className="text-sm">WA State Contractor License</div>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-3 text-slate-300">
-                <Award className="h-6 w-6 text-emerald-400" />
+              <div className="flex items-center justify-center gap-3" style={{color: 'rgba(255,255,255,0.7)'}}>
+                <Award className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
                   <div className="font-semibold text-white">EPA Certified</div>
                   <div className="text-sm">Lead-Safe Work Practices</div>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-3 text-slate-300">
-                <Star className="h-6 w-6 text-emerald-400" />
+              <div className="flex items-center justify-center gap-3" style={{color: 'rgba(255,255,255,0.7)'}}>
+                <Star className="h-6 w-6" style={{color: '#db973c'}} />
                 <div>
                   <div className="font-semibold text-white">Trusted Locally</div>
                   <div className="text-sm">Pacific Northwest Experts</div>
@@ -669,8 +669,8 @@ export default function CustomerQuotePage() {
               </div>
             </div>
             
-            <div className="border-t border-slate-700 pt-6">
-              <p className="text-slate-400 text-sm">
+            <div className="border-t pt-6" style={{borderColor: '#4a6670'}}>
+              <p className="text-sm" style={{color: 'rgba(255,255,255,0.6)'}}>
                 © 2024 Kolmo Constructions. All rights reserved. | 
                 Professional home improvement services with over a decade of experience in the Pacific Northwest.
               </p>
