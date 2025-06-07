@@ -105,7 +105,7 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
 
   const updateQuoteMutation = useMutation({
     mutationFn: async (updatedData: any) => {
-      return await apiRequest(`/api/quotes/${quote.id}`, "PATCH", updatedData);
+      return await apiRequest("/api/quotes/" + quote.id, "PATCH", updatedData);
     },
     onSuccess: () => {
       toast({
