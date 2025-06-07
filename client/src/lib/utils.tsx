@@ -47,6 +47,8 @@ export const formatFileSize = (bytes: number | null | undefined): string => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 };
 
+
+
 /**
  * Returns a React element representing a file icon based on MIME type.
  */

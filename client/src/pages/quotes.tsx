@@ -16,7 +16,7 @@ export default function QuotesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: quotes = [], isLoading } = useQuery({
+  const { data: quotes = [], isLoading } = useQuery<QuoteWithDetails[]>({
     queryKey: ["/api/quotes"],
     retry: false,
   });
