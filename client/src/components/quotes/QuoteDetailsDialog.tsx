@@ -30,6 +30,7 @@ import { CreateLineItemDialog } from "./CreateLineItemDialog";
 import { EditLineItemDialog } from "./EditLineItemDialog";
 import { QuoteFinancialsDialog } from "./QuoteFinancialsDialog";
 import { EditQuoteDetailsDialog } from "./EditQuoteDetailsDialog";
+import { QuoteImageManager } from "./QuoteImageManager";
 
 interface QuoteDetailsDialogProps {
   quote: QuoteWithDetails;
