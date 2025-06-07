@@ -211,7 +211,7 @@ export default function CustomerQuotePage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Quote Overview Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="px-6 py-6" style={{backgroundColor: '#3d452', color: 'white'}}>
+          <div className="px-6 py-6" style={{backgroundColor: '#3d4552', color: 'white'}}>
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -632,7 +632,7 @@ export default function CustomerQuotePage() {
       </div>
 
       {/* Professional Footer */}
-      <div className="text-white mt-12" style={{backgroundColor: '#3d452'}}>
+      <div className="text-white mt-12" style={{backgroundColor: '#3d4552'}}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
           <div className="text-center">
             <div className="flex items-center justify-center gap-4 mb-6">
