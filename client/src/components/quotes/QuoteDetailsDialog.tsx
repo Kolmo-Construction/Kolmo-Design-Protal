@@ -29,7 +29,7 @@ import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
 import { CreateLineItemDialog } from "./CreateLineItemDialog";
 import { EditLineItemDialog } from "./EditLineItemDialog";
 import { QuoteFinancialsDialog } from "./QuoteFinancialsDialog";
-import { SimpleEditQuoteDialog } from "./SimpleEditQuoteDialog";
+
 
 interface QuoteDetailsDialogProps {
   quote: QuoteWithDetails;

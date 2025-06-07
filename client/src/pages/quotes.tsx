@@ -18,7 +18,7 @@ export default function QuotesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: quotes = [], isLoading } = useQuery({
+  const { data: quotes = [], isLoading } = useQuery<QuoteWithDetails[]>({
     queryKey: ["/api/quotes"],
     retry: false,
   });
@@ -82,7 +82,7 @@ export default function QuotesPage() {
     }).format(parseFloat(amount));
   };
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | Date) => {
     return new Date(date).toLocaleDateString();
   };
 
@@ -232,6 +232,10 @@ export default function QuotesPage() {
           quote={selectedQuote}
           open={!!selectedQuote}
           onOpenChange={(open) => !open && setSelectedQuote(null)}
+          onEditQuote={(quote) => {
+            setSelectedQuote(null);
+            setEditingQuote(quote);
+          }}
         />
       )}
 
