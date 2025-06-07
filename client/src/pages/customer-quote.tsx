@@ -128,9 +128,6 @@ export default function CustomerQuotePage() {
     return new Date(date).toLocaleDateString();
   };
 
-  const isExpired = quote && new Date() > new Date(quote.validUntil);
-  const hasResponded = quote?.responses && quote.responses.length > 0;
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -164,6 +161,8 @@ export default function CustomerQuotePage() {
   }
 
   const quoteData = quote as QuoteResponse;
+  const isExpired = quoteData && new Date() > new Date(quoteData.validUntil);
+  const hasResponded = quoteData?.responses && quoteData.responses.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-slate-50">
@@ -526,76 +525,150 @@ export default function CustomerQuotePage() {
 
         {/* Project Scope */}
         {quoteData.scopeDescription && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Scope</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose prose-sm max-w-none">
-                <p>{quoteData.scopeDescription}</p>
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <FileText className="h-6 w-6 text-emerald-600" />
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Project Scope & Details</h3>
+                  <p className="text-slate-600">Comprehensive overview of your project</p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="p-6">
+              <div className="prose prose-slate max-w-none">
+                <p className="text-slate-700 leading-relaxed">{quoteData.scopeDescription}</p>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Contact Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+        {/* Customer Information */}
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="h-6 w-6 text-emerald-600" />
               <div>
-                <strong>{quoteData.customerName}</strong>
+                <h3 className="text-xl font-bold text-slate-900">Your Project Contact</h3>
+                <p className="text-slate-600">We'll keep you updated every step of the way</p>
               </div>
-              <div>{quoteData.customerEmail}</div>
-              {quoteData.customerPhone && <div>{quoteData.customerPhone}</div>}
-              {quoteData.customerAddress && <div>{quoteData.customerAddress}</div>}
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Primary Contact</div>
+                  <div className="text-lg font-semibold text-slate-900">{quoteData.customerName}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Email Address</div>
+                  <div className="text-slate-900">{quoteData.customerEmail}</div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {quoteData.customerPhone && (
+                  <div>
+                    <div className="text-sm font-medium text-slate-500">Phone Number</div>
+                    <div className="text-slate-900">{quoteData.customerPhone}</div>
+                  </div>
+                )}
+                {quoteData.customerAddress && (
+                  <div>
+                    <div className="text-sm font-medium text-slate-500">Project Address</div>
+                    <div className="text-slate-900">{quoteData.customerAddress}</div>
+                  </div>
+                )}
+              </div>
             </div>
             {quoteData.projectNotes && (
-              <div className="mt-4 p-3 bg-gray-50 rounded">
-                <div className="text-sm font-medium mb-1">Project Notes</div>
-                <div className="text-sm text-gray-600">{quoteData.projectNotes}</div>
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <h5 className="font-semibold text-slate-900 mb-2">Special Project Notes:</h5>
+                <p className="text-slate-700">{quoteData.projectNotes}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Questions Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Questions?
-            </CardTitle>
-            <CardDescription>
-              Have questions about this quote? We're here to help.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-2">
-              <p className="text-lg font-semibold">(206) 410-5100</p>
-              <p className="text-gray-600">projects@kolmo.io</p>
-              <p className="text-sm text-gray-500">Seattle, WA & Surrounding Areas</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <div className="text-center py-6 border-t">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <img src="/api/placeholder/40/40" alt="Kolmo Construction" className="h-8 w-8" />
-            <span className="font-semibold">Kolmo Construction</span>
           </div>
-          <p className="text-sm text-gray-600">
-            Professional home improvement services with over a decade of experience in the Pacific Northwest.
-          </p>
-          <p className="text-sm text-gray-500 mt-1">
-            Licensed, Bonded & Insured • EPA Lead-Safe Certified
-          </p>
-          <p className="text-xs text-gray-400 mt-4">
-            © 2024 Kolmo Construction. All rights reserved.
-          </p>
+        </div>
+
+        {/* Questions & Support */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl shadow-lg text-white p-8">
+          <div className="text-center">
+            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+            <h3 className="text-2xl font-bold mb-2">Questions About Your Project?</h3>
+            <p className="text-slate-300 mb-6 max-w-2xl mx-auto">
+              Our experienced team is here to help. We're committed to making your project vision a reality 
+              with transparent communication and expert craftsmanship.
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-lg mx-auto">
+              <a href="tel:+12064105100" className="flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 rounded-xl p-4 transition-colors">
+                <Phone className="h-5 w-5" />
+                <div className="text-left">
+                  <div className="font-semibold">Call Us</div>
+                  <div className="text-sm text-emerald-100">(206) 410-5100</div>
+                </div>
+              </a>
+              <a href="mailto:projects@kolmo.io" className="flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 rounded-xl p-4 transition-colors">
+                <Mail className="h-5 w-5" />
+                <div className="text-left">
+                  <div className="font-semibold">Email Us</div>
+                  <div className="text-sm text-blue-100">projects@kolmo.io</div>
+                </div>
+              </a>
+            </div>
+            
+            <p className="text-slate-400 text-sm mt-6">
+              Serving Seattle, WA & Surrounding Areas • Free Consultations Available
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Professional Footer */}
+      <div className="bg-slate-900 text-white mt-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="bg-emerald-600 rounded-full p-3">
+                <Home className="h-8 w-8" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-bold">Kolmo Construction</h3>
+                <p className="text-slate-300">Building Excellence Since 2010</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+              <div className="flex items-center justify-center gap-3 text-slate-300">
+                <Shield className="h-6 w-6 text-emerald-400" />
+                <div>
+                  <div className="font-semibold text-white">Licensed & Insured</div>
+                  <div className="text-sm">WA State Contractor License</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-3 text-slate-300">
+                <Award className="h-6 w-6 text-emerald-400" />
+                <div>
+                  <div className="font-semibold text-white">EPA Certified</div>
+                  <div className="text-sm">Lead-Safe Work Practices</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-3 text-slate-300">
+                <Star className="h-6 w-6 text-emerald-400" />
+                <div>
+                  <div className="font-semibold text-white">Trusted Locally</div>
+                  <div className="text-sm">Pacific Northwest Experts</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-t border-slate-700 pt-6">
+              <p className="text-slate-400 text-sm">
+                © 2024 Kolmo Construction. All rights reserved. | 
+                Professional home improvement services with over a decade of experience in the Pacific Northwest.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
