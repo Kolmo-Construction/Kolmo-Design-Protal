@@ -110,7 +110,8 @@ export default function QuotePaymentPage() {
         customerPhone: customerInfo.phone,
       });
       
-      setPaymentData(response);
+      const paymentData = await response.json();
+      setPaymentData(paymentData);
       setShowPaymentForm(true);
     } catch (error) {
       console.error('Error creating payment:', error);
