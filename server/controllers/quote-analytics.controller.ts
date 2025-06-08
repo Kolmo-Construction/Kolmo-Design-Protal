@@ -169,4 +169,15 @@ export class QuoteAnalyticsController {
       res.status(500).json({ error: "Failed to update scroll depth" });
     }
   }
+
+  // Get overall analytics for dashboard (admin only)
+  async getDashboardAnalytics(req: Request, res: Response) {
+    try {
+      const dashboardAnalytics = await this.analyticsRepository.getDashboardAnalytics();
+      res.json(dashboardAnalytics);
+    } catch (error) {
+      console.error("Error getting dashboard analytics:", error);
+      res.status(500).json({ error: "Failed to get dashboard analytics" });
+    }
+  }
 }

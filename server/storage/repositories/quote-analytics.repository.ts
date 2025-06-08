@@ -271,4 +271,73 @@ export class QuoteAnalyticsRepository {
       throw error;
     }
   }
+
+  // Get aggregated analytics for dashboard
+  async getDashboardAnalytics() {
+    try {
+      // Get total views across all quotes
+      const [totalViewsResult] = await db
+        .select({ count: count() })
+        .from(quoteAnalytics)
+        .where(eq(quoteAnalytics.event, 'view'));
+
+      // Get unique sessions across all quotes
+      const [uniqueSessionsResult] = await db
+        .select({ count: sql<number>`COUNT(DISTINCT ${quoteAnalytics.sessionId})` })
+        .from(quoteAnalytics)
+        .where(eq(quoteAnalytics.event, 'view'));
+
+      // Get average time on page
+      const [avgTimeResult] = await db
+        .select({ avgTime: sql<number>`AVG(${quoteViewSessions.totalDuration})` })
+        .from(quoteViewSessions)
+        .where(sql`${quoteViewSessions.totalDuration} IS NOT NULL`);
+
+      // Get average scroll depth
+      const [avgScrollResult] = await db
+        .select({ avgScroll: sql<number>`AVG(${quoteViewSessions.maxScrollDepth})` })
+        .from(quoteViewSessions)
+        .where(sql`${quoteViewSessions.maxScrollDepth} IS NOT NULL`);
+
+      // Get top performing quotes (most views)
+      const topQuotes = await db
+        .select({
+          quoteId: quoteAnalytics.quoteId,
+          views: count(),
+        })
+        .from(quoteAnalytics)
+        .where(eq(quoteAnalytics.event, 'view'))
+        .groupBy(quoteAnalytics.quoteId)
+        .orderBy(desc(count()))
+        .limit(5);
+
+      // Get recent activity (last 24 hours)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const [recentActivityResult] = await db
+        .select({ count: count() })
+        .from(quoteAnalytics)
+        .where(
+          and(
+            eq(quoteAnalytics.event, 'view'),
+            gte(quoteAnalytics.createdAt, yesterday)
+          )
+        );
+
+      return {
+        summary: {
+          totalViews: totalViewsResult?.count || 0,
+          uniqueSessions: uniqueSessionsResult?.count || 0,
+          avgTimeOnPage: Math.round(avgTimeResult?.avgTime || 0),
+          avgScrollDepth: Math.round(avgScrollResult?.avgScroll || 0),
+          recentViews24h: recentActivityResult?.count || 0,
+        },
+        topQuotes: topQuotes || [],
+      };
+    } catch (error) {
+      console.error("Error getting dashboard analytics:", error);
+      throw error;
+    }
+  }
 }

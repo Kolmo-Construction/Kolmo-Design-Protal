@@ -14,5 +14,6 @@ router.patch("/analytics/session/scroll", analyticsController.updateScrollDepth.
 // Protected admin routes
 router.get("/quotes/:quoteId/analytics/summary", isAuthenticated, analyticsController.getAnalyticsSummary.bind(analyticsController));
 router.get("/quotes/:quoteId/analytics/details", isAuthenticated, analyticsController.getAnalyticsDetails.bind(analyticsController));
+router.get("/analytics/dashboard", isAuthenticated, analyticsController.getDashboardAnalytics.bind(analyticsController));
 
 export default router;
