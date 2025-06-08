@@ -1001,7 +1001,7 @@ export default function CustomerQuotePage() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="rounded-lg p-3" style={{backgroundColor: '#4a6670'}}>
-                <img src="Kolmo (1).png" alt="Kolmo Construction" className="h-12 w-12" />
+                <img src={kolmoLogo} alt="Kolmo Construction" className="h-12 w-12 object-contain" />
               </div>
               <div className="text-left">
                 <h3 className="text-2xl font-bold">Kolmo Construction</h3>
