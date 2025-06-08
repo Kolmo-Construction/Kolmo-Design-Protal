@@ -68,6 +68,10 @@ export function CreateTaskDialog({
       dueDate: undefined,
       estimatedHours: undefined,
       actualHours: undefined,
+      isBillable: false,
+      billableAmount: "0",
+      billingRate: undefined,
+      billingType: "fixed",
     },
   });
 
@@ -304,6 +308,114 @@ export function CreateTaskDialog({
                 </FormItem>
               )}
             />
+
+            {/* Billing Configuration */}
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="text-sm font-medium text-slate-900">Billing Configuration</h4>
+              
+              {/* Is Billable Checkbox */}
+              <FormField
+                control={form.control}
+                name="isBillable"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-sm font-normal">
+                        Make this task billable
+                      </FormLabel>
+                      <FormDescription className="text-xs text-slate-500">
+                        Enable billing for this task when completed
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {/* Billing fields - only show if billable */}
+              {form.watch("isBillable") && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Billing Type */}
+                    <FormField
+                      control={form.control}
+                      name="billingType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Billing Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select billing type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="fixed">Fixed Amount</SelectItem>
+                              <SelectItem value="hourly">Hourly Rate</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Billable Amount or Rate */}
+                    {form.watch("billingType") === "fixed" ? (
+                      <FormField
+                        control={form.control}
+                        name="billableAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Fixed Amount ($)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                                value={field.value || ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ) : (
+                      <FormField
+                        control={form.control}
+                        name="billingRate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Hourly Rate ($/hr)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  field.onChange(value === '' ? undefined : parseFloat(value));
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Form Buttons */}
             <DialogFooter>

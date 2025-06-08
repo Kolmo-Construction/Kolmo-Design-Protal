@@ -318,8 +318,19 @@ export const tasks = pgTable("tasks", {
   assigneeId: integer("assignee_id").references(() => users.id, { onDelete: 'set null' }), // Set assignee to null if user deleted
   estimatedHours: decimal("estimated_hours", { precision: 5, scale: 2 }), // DECIMAL column
   actualHours: decimal("actual_hours", { precision: 5, scale: 2 }), // DECIMAL column
-  // progress field was removed since it doesn't exist in the database
   publishedAt: timestamp("published_at"), // When the task was published to clients (null = not published)
+  
+  // Billing configuration
+  isBillable: boolean("is_billable").default(false).notNull(),
+  billableAmount: decimal("billable_amount", { precision: 10, scale: 2 }).default("0"), // Fixed amount for this task
+  billingRate: decimal("billing_rate", { precision: 8, scale: 2 }), // Hourly rate if time-based billing
+  billingType: text("billing_type").default("fixed"), // fixed, hourly, percentage
+  
+  // Completion and billing tracking
+  completedAt: timestamp("completed_at"),
+  invoiceId: integer("invoice_id").references(() => invoices.id), // Link to generated invoice when billed
+  billedAt: timestamp("billed_at"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
