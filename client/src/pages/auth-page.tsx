@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { insertUserSchema } from "@shared/schema";
+import kolmoLogo from "@assets/kolmo-logo (1).png";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -473,12 +474,12 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-4">
               <img 
-                src="/assets/kolmo-logo.png" 
+                src={kolmoLogo} 
                 alt="Kolmo Constructions Logo" 
                 className="h-20 object-contain"
               />
             </div>
-            <CardTitle className="text-2xl text-center">Kolmo Constructions</CardTitle>
+            <CardTitle className="text-2xl text-center">Kolmo </CardTitle>
             <CardDescription className="text-center">
               Sign in to access your construction project portal
             </CardDescription>
