@@ -44,8 +44,6 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
   const [estimatedStartDate, setEstimatedStartDate] = useState("");
   const [estimatedCompletionDate, setEstimatedCompletionDate] = useState("");
   const [validUntil, setValidUntil] = useState("");
-  const [scopeDescription, setScopeDescription] = useState("");
-  const [projectNotes, setProjectNotes] = useState("");
   
   const [milestones, setMilestones] = useState<Milestone[]>([]);
 
@@ -66,8 +64,6 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
       setEstimatedStartDate(quote.estimatedStartDate ? new Date(quote.estimatedStartDate).toISOString().split('T')[0] : "");
       setEstimatedCompletionDate(quote.estimatedCompletionDate ? new Date(quote.estimatedCompletionDate).toISOString().split('T')[0] : "");
       setValidUntil(quote.validUntil ? new Date(quote.validUntil).toISOString().split('T')[0] : "");
-      setScopeDescription(quote.scopeDescription || "");
-      setProjectNotes(quote.projectNotes || "");
       
       // Initialize milestones from quote data
       const quoteMilestones: Milestone[] = [];
@@ -150,6 +146,7 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
       customerEmail: customerEmail.trim(), 
       title: title.trim(),
       projectType: projectType.trim(),
+      description: description.trim(),
       milestones
     });
 
@@ -205,8 +202,8 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
       estimatedStartDate: estimatedStartDate || null,
       estimatedCompletionDate: estimatedCompletionDate || null,
       validUntil: validUntil || null,
-      scopeDescription: scopeDescription.trim() || null,
-      projectNotes: projectNotes.trim() || null,
+      scopeDescription: null, // Legacy field - consolidated into description
+      projectNotes: null, // Legacy field - consolidated into description
       downPaymentPercentage: milestones.find(m => m.order === 1)?.percentage || 0,
       milestonePaymentPercentage: milestones.find(m => m.order === 2)?.percentage || 0,
       finalPaymentPercentage: milestones.find(m => m.order === 3)?.percentage || 0,
@@ -405,30 +402,8 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
                   value={description}
                   onChange={setDescription}
                   label="Project Description"
-                  placeholder="Brief description of the project"
-                  height={200}
-                  preview="live"
-                />
-              </div>
-              
-              <div>
-                <RichTextEditor
-                  value={scopeDescription}
-                  onChange={setScopeDescription}
-                  label="Project Scope"
-                  placeholder="Detailed scope of work"
-                  height={250}
-                  preview="live"
-                />
-              </div>
-              
-              <div>
-                <RichTextEditor
-                  value={projectNotes}
-                  onChange={setProjectNotes}
-                  label="Project Notes"
-                  placeholder="Additional notes or special requirements"
-                  height={200}
+                  placeholder="Comprehensive project description including scope of work, requirements, and notes..."
+                  height={400}
                   preview="live"
                 />
               </div>
