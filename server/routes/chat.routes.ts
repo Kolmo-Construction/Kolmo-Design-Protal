@@ -217,4 +217,82 @@ router.get('/usage', isAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Get all active conversations for admin dashboard
+ */
+router.get('/conversations', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { StreamChat } = await import('stream-chat');
+    const client = StreamChat.getInstance(process.env.STREAM_API_KEY!, process.env.STREAM_API_SECRET!);
+    const user = req.user as any;
+    const adminUserId = `admin-${user.id}`;
+    
+    // Query channels where the admin is a member
+    const channels = await client.queryChannels({
+      members: { $in: [adminUserId] },
+      type: 'messaging'
+    }, { last_message_at: -1 }, { limit: 50 });
+    
+    // Get quote information for each channel
+    const conversations = await Promise.all(
+      channels.map(async (channel) => {
+        const quoteId = channel.id?.replace('quote-', '');
+        let quoteInfo = null;
+        
+        if (quoteId) {
+          try {
+            const [quote] = await db
+              .select({ 
+                id: quotes.id, 
+                quoteNumber: quotes.quoteNumber, 
+                title: quotes.title,
+                customerName: quotes.customerName,
+                customerEmail: quotes.customerEmail
+              })
+              .from(quotes)
+              .where(eq(quotes.id, parseInt(quoteId)))
+              .limit(1);
+            
+            quoteInfo = quote;
+          } catch (error) {
+            console.error('Error fetching quote info:', error);
+          }
+        }
+        
+        // Get unread count for admin user (simplified approach)
+        const unreadCount = 0; // Stream Chat unread count requires more complex setup
+        
+        return {
+          channelId: channel.id,
+          quoteId: quoteId ? parseInt(quoteId) : null,
+          quoteInfo,
+          lastMessage: channel.state.last_message_at ? {
+            text: channel.state.messages[channel.state.messages.length - 1]?.text || '',
+            createdAt: new Date(channel.state.last_message_at).toISOString(),
+            user: channel.state.messages[channel.state.messages.length - 1]?.user
+          } : null,
+          unreadCount,
+          memberCount: Object.keys(channel.state.members).length,
+          isActive: channel.state.last_message_at ? 
+            (new Date().getTime() - new Date(channel.state.last_message_at).getTime()) < 7 * 24 * 60 * 60 * 1000 : false
+        };
+      })
+    );
+    
+    // Filter out conversations without quote info and sort by last activity
+    const validConversations = conversations
+      .filter(conv => conv.quoteInfo)
+      .sort((a, b) => {
+        if (!a.lastMessage?.createdAt) return 1;
+        if (!b.lastMessage?.createdAt) return -1;
+        return new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime();
+      });
+    
+    res.json(validConversations);
+  } catch (error) {
+    console.error('Error getting conversations:', error);
+    res.status(500).json({ error: 'Failed to get conversations' });
+  }
+});
+
 export default router;
