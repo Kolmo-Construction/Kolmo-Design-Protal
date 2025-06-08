@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MDEditor from "@uiw/react-md-editor";
 import rehypeSanitize from "rehype-sanitize";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,11 @@ export function RichTextEditor({
   required = false
 }: RichTextEditorProps) {
   const [data, setData] = useState(value);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setData(value);
+  }, [value]);
 
   const handleChange = (val?: string) => {
     const newValue = val || "";
