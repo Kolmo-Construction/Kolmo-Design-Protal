@@ -1,21 +1,17 @@
-import { MailerSend, EmailParams, Sender, Recipient } from 'mailersend';
+import sgMail from '@sendgrid/mail';
 
-// Initialize MailerSend with API key
-let mailerSend: MailerSend | null = null;
-
-if (!process.env.MAILERSEND_API_KEY) {
-  console.warn("MAILERSEND_API_KEY environment variable is not set. Email functionality will not work.");
+// Initialize SendGrid with API key
+if (!process.env.SENDGRID_API_KEY) {
+  console.warn("SENDGRID_API_KEY environment variable is not set. Email functionality will not work.");
 } else {
-  mailerSend = new MailerSend({
-    apiKey: process.env.MAILERSEND_API_KEY
-  });
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
 /**
  * Check if the email service is configured properly
  */
 export function isEmailServiceConfigured(): boolean {
-  return !!process.env.MAILERSEND_API_KEY;
+  return !!process.env.SENDGRID_API_KEY;
 }
 
 interface EmailOptions {
@@ -27,17 +23,15 @@ interface EmailOptions {
   fromName?: string; // Added fromName
 }
 
-// Default sender email - should be a verified domain in MailerSend account
-// Can be overridden with environment variable
-const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@constructionportal.com';
-const DEFAULT_FROM_NAME = "Construction Portal"; // Added default name
+// Default sender email - should be a verified domain in SendGrid account
+const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'quotes@kolmo.io';
+const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**
- * Send an email using MailerSend
+ * Send an email using SendGrid
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === 'development';
-  // Use provided fromEmail/fromName or defaults
   const fromEmail = options.from || DEFAULT_FROM_EMAIL;
   const fromName = options.fromName || DEFAULT_FROM_NAME;
 
@@ -45,7 +39,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   if (isDev) {
     console.log('\n==== DEVELOPMENT EMAIL ====');
     console.log(`TO: ${options.to}`);
-    console.log(`FROM: ${fromName} <${fromEmail}>`); // Show name and email
+    console.log(`FROM: ${fromName} <${fromEmail}>`);
     console.log(`SUBJECT: ${options.subject}`);
     console.log('\n---- TEXT CONTENT ----');
     console.log(options.text || '(No text content)');
@@ -68,46 +62,40 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     }
 
     console.log('\n==== END EMAIL ====\n');
-
-    // In development mode with no API key, just return success without trying to send
-    if (!process.env.MAILERSEND_API_KEY) {
-      console.log('Development mode: Skipping actual email delivery (no API key)');
-      return true;
-    }
   }
 
-  // Check for MailerSend API key and client for actual email delivery
-  if (!mailerSend || !process.env.MAILERSEND_API_KEY) {
-    console.error("Cannot send email: MAILERSEND_API_KEY is not set");
-    return false;
+  if (!isEmailServiceConfigured()) {
+    console.warn("SendGrid API key not configured - skipping email send");
+    return isDev; // Return true in dev mode so app doesn't break, false in production
   }
 
   try {
-    const emailParams = new EmailParams()
-      .setFrom(new Sender(fromEmail, fromName)) // Use fromName
-      .setTo([new Recipient(options.to)])
-      .setSubject(options.subject);
+    const msg = {
+      to: options.to,
+      from: {
+        email: fromEmail,
+        name: fromName
+      },
+      subject: options.subject,
+      text: options.text || '',
+      html: options.html || options.text || ''
+    };
 
-    if (options.html) {
-      emailParams.setHtml(options.html);
-    }
-
-    if (options.text) {
-      emailParams.setText(options.text);
-    }
-
-    await mailerSend.email.send(emailParams);
-    console.log(`Email sent to ${options.to}`);
+    await sgMail.send(msg);
+    console.log(`Email sent successfully to ${options.to}`);
     return true;
   } catch (error) {
-    console.error('Error sending email:', error);
-
-    // In development, consider it a success even if MailerSend fails
+    console.error('Failed to send email via SendGrid:', error);
+    if (error.response) {
+      console.error('SendGrid error response:', error.response.body);
+    }
+    
+    // In development, consider it a success to avoid breaking the flow
     if (isDev) {
       console.log('Development mode: Email delivery failed, but continuing as if successful');
       return true;
     }
-
+    
     return false;
   }
 }
