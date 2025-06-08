@@ -1,10 +1,25 @@
 import { StreamChat } from 'stream-chat';
 
-// Initialize Stream Chat server client
-export const streamServerClient = StreamChat.getInstance(
-  process.env.STREAM_API_KEY!,
-  process.env.STREAM_API_SECRET!
-);
+// Initialize Stream Chat server client with proper error handling
+let streamServerClient: StreamChat | null = null;
+
+try {
+  const apiKey = process.env.STREAM_API_KEY;
+  const apiSecret = process.env.STREAM_SECRET || process.env.STREAM_API_SECRET;
+  
+  if (!apiKey || !apiSecret) {
+    console.warn('WARNING: Stream Chat credentials not configured. Chat functionality will be disabled.');
+    console.warn('Required environment variables: STREAM_API_KEY, STREAM_SECRET');
+  } else {
+    streamServerClient = StreamChat.getInstance(apiKey, apiSecret);
+    console.log('Stream Chat client initialized successfully');
+  }
+} catch (error) {
+  console.error('Failed to initialize Stream Chat client:', error);
+  console.warn('Chat functionality will be disabled.');
+}
+
+export { streamServerClient };
 
 // Connection monitoring
 class ConnectionMonitor {
