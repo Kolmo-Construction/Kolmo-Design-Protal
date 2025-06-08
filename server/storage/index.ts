@@ -14,6 +14,7 @@ import { IProgressUpdateRepository, progressUpdateRepository } from './repositor
 import { IDailyLogRepository, dailyLogRepository } from './repositories/dailyLog.repository';
 import { IMediaRepository, mediaRepository } from './repositories/media.repository'; // Import instance for injection
 import { IQuoteRepository, quoteRepository } from './repositories/quote.repository';
+import { IMilestoneRepository, milestoneRepository } from './repositories/milestone.repository';
 
 // *** ADDED: Import PunchListRepository CLASS and INTERFACE ***
 import { PunchListRepository, IPunchListRepository } from './repositories/punchList.repository';
@@ -32,6 +33,7 @@ export interface StorageAggregate {
     punchLists: IPunchListRepository; // Use interface
     media: IMediaRepository;
     quotes: IQuoteRepository;
+    milestones: IMilestoneRepository;
     sessionStore: session.Store;
 }
 
@@ -59,6 +61,7 @@ export const storage: StorageAggregate = {
     punchLists: punchListRepositoryInstance, // Use the newly created instance
     media: mediaRepository,
     quotes: quoteRepository,
+    milestones: milestoneRepository,
     sessionStore,
 };
 
