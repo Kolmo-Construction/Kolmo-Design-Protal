@@ -191,14 +191,12 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
     return (
       <>
         {/* Mobile floating loading button */}
-        <div className="md:hidden fixed bottom-4 right-4 z-50">
-          <button
-            disabled
-            className="kolmo-chat-toggle rounded-full w-14 h-14 shadow-lg flex items-center justify-center opacity-60 cursor-not-allowed"
-          >
-            <MessageCircle className="h-6 w-6" />
-          </button>
-        </div>
+        <button
+          disabled
+          className="md:hidden kolmo-floating-chat-button opacity-60 cursor-not-allowed"
+        >
+          <MessageCircle className="h-6 w-6 text-white" />
+        </button>
         
         {/* Desktop loading state */}
         <div className="hidden md:block w-full">
@@ -217,14 +215,12 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
   return (
     <>
       {/* Mobile floating chat button */}
-      <div className="md:hidden fixed bottom-4 right-4 z-50">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="kolmo-chat-toggle rounded-full w-14 h-14 shadow-lg flex items-center justify-center"
-        >
-          <MessageCircle className="h-6 w-6" />
-        </button>
-      </div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="md:hidden kolmo-floating-chat-button"
+      >
+        <MessageCircle className="h-6 w-6 text-white" />
+      </button>
 
       {/* Desktop inline chat */}
       <div className="hidden md:block w-full">
