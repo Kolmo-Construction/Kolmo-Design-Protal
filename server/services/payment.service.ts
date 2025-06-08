@@ -137,7 +137,7 @@ export class PaymentService {
       city: 'City', // Default value, will be enhanced with proper quote fields
       state: 'State', // Default value, will be enhanced with proper quote fields  
       zipCode: '00000', // Default value, will be enhanced with proper quote fields
-      totalBudget: parseFloat(quote.total?.toString() || '0'),
+      totalBudget: quote.total?.toString() || '0',
       status: 'planning' as const,
       estimatedCompletionDate: quote.estimatedCompletionDate,
       originQuoteId: quote.id,
@@ -164,7 +164,7 @@ export class PaymentService {
       projectId: project.id,
       quoteId: quote.id,
       invoiceNumber,
-      amount: parseFloat(downPayment.amount.toString()),
+      amount: downPayment.amount.toString(),
       description: `Down payment (${downPayment.percentage}%) for ${quote.title}`,
       issueDate: new Date(),
       dueDate: downPayment.dueDate,

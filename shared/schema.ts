@@ -127,7 +127,7 @@ export const projects = pgTable("projects", {
   estimatedCompletionDate: timestamp("estimated_completion_date"),
   actualCompletionDate: timestamp("actual_completion_date"),
   status: text("status").notNull().default("planning"), // planning, in_progress, on_hold, completed
-  totalBudget: decimal("total_budget", { precision: 10, scale: 2 }).notNull(),
+  totalBudget: decimal("total_budget", { precision: 10, scale: 2 }).notNull().$type<string>(),
   imageUrl: text("image_url"),
   progress: integer("progress").default(0), // Percentage complete (0-100)
   projectManagerId: integer("project_manager_id").references(() => users.id),
@@ -174,7 +174,7 @@ export const invoices = pgTable("invoices", {
   projectId: integer("project_id").references(() => projects.id),
   quoteId: integer("quote_id").references(() => quotes.id), // Link to originating quote
   invoiceNumber: text("invoice_number").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull().$type<string>(),
   description: text("description"),
   issueDate: timestamp("issue_date").notNull(),
   dueDate: timestamp("due_date").notNull(),

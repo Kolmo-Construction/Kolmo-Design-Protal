@@ -168,7 +168,7 @@ class ProjectRepository implements IProjectRepository {
             if (!projectResult || projectResult.length === 0) throw new Error("Failed to insert project.");
             const projectId = projectResult[0].id;
 
-            const clientLinks = clientIds.map(clientId => ({ projectId, clientId }));
+            const clientLinks = clientIds.map(clientId => ({ projectId, clientId: parseInt(clientId.toString()) }));
             await tx.insert(schema.clientProjects).values(clientLinks);
 
             // Use tx instance for query inside transaction
@@ -197,7 +197,7 @@ class ProjectRepository implements IProjectRepository {
             if (clientIds !== undefined) {
                 if (clientIds.length === 0) throw new Error("Cannot update project to have zero clients.");
                 await tx.delete(schema.clientProjects).where(eq(schema.clientProjects.projectId, projectId));
-                const newClientLinks = clientIds.map(clientId => ({ projectId, clientId }));
+                const newClientLinks = clientIds.map(clientId => ({ projectId, clientId: parseInt(clientId.toString()) }));
                 await tx.insert(schema.clientProjects).values(newClientLinks);
             }
 
