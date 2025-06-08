@@ -29,6 +29,7 @@ import { paymentRoutes } from "./routes/payment.routes"; // Payment processing r
 import { webhookRoutes } from "./routes/webhook.routes"; // Stripe webhook router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
+import chatRouter from "./routes/chat.routes"; // Stream Chat router
 // Import other routers as needed (milestones, selections, admin, etc.)
 // import milestoneRouter from "@server/routes/milestone.routes";
 // import selectionRouter from "@server/routes/selection.routes";
@@ -167,6 +168,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // Mount Storage/R2 routes with mixed authentication
   app.use("/api/storage", storageRoutes);
+
+  // Mount Chat routes (mixed auth - admin authenticated, customer public tokens)
+  app.use("/api/chat", chatRouter);
 
   // Mount Webhook routes (no authentication - Stripe handles verification)
   app.use("/api/webhooks", webhookRoutes);

@@ -50,7 +50,7 @@ export async function createQuoteChannel(
     const channelId = `quote-${quoteId}`;
     const channel = streamServerClient.channel('messaging', channelId);
 
-    await channel.create('system');
+    await channel.create();
     
     // Send initial welcome message
     await channel.sendMessage({
