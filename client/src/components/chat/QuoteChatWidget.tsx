@@ -30,9 +30,7 @@ export const QuoteChatWidget: React.FC<QuoteChatWidgetProps> = ({
   useEffect(() => {
     if (client && isConnected) {
       const channelId = `quote-${quoteId}`;
-      const quoteChannel = client.channel('messaging', channelId, {
-        name: `Quote #${quoteNumber} Discussion`,
-      });
+      const quoteChannel = client.channel('messaging', channelId);
       
       quoteChannel.watch().then(() => {
         setChannel(quoteChannel);

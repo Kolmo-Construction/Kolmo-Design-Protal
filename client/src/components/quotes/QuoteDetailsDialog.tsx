@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Edit, Trash2, Upload, Download, Eye, Mail, Copy, ExternalLink, Calculator, Settings } from "lucide-react";
+import { ChatProvider } from "@/contexts/ChatContext";
+import { AdminQuoteChatWidget } from "@/components/chat/QuoteChatWidget";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

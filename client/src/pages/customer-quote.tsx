@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard } from "lucide-react";
-import { ChatProvider } from "@/contexts/ChatContext";
-import { QuoteChatWidget } from "@/components/chat/QuoteChatWidget";
 import QuoteAnalytics from "@/lib/quote-analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -324,13 +322,7 @@ export default function CustomerQuotePage() {
   const hasDeclined = !!declinedResponse;
 
   return (
-    <ChatProvider 
-      isCustomer={true}
-      quoteToken={token}
-      customerName={quoteData.customerName}
-      customerEmail={quoteData.customerEmail}
-    >
-      <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       {/* Professional Header */}
       <div className="bg-white border-b border-gray-200" style={{color: '#1a1a1a'}}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
@@ -1343,16 +1335,6 @@ export default function CustomerQuotePage() {
           </Card>
         </div>
       )}
-      
-      {/* Chat Widget */}
-      <QuoteChatWidget 
-        quoteId={quoteData.id.toString()}
-        quoteNumber={quoteData.quoteNumber}
-        isCustomer={true}
-        customerName={quoteData.customerName}
-        customerEmail={quoteData.customerEmail}
-      />
     </div>
-    </ChatProvider>
   );
 }

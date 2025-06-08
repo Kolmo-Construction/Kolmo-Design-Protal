@@ -58,7 +58,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     try {
       const chatClient = StreamChat.getInstance(chatData.apiKey);
       await chatClient.connectUser(
-        { id: chatData.userId },
+        { 
+          id: chatData.userId,
+          name: chatData.userName || 'Admin User',
+        },
         chatData.token
       );
       setClient(chatClient);
@@ -74,14 +77,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
         quoteToken: token,
         customerName: name,
         customerEmail: email,
-      });
+      }) as any;
 
       const chatClient = StreamChat.getInstance(response.apiKey);
       await chatClient.connectUser(
         { 
           id: response.userId,
           name: name,
-          email: email,
         },
         response.token
       );
