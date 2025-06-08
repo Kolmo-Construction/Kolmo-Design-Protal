@@ -152,15 +152,223 @@ export class QuoteController {
         return res.status(400).json({ error: "Invalid quote ID" });
       }
 
-      const quote = await this.quoteRepository.sendQuote(quoteId);
-      if (!quote) {
+      // Get the full quote details for email
+      const quoteDetails = await this.quoteRepository.getQuoteById(quoteId);
+      if (!quoteDetails) {
         return res.status(404).json({ error: "Quote not found" });
       }
 
-      res.json({ message: "Quote sent successfully", quote });
+      // Update quote status to 'sent'
+      const quote = await this.quoteRepository.sendQuote(quoteId);
+      if (!quote) {
+        return res.status(404).json({ error: "Failed to update quote status" });
+      }
+
+      // Send email to customer
+      const quoteLink = `${req.protocol}://${req.get('host')}/quote/${quoteDetails.accessToken}`;
+      const emailSent = await this.sendQuoteEmail(quoteDetails, quoteLink);
+
+      if (!emailSent) {
+        console.warn("Quote status updated but email failed to send");
+        return res.json({ 
+          message: "Quote sent successfully but email delivery failed", 
+          quote,
+          emailSent: false 
+        });
+      }
+
+      res.json({ 
+        message: "Quote sent successfully via email", 
+        quote,
+        emailSent: true 
+      });
     } catch (error) {
       console.error("Error sending quote:", error);
       res.status(500).json({ error: "Failed to send quote" });
+    }
+  }
+
+  private async sendQuoteEmail(quote: any, quoteLink: string): Promise<boolean> {
+    try {
+      const formatCurrency = (amount: string) => {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD'
+        }).format(parseFloat(amount));
+      };
+
+      const formatDate = (date: Date | string) => {
+        return new Date(date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      };
+
+      const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Project Quote from Kolmo</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background: linear-gradient(135deg, #3d4552 0%, #4a5568 100%); color: white; padding: 40px 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 700; }
+        .header p { margin: 10px 0 0 0; font-size: 16px; opacity: 0.9; }
+        .content { padding: 40px 30px; }
+        .quote-summary { background-color: #f8f9fa; border-left: 4px solid #db973c; padding: 25px; margin: 25px 0; border-radius: 8px; }
+        .quote-number { font-size: 18px; font-weight: 600; color: #3d4552; margin-bottom: 10px; }
+        .project-title { font-size: 24px; font-weight: 700; color: #2d3748; margin-bottom: 15px; }
+        .project-details { display: flex; flex-wrap: wrap; gap: 20px; margin: 20px 0; }
+        .detail-item { flex: 1; min-width: 200px; }
+        .detail-label { font-size: 12px; color: #718096; text-transform: uppercase; font-weight: 600; margin-bottom: 5px; }
+        .detail-value { font-size: 16px; color: #2d3748; font-weight: 500; }
+        .total-amount { text-align: center; background-color: #e6fffa; border: 2px solid #38b2ac; border-radius: 12px; padding: 20px; margin: 25px 0; }
+        .total-label { font-size: 14px; color: #2d3748; margin-bottom: 5px; }
+        .total-value { font-size: 32px; font-weight: 700; color: #1a202c; }
+        .cta-button { display: inline-block; background: linear-gradient(135deg, #db973c 0%, #e2a354 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 20px 0; text-align: center; box-shadow: 0 4px 15px rgba(219, 151, 60, 0.4); }
+        .cta-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(219, 151, 60, 0.5); }
+        .validity-notice { background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0; }
+        .validity-notice strong { color: #856404; }
+        .footer { background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; }
+        .footer p { margin: 5px 0; color: #718096; font-size: 14px; }
+        .contact-info { margin: 20px 0; padding: 20px; background-color: #f7fafc; border-radius: 8px; }
+        @media (max-width: 600px) {
+            .project-details { flex-direction: column; }
+            .detail-item { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ Kolmo Construction</h1>
+            <p>Your Professional Project Quote is Ready</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hello ${quote.customerName || 'Valued Customer'},</h2>
+            
+            <p>Thank you for considering Kolmo for your construction project. We're excited to present you with a detailed quote for your upcoming project.</p>
+            
+            <div class="quote-summary">
+                <div class="quote-number">Quote #${quote.quoteNumber}</div>
+                <div class="project-title">${quote.title}</div>
+                ${quote.description ? `<p style="color: #4a5568; margin: 10px 0;">${quote.description}</p>` : ''}
+                
+                <div class="project-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Project Type</div>
+                        <div class="detail-value">${quote.projectType}</div>
+                    </div>
+                    ${quote.location ? `
+                    <div class="detail-item">
+                        <div class="detail-label">Location</div>
+                        <div class="detail-value">${quote.location}</div>
+                    </div>
+                    ` : ''}
+                    ${quote.estimatedStartDate ? `
+                    <div class="detail-item">
+                        <div class="detail-label">Estimated Start</div>
+                        <div class="detail-value">${formatDate(quote.estimatedStartDate)}</div>
+                    </div>
+                    ` : ''}
+                    ${quote.estimatedCompletionDate ? `
+                    <div class="detail-item">
+                        <div class="detail-label">Estimated Completion</div>
+                        <div class="detail-value">${formatDate(quote.estimatedCompletionDate)}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <div class="total-amount">
+                <div class="total-label">Total Project Investment</div>
+                <div class="total-value">${formatCurrency(quote.total)}</div>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${quoteLink}" class="cta-button">View Complete Quote Details</a>
+            </div>
+
+            <div class="validity-notice">
+                <strong>⏰ Time-Sensitive Offer:</strong> This quote is valid until <strong>${formatDate(quote.validUntil)}</strong>. 
+                Please review and respond by this date to secure your project slot and pricing.
+            </div>
+
+            <h3>What's Included in Your Quote:</h3>
+            <ul style="color: #4a5568; line-height: 1.6;">
+                <li>Detailed breakdown of all materials and labor</li>
+                <li>Professional project timeline and milestones</li>
+                <li>Comprehensive scope of work documentation</li>
+                <li>Transparent pricing with no hidden fees</li>
+                <li>Quality assurance and warranty information</li>
+            </ul>
+
+            <div class="contact-info">
+                <h3 style="margin-top: 0; color: #2d3748;">Questions? We're Here to Help!</h3>
+                <p style="margin: 5px 0;">Our team is ready to discuss any aspect of your project and answer your questions.</p>
+                <p style="margin: 5px 0;">📧 Email: info@kolmo.io | 📞 Phone: (555) 123-4567</p>
+            </div>
+
+            <p style="margin-top: 30px;">We look forward to the opportunity to bring your vision to life with exceptional quality and craftsmanship.</p>
+            
+            <p style="margin-top: 20px;">
+                Best regards,<br>
+                <strong>The Kolmo Construction Team</strong>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Kolmo Construction Services</strong></p>
+            <p>Building Dreams, Delivering Excellence</p>
+            <p>www.kolmo.io | info@kolmo.io | (555) 123-4567</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+      const emailText = `
+Hello ${quote.customerName || 'Valued Customer'},
+
+Thank you for considering Kolmo for your construction project. Your quote is ready for review.
+
+Quote Details:
+- Quote Number: ${quote.quoteNumber}
+- Project: ${quote.title}
+- Project Type: ${quote.projectType}
+- Total Investment: ${formatCurrency(quote.total)}
+- Valid Until: ${formatDate(quote.validUntil)}
+
+View your complete quote with detailed breakdown and project information:
+${quoteLink}
+
+This quote is valid until ${formatDate(quote.validUntil)}. Please review and respond by this date to secure your project slot and pricing.
+
+Questions? Contact us:
+Email: info@kolmo.io
+Phone: (555) 123-4567
+
+Best regards,
+The Kolmo Construction Team
+www.kolmo.io
+`;
+
+      return await sendEmail({
+        to: quote.customerEmail,
+        subject: `Your Project Quote #${quote.quoteNumber} from Kolmo Construction`,
+        text: emailText,
+        html: emailHtml,
+        from: 'quotes@kolmo.io',
+        fromName: 'Kolmo Construction'
+      });
+    } catch (error) {
+      console.error("Error sending quote email:", error);
+      return false;
     }
   }
 
