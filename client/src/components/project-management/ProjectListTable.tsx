@@ -1,4 +1,4 @@
-import { Project, User, ProjectStatus } from "@shared/schema"; // ADDED ProjectStatus
+import { Project, User } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +50,7 @@ export function ProjectListTable({
           <TableHead>Location</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Budget</TableHead>
+          <TableHead>Payment Status</TableHead>
           <TableHead>Project Manager</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
@@ -69,22 +70,24 @@ export function ProjectListTable({
                   {project.city}, {project.state}
                 </TableCell>
                 <TableCell>
-                    <Badge variant="outline" className={getProjectStatusBadgeClasses(project.status as ProjectStatus)}> {/* USE Imported helper */}
-
-                        {getProjectStatusLabel(project.status as ProjectStatus)} {/* USE Imported helper */}
+                    <Badge variant="outline" className={getProjectStatusBadgeClasses(project.status)}>
+                        {getProjectStatusLabel(project.status)}
                     </Badge>
                 </TableCell>
                 <TableCell>
                   ${Number(project.totalBudget ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-
+                </TableCell>
+                <TableCell>
+                  <PaymentStatusColumn 
+                    project={project} 
+                    onTriggerMilestone={onTriggerMilestone}
+                  />
                 </TableCell>
                 <TableCell>
                   {manager
                     ? `${manager.firstName} ${manager.lastName}`
-
                     : project.projectManagerId
                     ? <span className="text-slate-400 italic">Loading...</span>
-
                     : <span className="text-slate-400">Unassigned</span>}
                 </TableCell>
                 <TableCell className="text-right">
@@ -105,7 +108,7 @@ export function ProjectListTable({
           })
         ) : (
           <TableRow>
-            <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+            <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
               No projects match the current filters.
             </TableCell>
           </TableRow>

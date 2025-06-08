@@ -36,6 +36,7 @@ import { CreateProjectDialog } from "@/components/project-management/CreateProje
 import { EditProjectDialog } from "@/components/project-management/EditProjectDialog";
 // --- ADDED: Import the new hook ---
 import { useProjectManagementDialogs } from '@/hooks/useProjectManagementDialogs';
+import { usePaymentManagement } from '@/hooks/usePaymentManagement';
 // --- END ADDED ---
 
 
@@ -61,6 +62,13 @@ export default function ProjectManagement() {
 
       openEditDialog, // Pass down to ProjectListTable
   } = useProjectManagementDialogs();
+
+  // --- ADDED: Get payment management functionality ---
+  const { triggerMilestone } = usePaymentManagement();
+
+  const handleTriggerMilestone = (projectId: number, paymentType: 'milestone' | 'final') => {
+    triggerMilestone.mutate({ projectId, paymentType });
+  };
   // --- END ADDED ---
 
   // Redirect if not an admin
@@ -210,6 +218,7 @@ export default function ProjectManagement() {
                     projectManagers={projectManagers}
                     isLoading={projectsLoading || managersLoading}
                     onEditProject={openEditDialog} // Pass handler from hook
+                    onTriggerMilestone={handleTriggerMilestone}
                 />
                 {/* --- END MODIFIED --- */}
              </div>
