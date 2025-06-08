@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Upload, Download, Eye, Mail, Copy, ExternalLink, Calculator, Settings } from "lucide-react";
+import { Plus, Edit, Trash2, Upload, Download, Eye, Copy, ExternalLink, Calculator, Settings } from "lucide-react";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { AdminQuoteChatWidget } from "@/components/chat/QuoteChatWidget";
 import { Button } from "@/components/ui/button";
@@ -87,48 +87,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
     },
   });
 
-  const sendQuoteMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", `/api/quotes/${quote.id}/send`);
-    },
-    onSuccess: (response: any) => {
-      const data = response?.data || response;
-      if (data?.emailSent) {
-        toast({
-          title: "Quote Sent",
-          description: `Quote has been sent to ${quote.customerEmail} successfully`,
-        });
-      } else {
-        toast({
-          title: "Quote Status Updated",
-          description: "Quote marked as sent, but email delivery failed. Please check email configuration.",
-          variant: "destructive",
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
-    },
-    onError: (error: any) => {
-      const errorMessage = error?.message || "Failed to send quote";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    },
-  });
 
-  const handleSendQuote = () => {
-    // Check if customer information exists in the quote
-    if (!quote.customerEmail || !quote.customerName) {
-      toast({
-        title: "Missing Customer Information",
-        description: "Please update the quote with customer details before sending",
-        variant: "destructive",
-      });
-      return;
-    }
-    sendQuoteMutation.mutate();
-  };
 
 
 
@@ -503,14 +462,6 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                   </Button>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    onClick={handleSendQuote}
-                    disabled={sendQuoteMutation.isPending || !quote.customerEmail || !quote.customerName}
-                    className="flex items-center gap-2"
-                  >
-                    <Mail className="h-4 w-4" />
-                    {sendQuoteMutation.isPending ? "Sending..." : "Send Quote via Email"}
-                  </Button>
                   <Button 
                     onClick={() => window.open(generateQuoteLink(), '_blank')}
                     variant="outline"
