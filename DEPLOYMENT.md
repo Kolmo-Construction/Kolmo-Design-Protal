@@ -21,6 +21,7 @@ Ensure these are set in production:
 ```
 STRIPE_SECRET_KEY=sk_live_... (live key, not test key)
 VITE_STRIPE_PUBLIC_KEY=pk_live_... (live key, not test key)
+STRIPE_WEBHOOK_SECRET=whsec_... (webhook signing secret from Stripe dashboard)
 ```
 
 ## Payment Flow Architecture
@@ -42,15 +43,39 @@ VITE_STRIPE_PUBLIC_KEY=pk_live_... (live key, not test key)
 - Secure webhook signature verification
 - Customer data encrypted in transit and at rest
 
+## Replit Deployment Configuration
+
+### Environment Setup for kolmo.design
+When deploying to Replit with custom domain kolmo.design:
+
+1. **Custom Domain Configuration**
+   - Add kolmo.design in Replit deployment settings
+   - Ensure SSL certificate is automatically provisioned
+   - Update DNS records to point to Replit deployment
+
+2. **Required Secrets in Replit**
+   ```
+   DATABASE_URL=postgresql://... (production database)
+   STRIPE_SECRET_KEY=sk_live_...
+   VITE_STRIPE_PUBLIC_KEY=pk_live_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   SENDGRID_API_KEY=SG... (for email notifications)
+   ```
+
+3. **Build Configuration**
+   - Replit will automatically run `npm run build` for production
+   - Static assets will be served from the built frontend
+   - API routes remain accessible at kolmo.design/api/*
+
 ## Testing in Production
 Use Stripe's live mode with small test amounts ($0.50) to verify:
 - Payment form loads correctly on kolmo.design
-- Webhook endpoints receive events
-- Email confirmations are sent
-- Project status updates properly
+- Webhook endpoints receive events at kolmo.design/api/webhooks/stripe
+- Email confirmations are sent via SendGrid
+- Project status updates properly in database
 
-## Support Integration
-Payment-related support requests can be handled through:
-- Stripe Dashboard for payment disputes
-- Your admin panel for project status issues
-- Email notifications for failed payments requiring follow-up
+## Monitoring & Support
+- Monitor webhook delivery in Stripe Dashboard
+- Check Replit deployment logs for payment processing errors
+- Use admin panel at kolmo.design/admin for project management
+- Email notifications automatically sent for payment confirmations

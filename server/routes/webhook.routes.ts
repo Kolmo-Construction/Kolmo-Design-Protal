@@ -7,6 +7,7 @@ const router = Router();
 /**
  * Stripe webhook endpoint
  * Handles payment events from Stripe
+ * Note: This endpoint needs raw body for signature verification
  */
 router.post('/stripe', async (req, res, next) => {
   try {

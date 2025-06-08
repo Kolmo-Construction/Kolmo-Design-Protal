@@ -7,6 +7,9 @@ import { setupVite, serveStatic, log } from "@server/vite";
 const app = express();
 
 // --- Basic Middleware ---
+// For Stripe webhooks, we need raw body parsing
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+// For all other routes, use JSON parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
