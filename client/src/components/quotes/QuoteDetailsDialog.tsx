@@ -89,7 +89,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
 
   const sendQuoteMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest(`/api/quotes/${quote.id}/send`, "POST");
+      return await apiRequest("POST", `/api/quotes/${quote.id}/send`);
     },
     onSuccess: (response: any) => {
       const data = response?.data || response;

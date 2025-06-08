@@ -24,7 +24,7 @@ export default function QuotesPage() {
 
   const sendQuoteMutation = useMutation({
     mutationFn: async (quoteId: number) => {
-      return await apiRequest(`/api/quotes/${quoteId}/send`, "POST");
+      return await apiRequest("POST", `/api/quotes/${quoteId}/send`);
     },
     onSuccess: (data) => {
       toast({
