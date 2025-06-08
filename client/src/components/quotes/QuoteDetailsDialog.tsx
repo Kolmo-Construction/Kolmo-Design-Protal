@@ -91,38 +91,45 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
   });
 
   const sendQuoteMutation = useMutation({
-    mutationFn: async (emailData: { customerEmail: string; customerName: string }) => {
-      return await apiRequest(`/api/quotes/${quote.id}/send`, "POST", emailData);
+    mutationFn: async () => {
+      return await apiRequest(`/api/quotes/${quote.id}/send`, "POST");
     },
-    onSuccess: () => {
-      toast({
-        title: "Quote Sent",
-        description: "Quote has been sent to customer successfully",
-      });
+    onSuccess: (data) => {
+      if (data.emailSent) {
+        toast({
+          title: "Quote Sent",
+          description: `Quote has been sent to ${quote.customerEmail} successfully`,
+        });
+      } else {
+        toast({
+          title: "Quote Status Updated",
+          description: "Quote marked as sent, but email delivery failed. Please check email configuration.",
+          variant: "destructive",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
-      setShowSendQuote(false);
-      setCustomerEmail("");
-      setCustomerName("");
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to send quote";
       toast({
         title: "Error",
-        description: "Failed to send quote",
+        description: errorMessage,
         variant: "destructive",
       });
     },
   });
 
   const handleSendQuote = () => {
-    if (!customerEmail || !customerName) {
+    // Check if customer information exists in the quote
+    if (!quote.customerEmail || !quote.customerName) {
       toast({
-        title: "Missing Information",
-        description: "Please provide both customer name and email",
+        title: "Missing Customer Information",
+        description: "Please update the quote with customer details before sending",
         variant: "destructive",
       });
       return;
     }
-    sendQuoteMutation.mutate({ customerEmail, customerName });
+    sendQuoteMutation.mutate();
   };
 
 

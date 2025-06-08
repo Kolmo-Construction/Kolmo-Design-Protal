@@ -153,17 +153,41 @@ export class QuoteController {
         return res.status(400).json({ error: "Invalid quote ID" });
       }
 
+      console.log(`[QuoteController] Starting quote send process for ID: ${quoteId}`);
+
       // Get the full quote details for email
       const quoteDetails = await this.quoteRepository.getQuoteById(quoteId);
       if (!quoteDetails) {
+        console.error(`[QuoteController] Quote not found for ID: ${quoteId}`);
         return res.status(404).json({ error: "Quote not found" });
+      }
+
+      console.log(`[QuoteController] Quote details retrieved:`, {
+        quoteNumber: quoteDetails.quoteNumber,
+        customerName: quoteDetails.customerName,
+        customerEmail: quoteDetails.customerEmail,
+        title: quoteDetails.title
+      });
+
+      // Validate customer information exists
+      if (!quoteDetails.customerEmail || !quoteDetails.customerName) {
+        console.error(`[QuoteController] Missing customer information:`, {
+          hasEmail: !!quoteDetails.customerEmail,
+          hasName: !!quoteDetails.customerName
+        });
+        return res.status(400).json({ 
+          error: "Quote is missing customer information. Please update the quote with customer details before sending." 
+        });
       }
 
       // Update quote status to 'sent'
       const quote = await this.quoteRepository.sendQuote(quoteId);
       if (!quote) {
+        console.error(`[QuoteController] Failed to update quote status for ID: ${quoteId}`);
         return res.status(404).json({ error: "Failed to update quote status" });
       }
+
+      console.log(`[QuoteController] Quote status updated to 'sent' for quote ${quoteDetails.quoteNumber}`);
 
       // Initialize chat channel for quote
       try {
@@ -173,18 +197,20 @@ export class QuoteController {
           quoteDetails.customerName,
           quoteDetails.customerEmail
         );
-        console.log(`Chat channel initialized for quote ${quoteDetails.quoteNumber}`);
+        console.log(`[QuoteController] Chat channel initialized for quote ${quoteDetails.quoteNumber}`);
       } catch (chatError) {
-        console.warn("Failed to initialize chat channel:", chatError);
+        console.warn("[QuoteController] Failed to initialize chat channel:", chatError);
         // Continue with quote sending even if chat fails
       }
 
       // Send email to customer
       const quoteLink = `${req.protocol}://${req.get('host')}/quote/${quoteDetails.accessToken}`;
+      console.log(`[QuoteController] Sending email to ${quoteDetails.customerEmail} with link: ${quoteLink}`);
+      
       const emailSent = await this.sendQuoteEmail(quoteDetails, quoteLink);
 
       if (!emailSent) {
-        console.warn("Quote status updated but email failed to send");
+        console.warn(`[QuoteController] Quote status updated but email failed to send for quote ${quoteDetails.quoteNumber}`);
         return res.json({ 
           message: "Quote sent successfully but email delivery failed", 
           quote,
@@ -192,13 +218,14 @@ export class QuoteController {
         });
       }
 
+      console.log(`[QuoteController] Quote ${quoteDetails.quoteNumber} sent successfully via email to ${quoteDetails.customerEmail}`);
       res.json({ 
         message: "Quote sent successfully via email", 
         quote,
         emailSent: true 
       });
     } catch (error) {
-      console.error("Error sending quote:", error);
+      console.error("[QuoteController] Error sending quote:", error);
       res.status(500).json({ error: "Failed to send quote" });
     }
   }
@@ -378,7 +405,7 @@ www.kolmo.io
         subject: `Your Project Quote #${quote.quoteNumber} from Kolmo Construction`,
         text: emailText,
         html: emailHtml,
-        from: 'quotes@kolmo.io',
+        from: 'projects@kolmo.io',
         fromName: 'Kolmo Construction'
       });
     } catch (error) {
