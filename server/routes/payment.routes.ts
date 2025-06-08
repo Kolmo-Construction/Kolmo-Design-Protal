@@ -4,13 +4,19 @@ import { storage } from '../storage';
 import { HttpError } from '../errors';
 import { sendEmail } from '../email';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-}
+let stripe: Stripe | null = null;
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-05-28.basil',
-});
+try {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    console.warn('Warning: STRIPE_SECRET_KEY not found - payment routes will be disabled');
+  } else {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-05-28.basil',
+    });
+  }
+} catch (error) {
+  console.error('Failed to initialize Stripe:', error);
+}
 
 const router = Router();
 
@@ -19,6 +25,10 @@ const router = Router();
  */
 router.post('/quotes/:id/accept-payment', async (req, res, next) => {
   try {
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
     const quoteId = parseInt(req.params.id);
     const { customerName, customerEmail, customerPhone } = req.body;
 
@@ -42,7 +52,7 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
     const downPaymentAmount = (total * downPaymentPercentage) / 100;
 
     // Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await stripe!.paymentIntents.create({
       amount: Math.round(downPaymentAmount * 100), // Convert to cents
       currency: 'usd',
       description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
@@ -83,6 +93,10 @@ router.post('/payment-success', async (req, res, next) => {
 
     if (!paymentIntentId) {
       throw new HttpError(400, 'Payment intent ID is required');
+    }
+
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
     }
 
     // Retrieve payment intent from Stripe
@@ -205,6 +219,10 @@ router.post('/payment-success', async (req, res, next) => {
  */
 router.post('/projects/:id/milestone-payment', async (req, res, next) => {
   try {
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
     const projectId = parseInt(req.params.id);
     const { milestoneDescription } = req.body;
 
@@ -224,7 +242,7 @@ router.post('/projects/:id/milestone-payment', async (req, res, next) => {
     const milestoneAmount = (total * milestonePercentage) / 100;
 
     // Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await stripe!.paymentIntents.create({
       amount: Math.round(milestoneAmount * 100),
       currency: 'usd',
       description: `Milestone payment for ${project.name}`,
