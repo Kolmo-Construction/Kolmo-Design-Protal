@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Chat, Channel, MessageList, MessageInput, ChannelList } from 'stream-chat-react';
+import { Chat, Channel, MessageList, MessageInput } from 'stream-chat-react';
+import { Channel as StreamChannel } from 'stream-chat';
 import { useChatContext } from '@/contexts/ChatContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageCircle, X, Minimize2 } from 'lucide-react';
+import { MessageCircle, X, Minimize2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import 'stream-chat-react/dist/css/v2/index.css';
 
 interface QuoteChatWidgetProps {
@@ -21,27 +23,17 @@ export const QuoteChatWidget: React.FC<QuoteChatWidgetProps> = ({
   customerName,
   customerEmail
 }) => {
-  const { client, isConnected, currentChannel, setCurrentChannel } = useChatContext();
+  const { client, isConnected, joinQuoteChannel, error, isLoading } = useChatContext();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [channel, setChannel] = useState<any>(null);
+  const [channel, setChannel] = useState<StreamChannel | null>(null);
 
   // Initialize or get the quote channel
   useEffect(() => {
-    if (client && isConnected) {
-      const channelId = `quote-${quoteId}`;
-      const quoteChannel = client.channel('messaging', channelId);
-      
-      quoteChannel.watch().then(() => {
-        setChannel(quoteChannel);
-        if (isCustomer) {
-          setCurrentChannel(quoteChannel);
-        }
-      }).catch(error => {
-        console.error('Error watching channel:', error);
-      });
+    if (client && isConnected && !channel) {
+      joinQuoteChannel(quoteId).then(setChannel);
     }
-  }, [client, isConnected, quoteId, quoteNumber, isCustomer, setCurrentChannel]);
+  }, [client, isConnected, quoteId, channel, joinQuoteChannel]);
 
   if (!client || !isConnected) {
     return (

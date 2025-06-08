@@ -25,6 +25,7 @@ import QuotePaymentPage from "@/pages/quote-payment";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ChatProvider } from "@/contexts/ChatContext";
 
 function Router() {
   return (
@@ -77,8 +78,10 @@ function App() {
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Router />
+          <ChatProvider>
+            <Toaster />
+            <Router />
+          </ChatProvider>
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
