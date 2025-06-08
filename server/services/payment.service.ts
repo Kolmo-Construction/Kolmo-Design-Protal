@@ -164,7 +164,7 @@ export class PaymentService {
       projectId: project.id,
       quoteId: quote.id,
       invoiceNumber,
-      amount: downPayment.amount,
+      amount: parseFloat(downPayment.amount.toString()),
       description: `Down payment (${downPayment.percentage}%) for ${quote.title}`,
       issueDate: new Date(),
       dueDate: downPayment.dueDate,

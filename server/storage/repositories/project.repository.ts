@@ -144,7 +144,7 @@ class ProjectRepository implements IProjectRepository {
     async createProject(projectData: schema.InsertProject): Promise<schema.Project> {
         try {
             const result = await this.db.insert(schema.projects)
-                .values(projectData)
+                .values([projectData])
                 .returning();
             
             if (!result || result.length === 0) {
