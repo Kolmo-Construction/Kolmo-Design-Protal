@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { storage } from '../storage';
 import { HttpError } from '../errors';
 import { sendEmail } from '../email';
+import { paymentService } from '../services/payment.service';
 
 let stripe: Stripe | null = null;
 
@@ -36,47 +37,41 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
       throw new HttpError(400, 'Customer name and email are required');
     }
 
-    // Get quote details
-    const quote = await storage.quotes.getQuoteById(quoteId);
-    if (!quote) {
-      throw new HttpError(404, 'Quote not found');
-    }
+    // Use PaymentService to process quote acceptance
+    const result = await paymentService.processQuoteAcceptance(quoteId, {
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
+    });
 
-    if (quote.status === 'accepted') {
-      throw new HttpError(400, 'Quote has already been accepted');
-    }
-
-    // Calculate down payment amount
-    const total = parseFloat(quote.total?.toString() || '0');
-    const downPaymentPercentage = quote.downPaymentPercentage || 30;
-    const downPaymentAmount = (total * downPaymentPercentage) / 100;
-
-    // Create Stripe payment intent
-    const paymentIntent = await stripe!.paymentIntents.create({
-      amount: Math.round(downPaymentAmount * 100), // Convert to cents
-      currency: 'usd',
-      description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
-      metadata: {
-        quoteId: quote.id.toString(),
-        customerName,
-        customerEmail,
-        paymentType: 'down_payment',
-        downPaymentPercentage: downPaymentPercentage.toString(),
-      },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+    // Update quote status to accepted
+    await storage.quotes.updateQuote(quoteId, {
+      status: 'accepted',
+      customerName,
+      customerEmail,
+      respondedAt: new Date(),
     });
 
     res.json({
-      clientSecret: paymentIntent.client_secret,
-      amount: downPaymentAmount,
-      downPaymentPercentage,
+      clientSecret: result.paymentIntent.client_secret,
+      amount: parseFloat(result.downPaymentInvoice.amount.toString()),
+      downPaymentPercentage: result.paymentIntent.metadata.downPaymentPercentage || '30',
       quote: {
-        id: quote.id,
-        title: quote.title,
-        quoteNumber: quote.quoteNumber,
-        total: quote.total,
+        id: quoteId,
+        title: result.project.name,
+        quoteNumber: result.paymentIntent.metadata.quoteNumber,
+        total: result.project.totalBudget,
+      },
+      project: {
+        id: result.project.id,
+        name: result.project.name,
+        status: result.project.status,
+      },
+      invoice: {
+        id: result.downPaymentInvoice.id,
+        invoiceNumber: result.downPaymentInvoice.invoiceNumber,
+        amount: result.downPaymentInvoice.amount,
+        status: result.downPaymentInvoice.status,
       },
     });
   } catch (error) {

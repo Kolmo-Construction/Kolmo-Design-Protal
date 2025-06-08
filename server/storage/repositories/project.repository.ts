@@ -15,6 +15,7 @@ export interface IProjectRepository {
     getProjectById(projectId: number): Promise<ProjectWithDetails | null>;
     getProject(projectId: number): Promise<schema.Project | null>; // Basic project without relations
     checkUserProjectAccess(userId: string, projectId: number): Promise<boolean>;
+    createProject(projectData: schema.InsertProject): Promise<schema.Project>; // Simple project creation for quote workflow
     createProjectWithClients(projectData: schema.InsertProject, clientIds: string[]): Promise<ProjectWithDetails | null>;
     updateProjectDetailsAndClients(projectId: number, projectData: Partial<Omit<schema.InsertProject, 'pmId' | 'id' | 'createdAt' | 'updatedAt'>>, clientIds?: string[]): Promise<ProjectWithDetails | null>;
     deleteProject(projectId: number): Promise<boolean>;
@@ -137,6 +138,23 @@ class ProjectRepository implements IProjectRepository {
         } catch (error) {
             console.error(`Error checking access for user ${userId} to project ${projectId}:`, error);
             throw new Error('Database error while checking project access.');
+        }
+    }
+
+    async createProject(projectData: schema.InsertProject): Promise<schema.Project> {
+        try {
+            const result = await this.db.insert(schema.projects)
+                .values(projectData)
+                .returning();
+            
+            if (!result || result.length === 0) {
+                throw new Error("Failed to create project.");
+            }
+            
+            return result[0];
+        } catch (error) {
+            console.error('Error creating project:', error);
+            throw new Error('Database error while creating project.');
         }
     }
 
