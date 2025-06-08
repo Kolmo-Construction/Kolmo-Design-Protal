@@ -260,7 +260,7 @@ export const updateMedia = pgTable("update_media", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Milestones for project timeline
+// Milestones for project timeline with billing support
 export const milestones = pgTable("milestones", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => projects.id),
@@ -268,8 +268,26 @@ export const milestones = pgTable("milestones", {
   description: text("description"),
   plannedDate: timestamp("planned_date").notNull(),
   actualDate: timestamp("actual_date"),
-  status: text("status").notNull().default("pending"), // pending, completed, delayed
+  status: text("status").notNull().default("pending"), // pending, in_progress, completed, delayed
+  
+  // Billing configuration
+  isBillable: boolean("is_billable").default(false).notNull(),
+  billingPercentage: decimal("billing_percentage", { precision: 5, scale: 2 }).default("0"), // Percentage of total project budget
+  
+  // Order and categorization
+  orderIndex: integer("order_index").default(0).notNull(), // For sorting milestones
+  category: text("category").default("delivery"), // delivery, billing, approval, inspection
+  
+  // Completion tracking
+  completedById: integer("completed_by_id").references(() => users.id),
+  completedAt: timestamp("completed_at"),
+  
+  // Billing tracking
+  invoiceId: integer("invoice_id").references(() => invoices.id), // Link to generated invoice when billed
+  billedAt: timestamp("billed_at"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Material selections for client approval
@@ -670,6 +688,8 @@ export const updateMediaRelations = relations(updateMedia, ({ one }) => ({
 
 export const milestoneRelations = relations(milestones, ({ one }) => ({
     project: one(projects, { fields: [milestones.projectId], references: [projects.id] }),
+    completedBy: one(users, { fields: [milestones.completedById], references: [users.id] }),
+    invoice: one(invoices, { fields: [milestones.invoiceId], references: [invoices.id] }),
 }));
 
 export const selectionRelations = relations(selections, ({ one }) => ({
@@ -835,7 +855,16 @@ export const insertUpdateMediaSchema = createInsertSchema(updateMedia).omit({
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+  billedAt: true
+}).extend({
+  plannedDate: z.union([z.string().datetime(), z.date()]),
+  billingPercentage: z.union([
+    z.string().transform(val => parseFloat(val.replace(/[^0-9.]/g, ''))).refine(n => !isNaN(n) && n >= 0 && n <= 100, { message: "Billing percentage must be between 0 and 100" }),
+    z.number().min(0).max(100, "Billing percentage must be between 0 and 100")
+  ]).optional(),
 });
 
 export const insertSelectionSchema = createInsertSchema(selections).omit({
