@@ -12,14 +12,6 @@ export const projectStatusEnum = pgEnum('project_status', ['draft', 'finalized',
 // Define feedback types enum
 export const feedbackTypeEnum = pgEnum('feedback_type', ['edit', 'approve', 'reject']);
 
-// Define invoice status enum
-export const invoiceStatusEnum = pgEnum('invoice_status', ['pending', 'partially_paid', 'paid', 'overdue', 'cancelled']);
-
-// Define invoice type enum
-export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular']);
-
-
-
 
 
 // Define RAG Tables
@@ -166,7 +158,11 @@ export const documents = pgTable("documents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Invoice enums (moved to top of file to avoid duplicates)
+// Define invoice status enum
+export const invoiceStatusEnum = pgEnum('invoice_status', ['pending', 'partially_paid', 'paid', 'overdue', 'cancelled']);
+
+// Define invoice type enum
+export const invoiceTypeEnum = pgEnum('invoice_type', ['down_payment', 'milestone', 'final', 'change_order', 'regular']);
 
 // Invoices table for financial tracking
 export const invoices = pgTable("invoices", {
