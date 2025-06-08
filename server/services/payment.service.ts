@@ -137,7 +137,7 @@ export class PaymentService {
       city: 'City', // Default value, will be enhanced with proper quote fields
       state: 'State', // Default value, will be enhanced with proper quote fields  
       zipCode: '00000', // Default value, will be enhanced with proper quote fields
-      totalBudget: quote.total?.toString() || '0',
+      totalBudget: parseFloat(quote.total?.toString() || '0'),
       status: 'planning' as const,
       estimatedCompletionDate: quote.estimatedCompletionDate,
       originQuoteId: quote.id,
@@ -173,7 +173,11 @@ export class PaymentService {
       customerEmail: customerInfo.email,
     };
 
-    return await storage.invoices.createInvoice(invoiceData);
+    const invoice = await storage.invoices.createInvoice(invoiceData);
+    if (!invoice) {
+      throw new Error('Failed to create down payment invoice');
+    }
+    return invoice;
   }
 
   /**
