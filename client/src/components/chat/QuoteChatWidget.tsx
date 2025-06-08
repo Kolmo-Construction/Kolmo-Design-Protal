@@ -160,8 +160,29 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
     }
   }, [client, isConnected, quoteId]);
 
+  if (error) {
+    return (
+      <div className="w-full">
+        <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+          <p className="text-red-600 text-sm">Chat unavailable: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!client || !isConnected) {
-    return null;
+    return (
+      <div className="w-full">
+        <Button
+          variant="outline"
+          disabled
+          className="mb-4 flex items-center gap-2"
+        >
+          <MessageCircle className="h-4 w-4" />
+          {isLoading ? 'Connecting to Chat...' : 'Chat Loading...'}
+        </Button>
+      </div>
+    );
   }
 
   return (
