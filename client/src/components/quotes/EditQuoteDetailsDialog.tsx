@@ -423,13 +423,13 @@ export function EditQuoteDetailsDialog({ quote, open, onOpenChange }: EditQuoteD
               </div>
               
               <div>
-                <Label htmlFor="projectNotes">Project Notes</Label>
-                <Textarea
-                  id="projectNotes"
+                <RichTextEditor
                   value={projectNotes}
-                  onChange={(e) => setProjectNotes(e.target.value)}
+                  onChange={setProjectNotes}
+                  label="Project Notes"
                   placeholder="Additional notes or special requirements"
-                  rows={3}
+                  height={200}
+                  preview="live"
                 />
               </div>
             </CardContent>
