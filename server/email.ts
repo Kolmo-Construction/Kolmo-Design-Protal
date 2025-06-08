@@ -84,9 +84,9 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     await sgMail.send(msg);
     console.log(`Email sent successfully to ${options.to}`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to send email via SendGrid:', error);
-    if (error.response) {
+    if (error?.response) {
       console.error('SendGrid error response:', error.response.body);
     }
     

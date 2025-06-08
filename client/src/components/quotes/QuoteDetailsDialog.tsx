@@ -43,11 +43,8 @@ interface QuoteDetailsDialogProps {
 export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDialogProps) {
   const [showCreateLineItem, setShowCreateLineItem] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<QuoteLineItem | null>(null);
-  const [showSendQuote, setShowSendQuote] = useState(false);
   const [showFinancials, setShowFinancials] = useState(false);
   const [showEditQuote, setShowEditQuote] = useState(false);
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [customerName, setCustomerName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -94,8 +91,9 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
     mutationFn: async () => {
       return await apiRequest(`/api/quotes/${quote.id}/send`, "POST");
     },
-    onSuccess: (data) => {
-      if (data.emailSent) {
+    onSuccess: (response: any) => {
+      const data = response?.data || response;
+      if (data?.emailSent) {
         toast({
           title: "Quote Sent",
           description: `Quote has been sent to ${quote.customerEmail} successfully`,
@@ -506,11 +504,12 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
                 </div>
                 <div className="flex gap-2">
                   <Button 
-                    onClick={() => setShowSendQuote(true)}
+                    onClick={handleSendQuote}
+                    disabled={sendQuoteMutation.isPending || !quote.customerEmail || !quote.customerName}
                     className="flex items-center gap-2"
                   >
                     <Mail className="h-4 w-4" />
-                    Send Quote via Email
+                    {sendQuoteMutation.isPending ? "Sending..." : "Send Quote via Email"}
                   </Button>
                   <Button 
                     onClick={() => window.open(generateQuoteLink(), '_blank')}
@@ -526,52 +525,7 @@ export function QuoteDetailsDialog({ quote, open, onOpenChange }: QuoteDetailsDi
         </DialogContent>
       </Dialog>
 
-      {/* Send Quote Dialog */}
-      <Dialog open={showSendQuote} onOpenChange={setShowSendQuote}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Quote via Email</DialogTitle>
-            <DialogDescription>
-              Enter customer details to send the quote link via email
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="customerName">Customer Name</Label>
-              <Input
-                id="customerName"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter customer name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="customerEmail">Customer Email</Label>
-              <Input
-                id="customerEmail"
-                type="email"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                placeholder="Enter customer email"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowSendQuote(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSendQuote}
-                disabled={sendQuoteMutation.isPending}
-              >
-                {sendQuoteMutation.isPending ? "Sending..." : "Send Quote"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+
 
       <CreateLineItemDialog
         quoteId={quote.id}
