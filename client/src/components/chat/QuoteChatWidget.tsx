@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageCircle, X, Minimize2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import 'stream-chat-react/dist/css/v2/index.css';
+import '@/styles/chat-theme.css';
 
 interface QuoteChatWidgetProps {
   quoteId: string;
@@ -189,49 +190,47 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
   if (!client || !isConnected) {
     return (
       <div className="w-full">
-        <Button
-          variant="outline"
+        <button
           disabled
-          className="mb-4 flex items-center gap-2"
+          className="kolmo-chat-button mb-4 flex items-center gap-2 w-full justify-center opacity-60 cursor-not-allowed"
         >
           <MessageCircle className="h-4 w-4" />
           {isLoading ? 'Connecting to Chat...' : 'Chat Loading...'}
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
     <div className="w-full">
-      <Button
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        variant="outline"
-        className="mb-4 flex items-center gap-2"
+        className="kolmo-chat-button mb-4 flex items-center gap-2 w-full justify-center"
       >
         <MessageCircle className="h-4 w-4" />
         {isOpen ? 'Hide Chat' : 'Show Quote Chat'}
-      </Button>
+      </button>
       
       {isOpen && channel && (
-        <Card className="h-96">
-          <CardHeader>
-            <CardTitle className="text-lg">Quote #{quoteNumber} Discussion</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden h-96">
+          <div className="kolmo-chat-header">
+            Quote #{quoteNumber} Discussion
+          </div>
+          <div className="kolmo-chat-theme h-80">
             <Chat client={client} theme="str-chat__theme-light">
               <Channel channel={channel}>
-                <div className="flex flex-col h-80">
+                <div className="flex flex-col h-full">
                   <div className="flex-1 overflow-hidden">
                     <MessageList />
                   </div>
-                  <div className="border-t p-2">
+                  <div className="border-t">
                     <MessageInput />
                   </div>
                 </div>
               </Channel>
             </Chat>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );
