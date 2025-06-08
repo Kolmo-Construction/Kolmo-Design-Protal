@@ -60,23 +60,31 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   }, [isCustomer, adminChatData, client]);
 
   const initializeAdminChat = async (chatData: any) => {
-    if (isLoading || client) return;
+    console.log('initializeAdminChat called with:', chatData);
+    if (isLoading || client) {
+      console.log('Skipping admin chat init - already loading or client exists');
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
     
     try {
+      console.log('Creating Stream client with API key:', chatData.apiKey);
       const chatClient = StreamChat.getInstance(chatData.apiKey);
+      console.log('Connecting user:', { id: chatData.userId, name: 'Admin User' });
       await chatClient.connectUser(
         { 
           id: chatData.userId,
-          name: chatData.userName || 'Admin User',
+          name: 'Admin User',
         },
         chatData.token
       );
+      console.log('Stream client connected successfully');
       setClient(chatClient);
       setIsConnected(true);
     } catch (err) {
+      console.error('Error initializing admin chat:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize admin chat';
       setError(errorMessage);
       console.error('Error initializing admin chat:', err);

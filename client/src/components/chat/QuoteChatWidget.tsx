@@ -23,10 +23,14 @@ export const QuoteChatWidget: React.FC<QuoteChatWidgetProps> = ({
   customerName,
   customerEmail
 }) => {
+  console.log('QuoteChatWidget rendering with props:', { quoteId, quoteNumber, isCustomer });
+  
   const { client, isConnected, joinQuoteChannel, error, isLoading } = useChatContext();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [channel, setChannel] = useState<StreamChannel | null>(null);
+  
+  console.log('Chat context state:', { client: !!client, isConnected, error, isLoading });
 
   // Initialize or get the quote channel
   useEffect(() => {
@@ -135,9 +139,13 @@ export const AdminQuoteChatWidget: React.FC<{ quoteId: string; quoteNumber: stri
   quoteId,
   quoteNumber
 }) => {
-  const { client, isConnected } = useChatContext();
+  console.log('AdminQuoteChatWidget rendering with props:', { quoteId, quoteNumber });
+  
+  const { client, isConnected, error, isLoading } = useChatContext();
   const [channel, setChannel] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
+  
+  console.log('Admin chat context state:', { client: !!client, isConnected, error, isLoading });
 
   useEffect(() => {
     if (client && isConnected) {
