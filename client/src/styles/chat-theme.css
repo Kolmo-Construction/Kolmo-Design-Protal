@@ -114,22 +114,67 @@
   background-color: #c8862e;
 }
 
-/* Floating chat widget styles */
-.kolmo-chat-widget {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-  max-width: 400px;
-  box-shadow: 0 8px 32px rgba(61, 69, 82, 0.15);
-  border-radius: 12px;
-  overflow: hidden;
-  background: #ffffff;
-  border: 1px solid #4a6670;
+/* Mobile-first responsive chat widget */
+.kolmo-chat-container {
+  width: 100%;
+  max-width: none;
 }
 
-.kolmo-chat-widget-minimized {
-  height: auto;
+/* Mobile floating chat widget */
+@media (max-width: 768px) {
+  .kolmo-chat-widget {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: 80vh;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -4px 20px rgba(61, 69, 82, 0.2);
+    background: #ffffff;
+    border: 1px solid #4a6670;
+    border-bottom: none;
+  }
+  
+  .kolmo-chat-widget.minimized {
+    height: auto;
+    max-height: 60px;
+  }
+  
+  .kolmo-chat-content {
+    height: 60vh;
+    max-height: 400px;
+  }
+  
+  .kolmo-chat-button {
+    padding: 16px 24px;
+    font-size: 16px;
+    touch-action: manipulation;
+  }
+}
+
+/* Desktop floating chat widget */
+@media (min-width: 769px) {
+  .kolmo-chat-widget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    width: 380px;
+    max-width: 380px;
+    box-shadow: 0 8px 32px rgba(61, 69, 82, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #4a6670;
+  }
+  
+  .kolmo-chat-content {
+    height: 400px;
+  }
 }
 
 .kolmo-chat-toggle {
@@ -145,8 +190,64 @@
   justify-content: center;
   gap: 8px;
   transition: background-color 0.2s;
+  touch-action: manipulation;
 }
 
 .kolmo-chat-toggle:hover {
   background-color: #c8862e;
+}
+
+.kolmo-chat-toggle:active {
+  background-color: #b87829;
+}
+
+/* Improved mobile touch targets and experience */
+@media (max-width: 768px) {
+  .kolmo-chat-theme .str-chat__message-input-send-button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 12px;
+    background-color: #db973c !important;
+  }
+  
+  .kolmo-chat-theme .str-chat__message-input {
+    padding: 12px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    border: 1px solid #4a6670;
+  }
+  
+  .kolmo-chat-theme .str-chat__message-input textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    line-height: 1.4;
+  }
+  
+  .kolmo-chat-header {
+    padding: 16px;
+    font-size: 16px;
+  }
+  
+  /* Improve message bubbles on mobile */
+  .kolmo-chat-theme .str-chat__message-simple__text__inner {
+    padding: 12px 16px;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  
+  /* Better scrolling performance */
+  .kolmo-chat-theme .str-chat__virtual-message-list {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Backdrop blur for mobile overlay */
+  .kolmo-chat-widget::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: -1;
+  }
 }
