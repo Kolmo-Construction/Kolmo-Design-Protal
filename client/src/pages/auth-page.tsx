@@ -211,7 +211,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
               <img 
                 src={kolmoLogo} 
                 alt="Kolmo Logo" 
-                className="h-12 w-auto filter brightness-0 invert"
+                className="h-20 w-auto filter brightness-0 invert"
               />
             </div>
 
@@ -301,7 +301,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
               <img 
                 src={kolmoLogo} 
                 alt="Kolmo Logo" 
-                className="h-10 w-auto mx-auto mb-4"
+                className="h-16 w-auto mx-auto mb-6"
               />
             </div>
 
