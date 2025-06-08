@@ -56,7 +56,7 @@ export class MilestoneRepository implements IMilestoneRepository {
 
       const result = await this.db
         .insert(schema.milestones)
-        .values(processedData)
+        .values([processedData])
         .returning();
 
       if (!result[0]) {
