@@ -97,10 +97,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   // Update milestone mutation
   const updateMilestoneMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) =>
-      apiRequest(`/api/milestones/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
+      apiRequest(`/api/milestones/${id}`, "PATCH", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       setEditingMilestone(null);
@@ -122,9 +119,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   // Complete milestone mutation (triggers billing)
   const completeMilestoneMutation = useMutation({
     mutationFn: (milestoneId: number) =>
-      apiRequest(`/api/milestones/${milestoneId}/complete`, {
-        method: "POST",
-      }),
+      apiRequest(`/api/milestones/${milestoneId}/complete`, "POST"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       toast({
@@ -174,7 +169,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
       plannedDate: milestone.plannedDate ? new Date(milestone.plannedDate).toISOString().split('T')[0] : "",
       category: milestone.category || "",
       isBillable: milestone.isBillable || false,
-      billingPercentage: milestone.billingPercentage || 0,
+      billingPercentage: Number(milestone.billingPercentage) || 0,
       status: milestone.status || "pending"
     });
   };
