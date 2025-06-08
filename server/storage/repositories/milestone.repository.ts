@@ -48,13 +48,15 @@ export class MilestoneRepository implements IMilestoneRepository {
 
   async createMilestone(data: schema.InsertMilestone): Promise<schema.Milestone> {
     try {
+      // Convert string date to Date object if needed
+      const processedData = {
+        ...data,
+        plannedDate: typeof data.plannedDate === 'string' ? new Date(data.plannedDate) : data.plannedDate,
+      };
+
       const result = await this.db
         .insert(schema.milestones)
-        .values({
-          ...data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
+        .values(processedData)
         .returning();
 
       if (!result[0]) {
@@ -69,12 +71,18 @@ export class MilestoneRepository implements IMilestoneRepository {
     }
   }
 
-  async updateMilestone(id: number, data: Partial<schema.InsertMilestone>): Promise<schema.Milestone> {
+  async updateMilestone(id: number, data: Partial<schema.InsertMilestone> & { completedAt?: Date; billedAt?: Date }): Promise<schema.Milestone> {
     try {
+      // Convert string dates to Date objects if needed
+      const processedData: any = { ...data };
+      if (processedData.plannedDate && typeof processedData.plannedDate === 'string') {
+        processedData.plannedDate = new Date(processedData.plannedDate);
+      }
+      
       const result = await this.db
         .update(schema.milestones)
         .set({
-          ...data,
+          ...processedData,
           updatedAt: new Date(),
         })
         .where(eq(schema.milestones.id, id))

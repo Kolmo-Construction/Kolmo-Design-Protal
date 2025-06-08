@@ -260,6 +260,84 @@ export class PaymentService {
   }
 
   /**
+   * Create milestone-based payment for specific milestone
+   */
+  async createMilestoneBasedPayment(projectId: number, milestoneId: number, milestoneTitle: string): Promise<Invoice> {
+    const project = await storage.projects.getProjectById(projectId);
+    if (!project || !project.originQuoteId) {
+      throw new HttpError(404, 'Project or originating quote not found');
+    }
+
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || !milestone.isBillable || !milestone.billingPercentage) {
+      throw new HttpError(400, 'Invalid billable milestone');
+    }
+
+    const quote = await storage.quotes.getQuoteById(project.originQuoteId);
+    if (!quote) {
+      throw new HttpError(404, 'Originating quote not found');
+    }
+
+    // Calculate milestone amount based on percentage
+    const totalAmount = parseFloat(quote.total?.toString() || '0');
+    const milestoneAmount = (totalAmount * parseFloat(milestone.billingPercentage)) / 100;
+
+    const invoiceNumber = await this.generateInvoiceNumber();
+
+    const invoiceData = {
+      projectId: project.id,
+      quoteId: quote.id,
+      invoiceNumber,
+      amount: milestoneAmount.toString(),
+      description: `Milestone Payment: ${milestoneTitle}`,
+      issueDate: new Date(),
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+      invoiceType: 'milestone' as const,
+      customerName: project.customerName || '',
+      customerEmail: project.customerEmail || '',
+    };
+
+    const invoice = await storage.invoices.createInvoice(invoiceData);
+    if (!invoice) {
+      throw new Error('Failed to create milestone invoice');
+    }
+
+    // Create payment intent for milestone payment
+    const paymentIntent = await stripeService.createPaymentIntent({
+      amount: Math.round(milestoneAmount * 100),
+      customerEmail: project.customerEmail || undefined,
+      customerName: project.customerName || undefined,
+      description: `Milestone payment: ${milestoneTitle} for ${project.name}`,
+      metadata: {
+        projectId: project.id.toString(),
+        invoiceId: invoice.id.toString(),
+        milestoneId: milestone.id.toString(),
+        paymentType: 'milestone',
+      },
+    });
+
+    // Update invoice with payment intent
+    await storage.invoices.updateInvoice(invoice.id, {
+      stripePaymentIntentId: paymentIntent.id,
+      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+    });
+
+    // Send milestone payment email
+    if (project.customerEmail) {
+      await this.sendPaymentInstructions(project.customerEmail, {
+        customerName: project.customerName || 'Customer',
+        projectName: project.name,
+        amount: milestoneAmount,
+        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        paymentType: 'milestone',
+      });
+    }
+
+    return invoice;
+  }
+
+  /**
    * Create final payment invoice
    */
   async createFinalPayment(projectId: number): Promise<Invoice> {

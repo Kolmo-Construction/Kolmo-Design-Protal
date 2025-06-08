@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { storage } from '../storage';
 import { insertMilestoneSchema } from '@shared/schema';
-import { HttpError } from '../middleware/error-handler';
-import { isAuthenticated } from '../middleware/auth';
+import { HttpError } from '../errors';
+import { isAuthenticated } from '../middleware/auth.middleware';
 import { PaymentService } from '../services/payment.service';
 
 const router = Router();

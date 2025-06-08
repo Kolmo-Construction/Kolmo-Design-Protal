@@ -28,6 +28,7 @@ import quoteAnalyticsRouter from "./routes/quote-analytics.routes"; // Quote ana
 import { paymentRoutes } from "./routes/payment.routes"; // Payment processing router
 import { webhookRoutes } from "./routes/webhook.routes"; // Stripe webhook router
 import { projectPaymentRoutes } from "./routes/project-payment.routes"; // Project payment summary router
+import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone management router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router
@@ -136,13 +137,8 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   );
 
   // --- Mount other project-specific or admin routers ---
-  // Example: Milestones
-  // app.use(
-  //   "/api/projects/:projectId/milestones",
-  //   isAuthenticated,
-  //   validateProjectId,
-  //   milestoneRouter // Assuming milestoneRouter is imported
-  // );
+  // Milestones within a project
+  app.use(milestoneRoutes);
 
   // Example: Selections
   // app.use(
