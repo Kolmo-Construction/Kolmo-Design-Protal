@@ -156,8 +156,9 @@ export default function Financials() {
         </div>
 
         {/* Financial Data Tabs */}
-        <Tabs defaultValue="invoices" className="mb-6">
-          <TabsList className="grid grid-cols-2 w-full">
+        <Tabs defaultValue="drafts" className="mb-6">
+          <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="drafts">Draft Invoices</TabsTrigger>
             <TabsTrigger value="invoices">Invoices</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
           </TabsList>
