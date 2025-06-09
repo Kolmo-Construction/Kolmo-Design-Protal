@@ -7,16 +7,20 @@ interface TaskBillingActionsProps {
   task: Task;
   onConvertToMilestone: (taskId: number) => void;
   onCompleteAndBill: (taskId: number) => void;
+  onGenerateInvoice: (milestoneId: number) => void;
   isConverting?: boolean;
   isBilling?: boolean;
+  isInvoicing?: boolean;
 }
 
 export function TaskBillingActions({
   task,
   onConvertToMilestone,
   onCompleteAndBill,
+  onGenerateInvoice,
   isConverting = false,
-  isBilling = false
+  isBilling = false,
+  isInvoicing = false
 }: TaskBillingActionsProps) {
   // Only show for billable tasks
   if (!task.isBillable) return null;
@@ -24,6 +28,7 @@ export function TaskBillingActions({
   const canConvert = task.isBillable && !task.milestoneId;
   const canBill = task.isBillable && task.milestoneId && task.status !== 'completed';
   const isCompleted = task.status === 'completed';
+  const canInvoice = task.isBillable && task.milestoneId && task.status === 'completed';
 
   return (
     <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
@@ -73,10 +78,28 @@ export function TaskBillingActions({
           </>
         )}
 
-        {isCompleted && (
+        {canInvoice && (
+          <>
+            <Badge variant="secondary" className="gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Ready to Invoice
+            </Badge>
+            <Button
+              size="sm"
+              onClick={() => onGenerateInvoice(task.milestoneId!)}
+              disabled={isInvoicing}
+              className="gap-1 h-7 text-xs bg-green-600 hover:bg-green-700"
+            >
+              <DollarSign className="h-3 w-3" />
+              {isInvoicing ? "Generating..." : "Generate Invoice"}
+            </Button>
+          </>
+        )}
+
+        {isCompleted && !canInvoice && (
           <Badge variant="default" className="gap-1">
             <CheckCircle2 className="h-3 w-3" />
-            Completed & Billed
+            Invoiced
           </Badge>
         )}
       </div>

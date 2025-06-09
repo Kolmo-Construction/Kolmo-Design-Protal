@@ -12,6 +12,7 @@ type CreateDependencyPayload = { predecessorId: number; successorId: number; typ
 type ImportTasksPayload = { projectId: number; tasks: GanttTask[] };
 type ConvertToMilestonePayload = { taskId: number };
 type CompleteAndBillPayload = { taskId: number; actualHours?: number };
+type GenerateInvoicePayload = { milestoneId: number };
 
 // Define the structure of what the hook returns
 interface UseProjectTaskMutationsResult {
@@ -26,6 +27,7 @@ interface UseProjectTaskMutationsResult {
     importTasksMutation: ReturnType<typeof useMutation<unknown, Error, ImportTasksPayload>>;
     convertToMilestoneMutation: ReturnType<typeof useMutation<unknown, Error, ConvertToMilestonePayload>>;
     completeAndBillMutation: ReturnType<typeof useMutation<unknown, Error, CompleteAndBillPayload>>;
+    generateInvoiceMutation: ReturnType<typeof useMutation<unknown, Error, GenerateInvoicePayload>>;
 }
 
 export function useProjectTaskMutations(projectId: number): UseProjectTaskMutationsResult {
@@ -248,5 +250,6 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         importTasksMutation,
         convertToMilestoneMutation,
         completeAndBillMutation,
+        generateInvoiceMutation,
     };
 }
