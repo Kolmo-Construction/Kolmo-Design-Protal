@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Project, Invoice, InvoiceStatus } from "@shared/schema"; // ADDED InvoiceStatus
-import { getQueryFn } from "@/lib/queryClient";
+import { Project, Invoice } from "@shared/schema";
+import { getQueryFn, apiRequest } from "@/lib/queryClient";
 // REMOVED: format import from date-fns
 import {
   Card,
@@ -10,7 +10,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-// REMOVED: Button import (Not used, disable buttons are present) - Keep if planning to enable
+import { Button } from "@/components/ui/button"; // Re-added Button import
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -23,6 +23,7 @@ import {
 import { CreditCard, FileText, Download, Loader2, FolderOpen } from "lucide-react";
 // ADDED Imports from utils
 import { formatDate, getInvoiceStatusLabel, getInvoiceStatusBadgeClasses } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProjectFinancialsTabProps {
   project: Project;
@@ -32,6 +33,8 @@ interface ProjectFinancialsTabProps {
 // REMOVED: Local formatDate helper function
 
 export function ProjectFinancialsTab({ project }: ProjectFinancialsTabProps) {
+  const { toast } = useToast();
+  
   const {
     data: invoices = [],
     isLoading: isLoadingInvoices
@@ -50,6 +53,38 @@ export function ProjectFinancialsTab({ project }: ProjectFinancialsTabProps) {
   }, 0);
   const remainingBudget = totalBudget - totalInvoiced;
   const percentInvoiced = totalBudget > 0 ? (totalInvoiced / totalBudget) * 100 : 0;
+
+  const handleViewInvoice = (invoiceId: number) => {
+    window.open(`/invoices/${invoiceId}/view`, '_blank');
+  };
+
+  const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}/invoices/${invoiceId}/download`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Could not download the invoice PDF.",
+        variant: "destructive",
+      });
+    }
+  };
 
 
   return (
@@ -115,20 +150,26 @@ export function ProjectFinancialsTab({ project }: ProjectFinancialsTabProps) {
 
                         variant="outline"
                       >
-                        {getInvoiceStatusLabel(invoice.status as InvoiceStatus)} {/* USE Imported helper */}
+                        {getInvoiceStatusLabel(invoice.status)}
                       </Badge>
                     </TableCell>
 
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                         {/* TODO: Implement view/download functionality */}
-                        {/* Keep Button import if you plan to enable these actions */}
-                        <Button variant="outline" size="sm" className="text-primary-600 gap-1" disabled>
-
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-primary-600 gap-1" 
+                          onClick={() => handleViewInvoice(invoice.id)}
+                        >
                           <FileText className="h-4 w-4" /> View
                         </Button>
-                        <Button variant="outline" size="sm" className="text-primary-600 gap-1" disabled>
-
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-primary-600 gap-1" 
+                          onClick={() => handleDownloadInvoice(invoice.id, invoice.invoiceNumber)}
+                        >
                           <Download className="h-4 w-4" /> Download
                         </Button>
                       </div>

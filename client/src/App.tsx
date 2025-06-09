@@ -22,6 +22,7 @@ import DevTools from "@/pages/dev-tools";
 import Quotes from "@/pages/quotes";
 import CustomerQuote from "@/pages/customer-quote";
 import QuotePaymentPage from "@/pages/quote-payment";
+import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -52,6 +53,7 @@ function Router() {
       <ProtectedRoute path="/schedule" component={Schedule} />
       <ProtectedRoute path="/selections" component={Selections} />
       <ProtectedRoute path="/quotes" component={Quotes} />
+      <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/user-management" component={UserManagement} />
       
