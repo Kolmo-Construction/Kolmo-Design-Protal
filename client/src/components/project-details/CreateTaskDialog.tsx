@@ -372,7 +372,7 @@ export function CreateTaskDialog({
                             {project?.totalBudget && (
                               <span className="block mt-1">
                                 Project Budget: ${Number(project.totalBudget).toLocaleString()}
-                                {field.value > 0 && (
+                                {(field.value || 0) > 0 && (
                                   <span className="text-slate-700 font-medium">
                                     {' '}→ ${((Number(project.totalBudget) * (field.value || 0)) / 100).toLocaleString()}
                                   </span>

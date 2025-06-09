@@ -44,12 +44,13 @@ import { useTaskDialogs } from "@/hooks/useTaskDialogs";
 interface ProjectTasksTabProps {
   projectId: number;
   user?: User; // Make user optional since it's passed from parent
+  project?: { totalBudget?: string | number };
 }
 
 // Type alias for the new library's Task type for clarity
 type GanttReactTask = Task;
 
-export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
+export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabProps) {
   // Fetch tasks and dependencies (remains the same)
   const tasksQueryKey = [`/api/projects/${projectId}/tasks`];
   const dependenciesQueryKey = [`/api/projects/${projectId}/tasks/dependencies`]; // Keep if needed for formatting
@@ -683,6 +684,7 @@ export function ProjectTasksTab({ projectId, user }: ProjectTasksTabProps) {
             isOpen={isCreateDialogOpen}
             setIsOpen={setIsCreateDialogOpen}
             projectId={projectId}
+            project={project}
             onSubmit={(values) => createTaskMutation.mutate(values, {
                 onSuccess: () => setIsCreateDialogOpen(false)
             })}
