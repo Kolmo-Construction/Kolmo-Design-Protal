@@ -1,0 +1,45 @@
+Invoices Are Sent Immediately Upon Generation
+The "Generate Invoice" button in the Project Finance tab triggers a service that doesn't create a draft; it finalizes the invoice and emails the customer right away.
+
+The Cause: The "Generate Invoice" button in the ProjectFinanceTab component calls a mutation that hits the POST /api/projects/:projectId/milestones/:milestoneId/bill endpoint. This route handler then invokes the paymentService.createMilestoneBasedPayment method. This specific service method is designed to create an invoice, generate a Stripe payment intent, and immediately email payment instructions to the customer.
+
+The Solution: You should change this workflow to create a draft invoice instead. The paymentService already contains the necessary logic for this, which is used elsewhere in the application.
+
+Recommendation: Modify the route handler in server/routes/milestone.routes.ts to use the paymentService.createDraftInvoiceForMilestone method, which correctly creates a draft without sending it.
+
+File to Edit: server/routes/milestone.routes.ts
+
+Current Code:
+
+TypeScript
+
+// server/routes/milestone.routes.ts
+// ...
+// Create milestone-based invoice
+const invoice = await paymentService.createMilestoneBasedPayment( // This sends the email
+  projectId,
+  milestoneId,
+  milestone.title
+);
+// ...
+Suggested Change:
+
+TypeScript
+
+// server/routes/milestone.routes.ts
+// ...
+// --- MODIFICATION: Auto-create draft invoice ---
+let draftInvoice = null;
+if (milestone.isBillable) {
+    console.log(`Milestone ${milestoneId} is billable, creating draft invoice.`);
+    draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
+}
+// --- END MODIFICATION ---
+
+// Update the response to return the draft invoice
+res.json({
+  message: 'Draft invoice created successfully',
+  invoice: draftInvoice,
+  milestone: await storage.milestones.getMilestoneById(milestoneId),
+});
+This change aligns the "Generate Invoice" button's behavior with the automated billing process for tasks, ensuring all invoices start as drafts.
