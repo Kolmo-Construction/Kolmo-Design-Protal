@@ -606,22 +606,53 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                 {/* Render Gantt directly only if there are formatted tasks */}
                 {formattedGanttTasks.length > 0 ? (
                   <div className="gantt-container relative">
-                    {/* Visual Legend for Task Types */}
-                    <div className="gantt-legend">
-                      <span className="font-medium text-sm">Task Types:</span>
-                      <div className="gantt-legend-item">
-                        <div className="gantt-legend-color gantt-legend-billable"></div>
-                        <span>💰 Billable Tasks</span>
+                    {/* Comprehensive Status Legend */}
+                    <div className="bg-white border-b p-4 mb-4">
+                      <h4 className="font-semibold text-sm mb-3 text-gray-800">Task Status Guide:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        {/* Completed Tasks */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded" style={{backgroundColor: '#059669'}}></div>
+                          <span className="text-sm text-gray-700">Done/Completed</span>
+                        </div>
+                        
+                        {/* In Progress Tasks */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded" style={{backgroundColor: '#2563eb'}}></div>
+                          <span className="text-sm text-gray-700">In Progress</span>
+                        </div>
+                        
+                        {/* Blocked Tasks */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded" style={{backgroundColor: '#dc2626'}}></div>
+                          <span className="text-sm text-gray-700">Blocked</span>
+                        </div>
+                        
+                        {/* Cancelled Tasks */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded" style={{backgroundColor: '#6b7280'}}></div>
+                          <span className="text-sm text-gray-700">Cancelled</span>
+                        </div>
+                        
+                        {/* Todo Billable */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded" style={{backgroundColor: '#7c3aed'}}></div>
+                          <span className="text-sm text-gray-700">💰 Todo (Billable)</span>
+                        </div>
+                        
+                        {/* Todo Non-billable */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded" style={{backgroundColor: '#0891b2'}}></div>
+                          <span className="text-sm text-gray-700">Todo (Standard)</span>
+                        </div>
                       </div>
-                      <div className="gantt-legend-item">
-                        <div className="gantt-legend-color gantt-legend-non-billable"></div>
-                        <span>📋 Non-Billable Tasks</span>
+                      
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          Progress bars show completion: 100% (Done), 50% (In Progress), 25% (Blocked), 0% (Todo/Cancelled)
+                        </p>
                       </div>
-                      <div className="gantt-legend-item">
-                        <div className="gantt-legend-color gantt-legend-cancelled"></div>
-                        <span>Cancelled Tasks</span>
-                      </div>
-                      <div className="ml-4 text-xs text-muted-foreground">
+                    </div>
                         💡 Double-click any task to edit details
                       </div>
                     </div>

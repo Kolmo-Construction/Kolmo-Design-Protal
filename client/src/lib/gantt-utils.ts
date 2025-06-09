@@ -139,12 +139,30 @@ export function formatTasksForGanttReact(
       endDate = parseISO(apiTask.dueDate!);
     }
 
-    // Progress Calculation & Validation
+    // Progress Calculation & Validation based on status
     let progress = 0;
-    switch (apiTask.status) {
-      case 'COMPLETED': progress = 100; break;
-      case 'IN_PROGRESS': progress = 50; break; // Placeholder
-      default: progress = 0; break;
+    switch (apiTask.status?.toLowerCase()) {
+      case 'done':
+      case 'completed': 
+        progress = 100; 
+        break;
+      case 'in_progress':
+      case 'in progress':
+        progress = 50; 
+        break;
+      case 'todo':
+      case 'pending':
+        progress = 0; 
+        break;
+      case 'blocked':
+        progress = 25; // Show minimal progress to indicate it was started but blocked
+        break;
+      case 'cancelled':
+        progress = 0;
+        break;
+      default: 
+        progress = 0; 
+        break;
     }
     if (typeof progress !== 'number' || isNaN(progress) || progress < 0 || progress > 100) {
       console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') has invalid progress value (${progress}). Defaulting to 0.`);
@@ -173,33 +191,76 @@ export function formatTasksForGanttReact(
     // Dependencies would be handled through a separate task_dependencies table if needed
 
 
-    // Determine styling based on task properties
+    // Determine styling based on task status and properties
     let taskStyles: FormattedTask['styles'] = undefined;
+    const status = apiTask.status?.toLowerCase();
     
-    if (apiTask.status === 'CANCELLED') {
-      // Cancelled task styling (grayed out)
-      taskStyles = { 
-        progressColor: '#aaaaaa', 
-        progressSelectedColor: '#888888', 
-        backgroundColor: '#e0e0e0', 
-        backgroundSelectedColor: '#d0d0d0' 
-      };
-    } else if (apiTask.isBillable) {
-      // Billable task styling (green tones for money/billing)
-      taskStyles = {
-        backgroundColor: '#10b981', // Green-500
-        backgroundSelectedColor: '#059669', // Green-600
-        progressColor: '#34d399', // Green-400
-        progressSelectedColor: '#10b981' // Green-500
-      };
-    } else {
-      // Non-billable task styling (blue tones - default professional look)
-      taskStyles = {
-        backgroundColor: '#3b82f6', // Blue-500
-        backgroundSelectedColor: '#2563eb', // Blue-600
-        progressColor: '#60a5fa', // Blue-400
-        progressSelectedColor: '#3b82f6' // Blue-500
-      };
+    // Priority: Status-based styling overrides billing status
+    switch (status) {
+      case 'done':
+      case 'completed':
+        // Completed tasks - Green with checkmark feel
+        taskStyles = {
+          backgroundColor: '#059669', // Green-600
+          backgroundSelectedColor: '#047857', // Green-700
+          progressColor: '#10b981', // Green-500
+          progressSelectedColor: '#059669' // Green-600
+        };
+        break;
+        
+      case 'in_progress':
+      case 'in progress':
+        // In Progress tasks - Blue (active work)
+        taskStyles = {
+          backgroundColor: '#2563eb', // Blue-600
+          backgroundSelectedColor: '#1d4ed8', // Blue-700
+          progressColor: '#3b82f6', // Blue-500
+          progressSelectedColor: '#2563eb' // Blue-600
+        };
+        break;
+        
+      case 'blocked':
+        // Blocked tasks - Red/Orange (attention needed)
+        taskStyles = {
+          backgroundColor: '#dc2626', // Red-600
+          backgroundSelectedColor: '#b91c1c', // Red-700
+          progressColor: '#ef4444', // Red-500
+          progressSelectedColor: '#dc2626' // Red-600
+        };
+        break;
+        
+      case 'cancelled':
+        // Cancelled tasks - Gray (inactive)
+        taskStyles = {
+          backgroundColor: '#6b7280', // Gray-500
+          backgroundSelectedColor: '#4b5563', // Gray-600
+          progressColor: '#9ca3af', // Gray-400
+          progressSelectedColor: '#6b7280' // Gray-500
+        };
+        break;
+        
+      case 'todo':
+      case 'pending':
+      default:
+        // Todo/Pending tasks - Use billing status for distinction
+        if (apiTask.isBillable) {
+          // Billable tasks - Purple (premium feel)
+          taskStyles = {
+            backgroundColor: '#7c3aed', // Purple-600
+            backgroundSelectedColor: '#6d28d9', // Purple-700
+            progressColor: '#8b5cf6', // Purple-500
+            progressSelectedColor: '#7c3aed' // Purple-600
+          };
+        } else {
+          // Non-billable tasks - Teal (standard work)
+          taskStyles = {
+            backgroundColor: '#0891b2', // Cyan-600
+            backgroundSelectedColor: '#0e7490', // Cyan-700
+            progressColor: '#06b6d4', // Cyan-500
+            progressSelectedColor: '#0891b2' // Cyan-600
+          };
+        }
+        break;
     }
 
     // Add billable indicator to task name for extra clarity
