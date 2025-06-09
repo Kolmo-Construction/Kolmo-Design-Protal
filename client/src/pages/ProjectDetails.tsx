@@ -37,6 +37,7 @@ import { ProjectOverviewCard } from "@/components/project-details/ProjectOvervie
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
 import { ProjectDocumentsTab } from "@/components/project-details/ProjectDocumentsTab";
 import { ProjectFinancialsTab } from "@/components/project-details/ProjectFinancialsTab";
+import { ProjectFinanceTab } from "@/components/project-details/ProjectFinanceTab";
 import { ProjectMessagesTab } from "@/components/project-details/ProjectMessagesTab";
 import { ProjectScheduleTab } from "@/components/project-details/ProjectScheduleTab";
 import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
@@ -203,7 +204,7 @@ export default function ProjectDetails() {
              {activeTab === 'documents' && <ProjectDocumentsTab projectId={projectId} />}
           </TabsContent>
           <TabsContent value="financials" className="mt-0">
-              {activeTab === 'financials' && <ProjectFinancialsTab project={project} />}
+              {activeTab === 'financials' && <ProjectFinanceTab projectId={projectId} />}
           </TabsContent>
           <TabsContent value="messages" className="mt-0">
              {activeTab === 'messages' && <ProjectMessagesTab projectId={projectId} />}
