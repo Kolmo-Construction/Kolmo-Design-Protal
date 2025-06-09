@@ -114,33 +114,44 @@ router.post('/payment-success', async (req, res, next) => {
       respondedAt: new Date(),
     });
 
-    // Create project from quote
+    // Get quote details
     const quote = await storage.quotes.getQuoteById(quoteId);
     if (!quote) {
       throw new HttpError(404, 'Quote not found');
     }
 
-    // Create project from quote first
-    const projectData = {
-      name: quote.title,
-      description: quote.description || `Project created from Quote #${quote.quoteNumber}`,
-      address: quote.customerAddress || 'Address TBD',
-      city: 'City TBD',
-      state: 'State TBD',
-      zipCode: '00000',
-      totalBudget: parseFloat(quote.total?.toString() || '0').toString(),
-      status: 'planning',
-      customerName,
-      customerEmail,
-      customerPhone: metadata.customerPhone || null,
-      originQuoteId: quoteId,
-    };
+    // Check if invoice already exists for this payment intent to prevent duplicates
+    const existingInvoice = await storage.invoices.getInvoiceByPaymentIntentId(paymentIntent.id);
+    
+    if (existingInvoice) {
+      // Payment already processed, return success
+      res.json({
+        success: true,
+        message: 'Payment already processed',
+        project: {
+          id: existingInvoice.projectId,
+          name: quote.title,
+          status: 'planning',
+        },
+        invoice: existingInvoice,
+        quote: {
+          id: quote.id,
+          status: 'accepted',
+          title: quote.title,
+          quoteNumber: quote.quoteNumber,
+        },
+      });
+      return;
+    }
 
-    // Create the project
-    const project = await storage.projects.createProject(projectData);
+    // Find existing project or get project ID from payment intent metadata
+    let project;
+    if (metadata.projectId) {
+      project = await storage.projects.getProject(parseInt(metadata.projectId));
+    }
     
     if (!project) {
-      throw new HttpError(500, 'Failed to create project');
+      throw new HttpError(404, 'Project not found for this payment. This payment may have been processed through a different workflow.');
     }
 
     // Generate invoice number

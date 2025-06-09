@@ -13,6 +13,7 @@ export interface IProjectRepository {
     getAllProjects(): Promise<ProjectWithDetails[]>;
     getProjectsForUser(userId: string): Promise<ProjectWithDetails[]>;
     getProjectById(projectId: number): Promise<ProjectWithDetails | null>;
+    getProjectByQuoteId(quoteId: number): Promise<schema.Project | null>; // Find project by origin quote ID
     getProject(projectId: number): Promise<schema.Project | null>; // Basic project without relations
     checkUserProjectAccess(userId: string, projectId: number): Promise<boolean>;
     createProject(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }): Promise<schema.Project>; // Simple project creation for quote workflow
@@ -110,6 +111,18 @@ class ProjectRepository implements IProjectRepository {
         } catch (error) {
             console.error(`Error fetching project ${projectId}:`, error);
             throw new Error('Database error while fetching project.');
+        }
+    }
+
+    async getProjectByQuoteId(quoteId: number): Promise<schema.Project | null> {
+        try {
+            const project = await this.db.query.projects.findFirst({
+                where: eq(schema.projects.originQuoteId, quoteId)
+            });
+            return project || null;
+        } catch (error) {
+            console.error(`Error fetching project by quote ID ${quoteId}:`, error);
+            throw new Error('Database error while fetching project by quote ID.');
         }
     }
 
