@@ -232,7 +232,7 @@ export class PaymentService {
       description: `Payment for completed milestone: ${milestone.title}`,
       issueDate: new Date(),
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Due 14 days from now
-      status: 'draft' as const, // Set status to DRAFT
+      status: 'pending' as const, // Set status to pending
       invoiceType: 'milestone' as const,
       customerName: project.customerName || '',
       customerEmail: project.customerEmail || '',
