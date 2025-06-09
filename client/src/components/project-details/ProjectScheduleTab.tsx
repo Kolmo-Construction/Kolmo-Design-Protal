@@ -124,11 +124,13 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
       // Then trigger billing for billable milestones
       return await apiRequest(`/api/projects/${projectId}/milestones/${milestoneId}/bill`, "POST");
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       toast({
         title: "Success",
-        description: `Milestone completed and invoice ${data.invoice?.invoiceNumber} created`,
+        description: data.invoice ? 
+          `Milestone completed and invoice ${data.invoice.invoiceNumber} created` :
+          "Milestone completed successfully",
       });
     },
     onError: (error: any) => {

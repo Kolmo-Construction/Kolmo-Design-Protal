@@ -331,6 +331,8 @@ export const tasks = pgTable("tasks", {
   completedAt: timestamp("completed_at"),
   invoiceId: integer("invoice_id").references(() => invoices.id), // Link to generated invoice when billed
   billedAt: timestamp("billed_at"),
+  milestoneId: integer("milestone_id").references(() => milestones.id, { onDelete: 'set null' }), // Link to milestone for billing
+  notes: text("notes"), // Additional notes and system messages
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -900,6 +902,7 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   updatedAt: true,
   completedAt: true,
   billedAt: true,
+  milestoneId: true, // This will be set programmatically
 }).extend({
     // Allow strings for ISO dates
     startDate: z.union([z.string().datetime(), z.date()]).optional().nullable(),
@@ -934,6 +937,14 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
     ]).optional(),
     // Ensure progress is within 0-100
     progress: z.number().int().min(0).max(100).default(0).optional(), // Adding optional if you don't always provide it
+});
+
+// Update schema for tasks with completion and billing fields
+export const updateTaskSchema = insertTaskSchema.partial().extend({
+  completedAt: z.date().optional(),
+  billedAt: z.date().optional(),
+  milestoneId: z.number().optional(),
+  notes: z.string().optional(),
 });
 // --- END MODIFIED Task Insert Schema ---
 
