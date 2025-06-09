@@ -238,6 +238,29 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         },
     });
 
+    // Generate Invoice Mutation
+    const generateInvoiceMutation = useMutation<unknown, Error, GenerateInvoicePayload>({
+        mutationFn: ({ milestoneId }: GenerateInvoicePayload) => {
+            return apiRequest("POST", `/api/projects/${projectId}/milestones/${milestoneId}/bill`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+            queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+            toast({
+                title: "Invoice Generated",
+                description: "Invoice has been created successfully",
+            });
+        },
+        onError: (err: Error) => {
+            console.error('Failed to generate invoice:', err);
+            toast({
+                title: "Failed to Generate Invoice",
+                description: err.message || "An error occurred",
+                variant: "destructive",
+            });
+        },
+    });
+
     return {
         createTaskMutation,
         deleteTaskMutation,

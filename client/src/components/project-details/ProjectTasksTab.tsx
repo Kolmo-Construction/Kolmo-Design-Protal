@@ -101,6 +101,7 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
       importTasksMutation,
       convertToMilestoneMutation,
       completeAndBillMutation,
+      generateInvoiceMutation,
   } = useProjectTaskMutations(projectId);
 
   // Dialogs hook (remains the same)
@@ -577,8 +578,10 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                     task={task}
                     onConvertToMilestone={(taskId) => convertToMilestoneMutation.mutate({ taskId })}
                     onCompleteAndBill={(taskId) => completeAndBillMutation.mutate({ taskId })}
+                    onGenerateInvoice={(milestoneId) => generateInvoiceMutation.mutate({ milestoneId })}
                     isConverting={convertToMilestoneMutation.isPending}
                     isBilling={completeAndBillMutation.isPending}
+                    isInvoicing={generateInvoiceMutation.isPending}
                   />
                 ))}
                 {tasks.filter(task => task.isBillable).length === 0 && (
