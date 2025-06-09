@@ -108,29 +108,22 @@ router.patch('/api/projects/:projectId/tasks/:taskId/complete-and-bill', isAuthe
         });
         await storage.milestones.updateMilestone(milestone.id, milestoneUpdateData);
 
-        // Generate invoice if milestone is billable
+        // Generate DRAFT invoice if milestone is billable
         if (milestone.isBillable) {
-          invoice = await paymentService.createMilestoneBasedPayment(
+          console.log(`Milestone ${milestone.id} is billable, creating draft invoice.`);
+          invoice = await paymentService.createDraftInvoiceForMilestone(
             projectId,
-            milestone.id,
-            milestone.title
+            milestone.id
           );
-
-          // Update milestone with billing information using proper schema validation
-          const milestoneUpdateBillingData = updateMilestoneSchema.parse({
-            billedAt: new Date(),
-            invoiceId: invoice.id,
-          });
-          await storage.milestones.updateMilestone(milestone.id, milestoneUpdateBillingData);
         }
       }
     }
 
     res.json({
-      message: 'Task completed successfully' + (invoice ? ' and invoice generated' : ''),
+      message: 'Task completed successfully' + (invoice ? ' and a draft invoice was generated.' : ''),
       task: completedTask,
-      milestone,
-      invoice,
+      milestone: await storage.milestones.getMilestoneById(task.milestoneId), // Refetch for updated data
+      invoice, // This will be the draft invoice or null
     });
   } catch (error) {
     next(error);

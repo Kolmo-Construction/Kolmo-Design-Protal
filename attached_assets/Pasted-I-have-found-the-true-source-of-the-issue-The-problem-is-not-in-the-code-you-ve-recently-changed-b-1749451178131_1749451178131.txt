@@ -1,0 +1,76 @@
+I have found the true source of the issue. The problem is not in the code you've recently changed, but in an older, separate workflow that also marks milestones as complete.
+
+Your application has two ways to complete a milestone, and they are behaving differently:
+
+Direct Milestone Completion (Correct): When you complete a milestone directly, the code in milestone.routes.ts runs. As you pointed out, this correctly calls createDraftInvoiceForMilestone.
+Task Completion (Incorrect): When you complete a task that is linked to a billable milestone, the code in task-billing.routes.ts is triggered. This route handler calls the old createMilestoneBasedPayment service function, which creates a finalized invoice and sends it immediately, completely bypassing your new draft-and-review workflow.
+This inconsistency is why you are not seeing the draft invoice being created when completing milestones via their associated tasks.
+
+The Fix
+To ensure the draft invoice is created consistently, you need to update the task-billing.routes.ts file to use the new createDraftInvoiceForMilestone service, just like you did in milestone.routes.ts.
+
+File to Modify: SecureUserPortal 3_clean/server/routes/task-billing.routes.ts
+
+Instructions:
+In the complete-and-bill route, replace the call to paymentService.createMilestoneBasedPayment with paymentService.createDraftInvoiceForMilestone. The rest of the logic can be simplified as the new service handles linking the invoice to the milestone.
+
+TypeScript
+
+// server/routes/task-billing.routes.ts
+// ... (imports remain the same)
+
+router.patch('/api/projects/:projectId/tasks/:taskId/complete-and-bill', isAuthenticated, async (req, res, next) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const taskId = parseInt(req.params.taskId);
+    
+    // ... (code to validate and get the task remains the same)
+
+    const taskCompletionData = updateTaskSchema.parse({
+      status: 'completed',
+      completedAt: new Date(),
+      actualHours: req.body.actualHours || task.actualHours,
+    });
+    const completedTask = await storage.tasks.updateTask(taskId, taskCompletionData);
+
+    let invoice = null;
+    let milestone = null;
+
+    // If task is linked to a milestone, complete it and create a DRAFT invoice
+    if (task.milestoneId) {
+      milestone = await storage.milestones.getMilestoneById(task.milestoneId);
+      if (milestone && milestone.status !== 'completed') {
+        // Complete the milestone
+        const milestoneUpdateData = updateMilestoneSchema.parse({
+          status: 'completed',
+          completedAt: new Date(),
+          completedById: req.user!.id,
+          actualDate: new Date(),
+        });
+        await storage.milestones.updateMilestone(milestone.id, milestoneUpdateData);
+
+        // --- FIX: Replace the old billing function with the new draft creation function ---
+        if (milestone.isBillable) {
+          // This now creates a DRAFT invoice and does NOT send an email.
+          invoice = await paymentService.createDraftInvoiceForMilestone(
+            projectId,
+            milestone.id,
+          );
+        }
+        // --- END FIX ---
+      }
+    }
+
+    res.json({
+      message: 'Task completed successfully' + (invoice ? ' and a draft invoice was generated.' : ''),
+      task: completedTask,
+      milestone: await storage.milestones.getMilestoneById(task.milestoneId), // Refetch for updated data
+      invoice, // This will be the draft invoice or null
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;
+By making this change, both workflows for completing a milestone will now correctly and consistently generate a draft invoice for the admin to review, fully implementing the logic you intended.

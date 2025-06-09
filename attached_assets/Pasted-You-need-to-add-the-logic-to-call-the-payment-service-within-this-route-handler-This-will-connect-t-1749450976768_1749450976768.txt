@@ -1,0 +1,64 @@
+You need to add the logic to call the payment service within this route handler. This will connect the action of completing a milestone to the automatic creation of a draft invoice.
+
+File to Modify: SecureUserPortal 3_clean/server/routes/milestone.routes.ts
+
+Instructions:
+Update the PATCH /:milestoneId/complete route to include the call to paymentService.createDraftInvoiceForMilestone after the milestone has been successfully updated.
+
+TypeScript
+
+// server/routes/milestone.routes.ts
+// ... (imports remain the same)
+
+// Complete milestone
+router.patch('/:milestoneId/complete', async (req, res, next) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const milestoneId = parseInt(req.params.milestoneId);
+    
+    if (isNaN(projectId) || isNaN(milestoneId)) {
+      throw new HttpError(400, 'Invalid project ID or milestone ID');
+    }
+
+    // Verify milestone exists and belongs to project
+    const milestone = await storage.milestones.getMilestoneById(milestoneId);
+    if (!milestone || milestone.projectId !== projectId) {
+      throw new HttpError(404, 'Milestone not found');
+    }
+
+    if (milestone.status === 'completed') {
+      throw new HttpError(400, 'Milestone is already completed');
+    }
+
+    // Update milestone as completed using proper schema
+    const completionData = updateMilestoneSchema.parse({
+      status: 'completed',
+      completedAt: new Date(),
+      completedById: req.user!.id,
+      actualDate: new Date(),
+    });
+    const updatedMilestone = await storage.milestones.updateMilestone(milestoneId, completionData);
+
+    // --- ADD THIS LOGIC ---
+    let draftInvoice = null;
+    // If the completed milestone is billable, create a draft invoice
+    if (updatedMilestone.isBillable) {
+        console.log(`Milestone ${milestoneId} is billable, creating draft invoice.`);
+        draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
+    }
+    // --- END LOGIC ---
+
+    // Update the response to include the new draft invoice if it was created
+    res.json({
+        message: "Milestone completed successfully.",
+        milestone: updatedMilestone,
+        draftInvoice: draftInvoice,
+    });
+    
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ... (rest of the file)
+By adding this block, you complete the workflow. Now, when a billable milestone is marked complete, a draft invoice will be automatically generated and saved to the database, ready for an admin to review and send.
