@@ -71,7 +71,7 @@ export function CreateTaskDialog({
       estimatedHours: undefined,
       actualHours: undefined,
       isBillable: false,
-      billableAmount: 0,
+      billingPercentage: 0,
       billingRate: undefined,
       billingType: "percentage",
     },
@@ -187,7 +187,7 @@ export function CreateTaskDialog({
                     <FormLabel>Priority</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      defaultValue={field.value ?? undefined}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -348,7 +348,7 @@ export function CreateTaskDialog({
                     {/* Billing Percentage */}
                     <FormField
                       control={form.control}
-                      name="billableAmount"
+                      name="billingPercentage"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Billing Percentage</FormLabel>

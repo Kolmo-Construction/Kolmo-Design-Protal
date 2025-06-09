@@ -147,9 +147,17 @@ class TaskRepository implements ITaskRepository {
             const result = await this.dbOrTx.update(schema.tasks)
                 .set({ ...taskData, updatedAt: new Date() })
                 .where(eq(schema.tasks.id, taskId))
-                .returning({ id: schema.tasks.id });
+                .returning({ id: schema.tasks.id, milestoneId: schema.tasks.milestoneId });
 
             if (!result || result.length === 0) return null;
+
+            // If billing percentage was updated and a milestone is linked, update the milestone too.
+            if (taskData.billingPercentage !== undefined && result[0].milestoneId) {
+                await this.dbOrTx.update(schema.milestones)
+                    .set({ billingPercentage: taskData.billingPercentage.toString() })
+                    .where(eq(schema.milestones.id, result[0].milestoneId));
+            }
+
             return await this.getTaskWithDetails(taskId);
         } catch (error) {
             console.error(`Error updating task ${taskId}:`, error);
