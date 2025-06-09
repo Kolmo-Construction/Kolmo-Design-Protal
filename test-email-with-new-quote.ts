@@ -14,6 +14,8 @@ async function testEmailWithNewQuote() {
       customerName: 'Test Customer',
       customerEmail: 'test@example.com',
       customerPhone: '555-0123',
+      projectType: 'residential',
+      createdById: 1, // Admin user ID
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       items: [
         {
