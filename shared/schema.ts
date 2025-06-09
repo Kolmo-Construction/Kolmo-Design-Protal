@@ -325,6 +325,7 @@ export const tasks = pgTable("tasks", {
   billableAmount: decimal("billable_amount", { precision: 10, scale: 2 }).default("0"), // Fixed amount for this task
   billingRate: decimal("billing_rate", { precision: 8, scale: 2 }), // Hourly rate if time-based billing
   billingType: text("billing_type").default("fixed"), // fixed, hourly, percentage
+  billingPercentage: decimal("billing_percentage", { precision: 5, scale: 2 }).default("0"), // Percentage of total project budget
   
   // Completion and billing tracking
   completedAt: timestamp("completed_at"),
