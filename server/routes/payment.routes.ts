@@ -80,16 +80,9 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
 });
 
 /**
- * Handle successful payment confirmation
- *
- * *** DEPRECATION NOTICE ***
- * This endpoint is unreliable because a user might close their browser before
- * the client-side redirect completes. The Stripe webhook is the source of truth
- * for payment success. This endpoint should be removed, and the frontend should
- * simply redirect to a generic success/thank you page, trusting the backend
- * webhook to handle all database updates and email notifications.
- *
- * For now, we will disable its database-modifying logic to prevent errors.
+ * Handle successful payment confirmation from client-side
+ * This endpoint processes payments that are confirmed on the client side.
+ * It uses the same payment processing logic as the webhook to ensure consistency.
  */
 router.post('/payment-success', async (req, res, next) => {
   try {
@@ -103,20 +96,64 @@ router.post('/payment-success', async (req, res, next) => {
       throw new HttpError(503, 'Payment processing temporarily unavailable');
     }
 
-    // You can optionally verify the payment intent status here without modifying the DB
+    // Retrieve payment intent from Stripe to verify it succeeded
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     if (paymentIntent.status !== 'succeeded') {
       throw new HttpError(400, 'Payment has not succeeded');
     }
-    
-    // Respond with a generic success message and let the webhook handle the rest.
-    // DO NOT perform database writes here.
-    res.json({
-      success: true,
-      message: 'Payment received. A confirmation email will be sent shortly.',
-    });
 
+    // Use the same payment processing logic as the webhook
+    await paymentService.handlePaymentSuccess(paymentIntentId);
+
+    // Get the processed invoice and project details for response
+    const metadata = paymentIntent.metadata;
+    const invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
+    const projectId = metadata.projectId ? parseInt(metadata.projectId) : null;
+    const quoteId = metadata.quoteId ? parseInt(metadata.quoteId) : null;
+
+    let responseData: any = {
+      success: true,
+      message: 'Payment processed successfully',
+    };
+
+    // Add additional details if available
+    if (invoiceId) {
+      const invoice = await storage.invoices.getInvoiceById(invoiceId);
+      if (invoice) {
+        responseData.invoice = {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount,
+          status: invoice.status,
+        };
+      }
+    }
+
+    if (projectId) {
+      const project = await storage.projects.getProjectById(projectId);
+      if (project) {
+        responseData.project = {
+          id: project.id,
+          name: project.name,
+          status: project.status,
+        };
+      }
+    }
+
+    if (quoteId) {
+      const quote = await storage.quotes.getQuoteById(quoteId);
+      if (quote) {
+        responseData.quote = {
+          id: quote.id,
+          status: quote.status,
+          title: quote.title,
+          quoteNumber: quote.quoteNumber,
+        };
+      }
+    }
+
+    res.json(responseData);
   } catch (error) {
     next(error);
   }

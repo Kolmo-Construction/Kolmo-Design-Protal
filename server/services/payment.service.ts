@@ -523,7 +523,7 @@ export class PaymentService {
   /**
    * Send project welcome email after successful down payment
    */
-  private async sendProjectWelcomeEmail(projectId: number): Promise<void> {
+  async sendProjectWelcomeEmail(projectId: number): Promise<void> {
     try {
       const project = await storage.projects.getProjectById(projectId);
       if (!project) {
