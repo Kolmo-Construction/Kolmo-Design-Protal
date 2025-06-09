@@ -12,6 +12,7 @@ export interface IInvoiceRepository {
     getInvoicesForProject(projectId: number): Promise<schema.Invoice[]>; // Keep simple for list view?
     getAllInvoices(): Promise<schema.Invoice[]>; // Get all invoices across all projects
     getInvoiceById(invoiceId: number): Promise<InvoiceWithPayments | null>; // Fetch with payments
+    getInvoiceByPaymentIntentId(paymentIntentId: string): Promise<schema.Invoice | null>; // Find invoice by Stripe payment intent ID
     createInvoice(invoiceData: Omit<schema.InsertInvoice, 'amount'> & { amount: string }): Promise<schema.Invoice | null>;
     updateInvoice(invoiceId: number, invoiceData: Partial<Omit<schema.InsertInvoice, 'id' | 'projectId'>>): Promise<schema.Invoice | null>;
     deleteInvoice(invoiceId: number): Promise<boolean>; // Consider implications for payments
@@ -68,6 +69,18 @@ class InvoiceRepository implements IInvoiceRepository {
         } catch (error) {
             console.error(`Error fetching invoice ${invoiceId}:`, error);
             throw new Error('Database error while fetching invoice details.');
+        }
+    }
+
+    async getInvoiceByPaymentIntentId(paymentIntentId: string): Promise<schema.Invoice | null> {
+        try {
+            const invoice = await this.dbOrTx.query.invoices.findFirst({
+                where: eq(schema.invoices.stripePaymentIntentId, paymentIntentId)
+            });
+            return invoice || null;
+        } catch (error) {
+            console.error(`Error fetching invoice by payment intent ID ${paymentIntentId}:`, error);
+            throw new Error('Database error while fetching invoice by payment intent ID.');
         }
     }
 

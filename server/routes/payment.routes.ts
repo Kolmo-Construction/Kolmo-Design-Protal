@@ -120,18 +120,28 @@ router.post('/payment-success', async (req, res, next) => {
       throw new HttpError(404, 'Quote not found');
     }
 
-    // Check if invoice already exists for this payment intent to prevent duplicates
-    const existingInvoice = await storage.invoices.getInvoiceByPaymentIntentId(paymentIntent.id);
+    // Check if payment has already been processed by searching for existing invoice with this payment intent ID
+    const allInvoices = await storage.invoices.getAllInvoices();
+    const existingInvoice = allInvoices.find(inv => inv.stripePaymentIntentId === paymentIntent.id);
     
     if (existingInvoice) {
-      // Payment already processed, return success
+      // Payment already processed, return success without creating duplicates
+      const existingProject = await storage.projects.getProject(existingInvoice.projectId);
+      
+      // Send confirmation email if it hasn't been sent yet
+      try {
+        await sendProjectWelcomeEmail(customerEmail, customerName, quote);
+      } catch (emailError) {
+        console.error('Failed to send welcome email for existing payment:', emailError);
+      }
+      
       res.json({
         success: true,
         message: 'Payment already processed',
         project: {
           id: existingInvoice.projectId,
-          name: quote.title,
-          status: 'planning',
+          name: existingProject?.name || quote.title,
+          status: existingProject?.status || 'planning',
         },
         invoice: existingInvoice,
         quote: {
@@ -144,14 +154,14 @@ router.post('/payment-success', async (req, res, next) => {
       return;
     }
 
-    // Find existing project or get project ID from payment intent metadata
+    // Find existing project using the project ID from payment intent metadata
     let project;
     if (metadata.projectId) {
       project = await storage.projects.getProject(parseInt(metadata.projectId));
     }
     
     if (!project) {
-      throw new HttpError(404, 'Project not found for this payment. This payment may have been processed through a different workflow.');
+      throw new HttpError(404, 'Project not found for this payment. This indicates the payment was processed outside the normal workflow.');
     }
 
     // Generate invoice number
