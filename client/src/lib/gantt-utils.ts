@@ -76,8 +76,21 @@ export function formatTasksForGanttReact(
     let startDate: Date | null = null;
     let endDate: Date | null = null;
     try {
-      startDate = parseISO(apiTask.startDate);
-      endDate = parseISO(apiTask.dueDate);
+      if (apiTask.startDate instanceof Date) {
+        startDate = apiTask.startDate;
+      } else if (typeof apiTask.startDate === 'string') {
+        startDate = parseISO(apiTask.startDate);
+      } else {
+        throw new Error('Invalid startDate type');
+      }
+      
+      if (apiTask.dueDate instanceof Date) {
+        endDate = apiTask.dueDate;
+      } else if (typeof apiTask.dueDate === 'string') {
+        endDate = parseISO(apiTask.dueDate);
+      } else {
+        throw new Error('Invalid dueDate type');
+      }
     } catch (e) {
       console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') failed basic date parsing. Error: ${e}. Skipping.`);
       return false;
@@ -100,8 +113,7 @@ export function formatTasksForGanttReact(
         console.error(`[gantt-utils-react] CRITICAL: Task ID ${taskIdStr} ('${apiTask.title}') has invalid end date *after adjustment*. Skipping.`);
         return false;
       }
-      // Store adjusted date back temporarily if needed, or handle in next step
-      apiTask.dueDate = endDate.toISOString(); // Example: updatedueDate for consistency if needed later
+      // Note: We don't modify the original apiTask object, just use the adjusted endDate
     }
 
     return true; // Task passed initial validation
@@ -110,8 +122,22 @@ export function formatTasksForGanttReact(
   // Second pass: Format valid tasks and handle dependencies
   potentiallyValidTasks.forEach((apiTask) => {
     const taskIdStr = String(apiTask.id);
-    const startDate = parseISO(apiTask.startDate!); // We know these are valid now
-    const endDate = parseISO(apiTask.dueDate!);   // We know these are valid now
+    
+    // Parse dates with proper type checking
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (apiTask.startDate instanceof Date) {
+      startDate = apiTask.startDate;
+    } else {
+      startDate = parseISO(apiTask.startDate!);
+    }
+    
+    if (apiTask.dueDate instanceof Date) {
+      endDate = apiTask.dueDate;
+    } else {
+      endDate = parseISO(apiTask.dueDate!);
+    }
 
     // Progress Calculation & Validation
     let progress = 0;
@@ -143,16 +169,8 @@ export function formatTasksForGanttReact(
 
     // Handle Dependencies (gantt-task-react uses `dependencies` array)
     let dependencies: string[] = [];
-    if (apiTask.parentId !== null && typeof apiTask.parentId !== 'undefined') {
-        // Check if the parent task also passed validation
-        const parentIdStr = String(apiTask.parentId);
-        if (potentiallyValidTasks.some(t => String(t.id) === parentIdStr)) {
-            dependencies.push(parentIdStr);
-        } else {
-             console.warn(`[gantt-utils-react] Task ID ${taskIdStr} dependency parent ID ${parentIdStr} was filtered out. Skipping dependency.`);
-        }
-    }
-    // Add logic here if dependencies are stored differently (e.g., an array field on apiTask)
+    // Note: Currently no parent-child relationships in the task schema
+    // Dependencies would be handled through a separate task_dependencies table if needed
 
 
     // Determine styling based on task properties

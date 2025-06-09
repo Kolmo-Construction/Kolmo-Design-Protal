@@ -193,13 +193,16 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
    */
   const handleDblClick = useCallback((task: GanttReactTask) => {
     console.log("[gantt-task-react] onDoubleClick:", task);
-    const originalTask = tasks.find(t => String(t.id) === task.id);
+    console.log("[gantt-task-react] Available tasks:", tasks.map(t => ({ id: t.id, title: t.title })));
+    console.log("[gantt-task-react] Looking for task with ID:", task.id);
+    
+    const originalTask = tasks.find(t => String(t.id) === String(task.id));
     if (originalTask && handleTaskClick) { 
-        // Type cast to any to avoid TS errors related to library-specific Task vs API Task
-        // This is safe because we're using our own adapter and know the fields we need are present
+        console.log("[gantt-task-react] Found original task:", originalTask);
         handleTaskClick(originalTask as any);
     } else {
-         console.warn(`Could not find original task with ID ${task.id} for double click.`);
+         console.warn(`Could not find original task with ID ${task.id} for double click. Available IDs:`, tasks.map(t => t.id));
+         console.warn("Gantt task object:", task);
     }
   }, [tasks, handleTaskClick]); // Include dependencies
 
