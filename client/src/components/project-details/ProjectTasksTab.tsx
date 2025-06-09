@@ -653,9 +653,6 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                         </p>
                       </div>
                     </div>
-                        💡 Double-click any task to edit details
-                      </div>
-                    </div>
 
 
                     {/* --- Use gantt-task-react Component with Interaction Handlers --- */}
