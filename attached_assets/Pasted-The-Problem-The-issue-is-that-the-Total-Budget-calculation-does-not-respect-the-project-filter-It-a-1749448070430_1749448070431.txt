@@ -1,0 +1,74 @@
+The Problem
+The issue is that the Total Budget calculation does not respect the project filter. It always sums the budgets of all projects, while the Total Invoiced amount is correctly calculated based on the selected project. This leads to an incorrect "Remaining Budget" and "Percentage Invoiced" when you filter for a specific project.
+
+Here's the problematic logic:
+
+Total Budget: Calculated from the projects array, which contains all projects.
+Total Invoiced: Calculated from the filteredInvoices array, which correctly reflects the project filter.
+The Solution
+To fix this, we need to first filter the projects based on the projectFilter and then calculate the totalBudget from that filtered list.
+
+Here are the necessary changes for SecureUserPortal 3_clean/client/src/pages/financials.txt:
+
+TypeScript
+
+// client/src/pages/financials.tsx
+
+// ... (imports and component setup remain the same)
+
+export default function Financials() {
+  // ... (state and queries remain the same)
+
+  // --- FIX STARTS HERE ---
+
+  // 1. Filter projects based on the selected filter
+  const filteredProjects = projects.filter(project =>
+    projectFilter === "all" || project.id.toString() === projectFilter
+  );
+
+  // 2. Calculate total budget from the *filtered* projects
+  const totalBudget = filteredProjects.reduce((sum, project) => {
+    return sum + Number(project.totalBudget);
+  }, 0);
+
+  // --- FIX ENDS HERE ---
+
+
+  // Filter invoices based on project
+  const filteredInvoices = allInvoices.filter(inv =>
+    projectFilter === "all" || inv.projectId.toString() === projectFilter
+  );
+
+  // Filter payments based on filtered invoices
+  const filteredPayments = allPayments.filter(payment =>
+    filteredInvoices.some(inv => inv.id === payment.invoiceId)
+  );
+
+  // The rest of the calculations will now be correct
+  const totalInvoiced = filteredInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+  const remainingBudget = totalBudget - totalInvoiced;
+  const percentInvoiced = totalBudget > 0 ? (totalInvoiced / totalBudget) * 100 : 0;
+
+  // ... (rest of the component remains the same)
+
+  return (
+    <div className="flex h-screen bg-slate-50">
+      {/* ... (TopNavBar and Sidebar) ... */}
+      <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20 overflow-auto">
+        {/* ... (Header and Filters) ... */}
+
+        {/* Financial Summary */}
+        <div className="mb-6">
+          <FinancialSummary
+            totalBudget={totalBudget} {/* This will now be correctly filtered */}
+            invoices={filteredInvoices}
+            isLoading={isLoadingProjects || isLoadingInvoices}
+          />
+        </div>
+
+        {/* ... (Rest of the JSX) ... */}
+      </main>
+    </div>
+  );
+}
+By introducing the filteredProjects array and using it to calculate the totalBudget, all the financial summary cards and progress bars on the Financials page will now display the correct data corresponding to your filter selection.
