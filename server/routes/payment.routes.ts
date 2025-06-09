@@ -120,30 +120,35 @@ router.post('/payment-success', async (req, res, next) => {
       throw new HttpError(404, 'Quote not found');
     }
 
-    // Check if payment has already been processed by searching for existing invoice with this payment intent ID
+    // Check for existing invoice with this payment intent ID to prevent duplicates
     const allInvoices = await storage.invoices.getAllInvoices();
     const existingInvoice = allInvoices.find(inv => inv.stripePaymentIntentId === paymentIntent.id);
     
     if (existingInvoice) {
-      // Payment already processed, return success without creating duplicates
-      const existingProject = await storage.projects.getProject(existingInvoice.projectId);
+      // Payment already processed - update invoice status to paid if needed and send email
+      if (existingInvoice.status !== 'paid' && existingInvoice.id) {
+        await storage.invoices.updateInvoice(existingInvoice.id, { status: 'paid' });
+      }
       
-      // Send confirmation email if it hasn't been sent yet
+      const existingProject = existingInvoice.projectId ? await storage.projects.getProject(existingInvoice.projectId) : null;
+      
+      // Send confirmation email for successful payment
       try {
         await sendProjectWelcomeEmail(customerEmail, customerName, quote);
+        console.log(`Welcome email sent to ${customerEmail} for payment ${paymentIntent.id}`);
       } catch (emailError) {
-        console.error('Failed to send welcome email for existing payment:', emailError);
+        console.error('Failed to send welcome email:', emailError);
       }
       
       res.json({
         success: true,
-        message: 'Payment already processed',
+        message: 'Payment processed successfully',
         project: {
           id: existingInvoice.projectId,
           name: existingProject?.name || quote.title,
           status: existingProject?.status || 'planning',
         },
-        invoice: existingInvoice,
+        invoice: { ...existingInvoice, status: 'paid' },
         quote: {
           id: quote.id,
           status: 'accepted',
@@ -161,7 +166,7 @@ router.post('/payment-success', async (req, res, next) => {
     }
     
     if (!project) {
-      throw new HttpError(404, 'Project not found for this payment. This indicates the payment was processed outside the normal workflow.');
+      throw new HttpError(404, 'Project not found for this payment. The project should have been created during the initial payment flow.');
     }
 
     // Generate invoice number
