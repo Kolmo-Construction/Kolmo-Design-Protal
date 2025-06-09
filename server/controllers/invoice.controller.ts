@@ -175,6 +175,41 @@ export const updateInvoice = async (
 };
 
 /**
+ * Sends a draft invoice to the customer.
+ */
+export const sendInvoice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID parameter.');
+    }
+
+    // Import PaymentService
+    const { PaymentService } = await import('../services/payment.service');
+    const paymentService = new PaymentService();
+
+    const sentInvoice = await paymentService.sendDraftInvoice(invoiceIdNum);
+
+    if (!sentInvoice) {
+      throw new HttpError(404, 'Invoice not found or could not be sent.');
+    }
+
+    res.status(200).json({
+      message: 'Invoice sent successfully.',
+      invoice: sentInvoice,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Delete an invoice.
  */
 export const deleteInvoice = async (

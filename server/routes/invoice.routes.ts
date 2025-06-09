@@ -17,4 +17,12 @@ router.get("/", isAuthenticated, invoiceController.getInvoicesForProject);
 // Requires Admin privileges (which implies authentication).
 router.post("/", isAdmin, invoiceController.createInvoice);
 
+// POST /api/projects/:projectId/invoices/:invoiceId/send
+// Send a draft invoice to the customer
+router.post(
+  "/:invoiceId/send",
+  isAdmin, // Or another appropriate permission middleware
+  invoiceController.sendInvoice
+);
+
 export default router;
