@@ -210,6 +210,78 @@ export const sendInvoice = async (
 };
 
 /**
+ * Downloads an invoice as a PDF.
+ */
+export const downloadInvoicePdf = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID.');
+    }
+
+    // Import PDF service
+    const { generateInvoicePdf } = await import('../services/pdf.service');
+    const pdfBuffer = await generateInvoicePdf(invoiceIdNum);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get invoice details for viewing.
+ */
+export const getInvoiceDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID.');
+    }
+
+    const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
+    if (!invoice) {
+      throw new HttpError(404, 'Invoice not found.');
+    }
+
+    // Get project details
+    const project = await storage.projects.getProjectById(invoice.projectId);
+    if (!project) {
+      throw new HttpError(404, 'Project not found for invoice.');
+    }
+
+    res.json({
+      invoice,
+      project: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        address: project.address,
+        city: project.city,
+        state: project.state,
+        zipCode: project.zipCode
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Delete an invoice.
  */
 export const deleteInvoice = async (

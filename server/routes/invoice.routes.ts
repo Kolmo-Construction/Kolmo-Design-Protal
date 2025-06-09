@@ -25,4 +25,20 @@ router.post(
   invoiceController.sendInvoice
 );
 
+// GET /api/projects/:projectId/invoices/:invoiceId/download
+// Download invoice as PDF
+router.get(
+  "/:invoiceId/download",
+  isAuthenticated,
+  invoiceController.downloadInvoicePdf
+);
+
+// GET /api/projects/:projectId/invoices/:invoiceId/view
+// Get invoice details for viewing
+router.get(
+  "/:invoiceId/view",
+  isAuthenticated,
+  invoiceController.getInvoiceDetails
+);
+
 export default router;
