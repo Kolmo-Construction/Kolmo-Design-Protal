@@ -1,0 +1,28 @@
+gantt-utils.ts:48 [gantt-utils-react] Input API Tasks: [{…}]
+gantt-utils.ts:295 [gantt-utils-react] Output Formatted Tasks: [{…}]
+ProjectTasksTab.tsx:242 ProjectTasksTab State (gantt-task-react): {projectId: 24, isLoading: false, isError: false, error: null, tasksStatus: 'success', …}
+ProjectTasksTab.tsx:223 [gantt-task-react] onSelect: 💰 billing selected
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:223 [gantt-task-react] onSelect: 💰 billing unselected
+ProjectTasksTab.tsx:223 [gantt-task-react] onSelect: 💰 billing selected
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:214 [gantt-task-react] onClick: 56
+ProjectTasksTab.tsx:196 [gantt-task-react] onDoubleClick: {id: '56', name: '💰 billing', start: Mon Jun 09 2025 00:00:00 GMT-0700 (Pacific Daylight Time), end: Mon Jun 09 2025 00:00:00 GMT-0700 (Pacific Daylight Time), progress: 0, …}
+ProjectTasksTab.tsx:197 [gantt-task-react] Available tasks: [{…}]
+ProjectTasksTab.tsx:198 [gantt-task-react] Looking for task with ID: 56
+ProjectTasksTab.tsx:202 [gantt-task-react] Found original task: {id: 56, projectId: 24, title: 'billing', description: '', status: 'done', …}
+useTaskDialogs.ts:45 Gantt Task Clicked (hook): {id: 56, projectId: 24, title: 'billing', description: '', status: 'done', …}
+useTaskDialogs.ts:46 Available tasks for matching: [{…}]
+useTaskDialogs.ts:47 Looking for gantt task ID: 56 type: number
+useTaskDialogs.ts:61 Found matching task: {id: 56, projectId: 24, title: 'billing', description: '', status: 'done', …}
+EditTaskDialog.tsx:125 Resetting form with task data: {id: 56, projectId: 24, title: 'billing', description: '', status: 'done', …}
+EditTaskDialog.tsx:202 Submitting update: {title: 'billing', description: '', status: 'done', priority: 'medium', startDate: Mon Jun 09 2025 00:00:00 GMT-0700 (Pacific Daylight Time), …}
+gantt-utils.ts:48 [gantt-utils-react] Input API Tasks: [{…}]
+gantt-utils.ts:295 [gantt-utils-react] Output Formatted Tasks: [{…}]
+ProjectTasksTab.tsx:242 ProjectTasksTab State (gantt-task-react): {projectId: 24, isLoading: false, isError: false, error: null, tasksStatus: 'success', …}
