@@ -146,7 +146,7 @@ export function ProjectFinancialsTab({ project }: ProjectFinancialsTabProps) {
                     <TableCell>${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                        <Badge
-                        className={getInvoiceStatusBadgeClasses(invoice.status as InvoiceStatus)} // USE Imported helper
+                        className={getInvoiceStatusBadgeClasses(invoice.status)}
 
                         variant="outline"
                       >
