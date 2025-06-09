@@ -9,7 +9,7 @@ const router = Router();
 const paymentService = new PaymentService();
 
 // Get milestones for a project
-router.get('/api/projects/:projectId/milestones', isAuthenticated, async (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {

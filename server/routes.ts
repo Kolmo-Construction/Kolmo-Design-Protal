@@ -139,7 +139,12 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
 
   // --- Mount other project-specific or admin routers ---
   // Milestones within a project
-  app.use(milestoneRoutes);
+  app.use(
+    "/api/projects/:projectId/milestones",
+    isAuthenticated,
+    validateProjectId,
+    milestoneRoutes
+  );
   
   // Task billing routes removed - milestones are now auto-created for billable tasks
 
