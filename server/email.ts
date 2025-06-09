@@ -24,7 +24,7 @@ interface EmailOptions {
 }
 
 // Default sender email - should be a verified domain in SendGrid account
-const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'projects@kolmo.io';
+const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@kolmo.design';
 const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**
@@ -68,8 +68,6 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.warn("SendGrid API key not configured - skipping email send");
     return isDev; // Return true in dev mode so app doesn't break, false in production
   }
-
-
 
   try {
     // Generate plain text from HTML if no text provided
