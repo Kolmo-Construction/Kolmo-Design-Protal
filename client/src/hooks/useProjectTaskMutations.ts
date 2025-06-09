@@ -10,6 +10,8 @@ type UpdateTaskDatePayload = { taskId: number; startDate: Date; dueDate: Date };
 type UpdateTaskProgressPayload = { taskId: number; progress: number };
 type CreateDependencyPayload = { predecessorId: number; successorId: number; type?: string };
 type ImportTasksPayload = { projectId: number; tasks: GanttTask[] };
+type ConvertToMilestonePayload = { taskId: number };
+type CompleteAndBillPayload = { taskId: number; actualHours?: number };
 
 // Define the structure of what the hook returns
 interface UseProjectTaskMutationsResult {
@@ -22,6 +24,8 @@ interface UseProjectTaskMutationsResult {
     publishTasksMutation: ReturnType<typeof useMutation<unknown, Error, void>>;
     unpublishTasksMutation: ReturnType<typeof useMutation<unknown, Error, void>>;
     importTasksMutation: ReturnType<typeof useMutation<unknown, Error, ImportTasksPayload>>;
+    convertToMilestoneMutation: ReturnType<typeof useMutation<unknown, Error, ConvertToMilestonePayload>>;
+    completeAndBillMutation: ReturnType<typeof useMutation<unknown, Error, CompleteAndBillPayload>>;
 }
 
 export function useProjectTaskMutations(projectId: number): UseProjectTaskMutationsResult {
@@ -202,6 +206,36 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         },
     });
 
+    // Convert Task to Milestone Mutation
+    const convertToMilestoneMutation = useMutation<unknown, Error, ConvertToMilestonePayload>({
+        mutationFn: ({ taskId }: ConvertToMilestonePayload) => {
+            return apiRequest('POST', `/api/projects/${projectId}/tasks/${taskId}/convert-to-milestone`);
+        },
+        onSuccess: () => {
+            toast({ title: "Success", description: "Task converted to billable milestone." });
+            queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+            queryClient.invalidateQueries({ queryKey: [`/api/milestones`] });
+        },
+        onError: (err: Error) => {
+            toast({ title: "Conversion Failed", description: err.message, variant: "destructive" });
+        },
+    });
+
+    // Complete and Bill Task Mutation
+    const completeAndBillMutation = useMutation<unknown, Error, CompleteAndBillPayload>({
+        mutationFn: ({ taskId, actualHours }: CompleteAndBillPayload) => {
+            return apiRequest('PATCH', `/api/projects/${projectId}/tasks/${taskId}/complete-and-bill`, { actualHours });
+        },
+        onSuccess: () => {
+            toast({ title: "Success", description: "Task completed and billed successfully." });
+            queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+            queryClient.invalidateQueries({ queryKey: [`/api/milestones`] });
+        },
+        onError: (err: Error) => {
+            toast({ title: "Billing Failed", description: err.message, variant: "destructive" });
+        },
+    });
+
     return {
         createTaskMutation,
         deleteTaskMutation,
@@ -212,5 +246,7 @@ export function useProjectTaskMutations(projectId: number): UseProjectTaskMutati
         publishTasksMutation,
         unpublishTasksMutation,
         importTasksMutation,
+        convertToMilestoneMutation,
+        completeAndBillMutation,
     };
 }

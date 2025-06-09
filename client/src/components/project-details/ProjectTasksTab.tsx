@@ -25,6 +25,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { EditTaskDialog } from "./EditTaskDialog";
+import { TaskBillingActions } from "./TaskBillingActions";
 
 // --- NEW LIBRARY IMPORTS ---
 import { Gantt, Task, EventOption, StylingOption, ViewMode, DisplayOption } from 'gantt-task-react';
@@ -98,6 +99,8 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
       publishTasksMutation,
       unpublishTasksMutation,
       importTasksMutation,
+      convertToMilestoneMutation,
+      completeAndBillMutation,
   } = useProjectTaskMutations(projectId);
 
   // Dialogs hook (remains the same)
