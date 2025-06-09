@@ -142,7 +142,7 @@ export function EditTaskDialog({
         // Optionally reset to empty defaults when closing
         // form.reset({ title: "", ... });
     }
-  }, [isOpen, taskToEdit, currentTaskData, form]);
+  }, [isOpen, taskToEdit, form]);
 
 
   // Helper function to safely format dates (same as Create dialog)
@@ -207,7 +207,7 @@ export function EditTaskDialog({
       console.log("Using billing endpoint for billable task completion");
       completeAndBillMutation.mutate({ 
         taskId: taskToEdit.id, 
-        actualHours: values.actualHours 
+        actualHours: values.actualHours || undefined 
       });
       setIsOpen(false); // Close dialog immediately for billing flow
     } else {
@@ -581,9 +581,9 @@ export function EditTaskDialog({
                                 />
                                 </FormControl>
                                 <FormMessage />
-                                {field.value && project && 'budget' in project && project.budget && (
+                                {field.value && project && project.budget && (
                                 <FormDescription>
-                                    Dollar amount: ${((field.value / 100) * (project.budget as number)).toLocaleString('en-US', { 
+                                    Dollar amount: ${((field.value / 100) * Number(project.budget)).toLocaleString('en-US', { 
                                     minimumFractionDigits: 2, 
                                     maximumFractionDigits: 2 
                                     })}
