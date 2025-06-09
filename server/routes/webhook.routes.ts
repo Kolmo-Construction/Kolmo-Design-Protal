@@ -1,90 +1,57 @@
 import { Router } from 'express';
-import Stripe from 'stripe';
+import { stripeService } from '../services/stripe.service';
 import { paymentService } from '../services/payment.service';
 
 const router = Router();
 
-// Initialize Stripe with webhook endpoint secret
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-05-28.basil',
-}) : null;
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
 /**
- * Stripe webhook endpoint for handling payment events
- * This endpoint processes payment_intent.succeeded events to send confirmation emails
+ * Stripe webhook endpoint
+ * Handles payment events from Stripe
+ * Note: This endpoint needs raw body for signature verification
  */
-router.post('/stripe', async (req, res) => {
-  const sig = req.headers['stripe-signature'] as string;
-
-  if (!stripe || !endpointSecret) {
-    console.error('Stripe not configured - webhook cannot process events');
-    return res.status(503).json({ error: 'Payment processing unavailable' });
-  }
-
-  if (!sig) {
-    console.error('Missing Stripe signature in webhook request');
-    return res.status(400).json({ error: 'Missing stripe signature' });
-  }
-
-  let event: Stripe.Event;
-
+router.post('/stripe', async (req, res, next) => {
   try {
-    // Verify webhook signature and construct event
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-  } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).json({ error: 'Webhook signature verification failed' });
-  }
+    const signature = req.headers['stripe-signature'] as string;
+    
+    if (!signature) {
+      return res.status(400).json({ error: 'Missing stripe-signature header' });
+    }
 
-  console.log(`Received Stripe webhook event: ${event.type}`);
+    // Construct and verify the webhook event
+    const event = await stripeService.constructEvent(req.body, signature);
 
-  try {
+    console.log(`[Webhook] Received event: ${event.type}`);
+
     // Handle the event
     switch (event.type) {
       case 'payment_intent.succeeded':
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log(`Processing payment_intent.succeeded for: ${paymentIntent.id}`);
-        
-        // Use the payment service to handle the successful payment
-        await paymentService.handlePaymentSuccess(paymentIntent.id);
-        
-        console.log(`Successfully processed payment: ${paymentIntent.id}`);
+        await paymentService.handlePaymentSuccess(event.data.object.id);
+        console.log(`[Webhook] Successfully processed payment: ${event.data.object.id}`);
         break;
 
       case 'payment_intent.payment_failed':
-        const failedPayment = event.data.object as Stripe.PaymentIntent;
-        console.log(`Payment failed for: ${failedPayment.id}`);
-        
-        // TODO: Implement failed payment handling if needed
-        // This could include sending failure notifications or updating invoice status
+        console.log(`[Webhook] Payment failed: ${event.data.object.id}`);
+        // TODO: Handle failed payment notification
         break;
 
       case 'customer.created':
-        const customer = event.data.object as Stripe.Customer;
-        console.log(`New customer created: ${customer.id}`);
-        
-        // TODO: Implement customer creation handling if needed
+        console.log(`[Webhook] Customer created: ${event.data.object.id}`);
         break;
 
       case 'invoice.payment_succeeded':
-        const invoice = event.data.object as Stripe.Invoice;
-        console.log(`Invoice payment succeeded: ${invoice.id}`);
-        
-        // TODO: Implement invoice payment handling if needed for subscription billing
+        console.log(`[Webhook] Invoice payment succeeded: ${event.data.object.id}`);
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`[Webhook] Unhandled event type: ${event.type}`);
     }
 
-    // Return a 200 response to acknowledge receipt of the event
+    // Return a response to acknowledge receipt of the event
     res.json({ received: true });
   } catch (error) {
-    console.error('Error processing webhook event:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    console.error('[Webhook] Error processing webhook:', error);
+    next(error);
   }
 });
 
-export const webhookRoutes = router;
+export { router as webhookRoutes };

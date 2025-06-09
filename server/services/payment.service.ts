@@ -467,7 +467,6 @@ export class PaymentService {
       to: customerEmail,
       subject,
       html,
-      from: 'projects@kolmo.io',
       fromName: 'Kolmo Construction',
     });
   }
@@ -609,7 +608,6 @@ export class PaymentService {
       to: invoice.customerEmail,
       subject,
       html,
-      from: 'projects@kolmo.io',
       fromName: 'Kolmo Construction',
     });
   }
@@ -658,7 +656,6 @@ export class PaymentService {
       to: project.customerEmail,
       subject,
       html,
-      from: 'projects@kolmo.io',
       fromName: 'Kolmo Construction',
     });
   }
