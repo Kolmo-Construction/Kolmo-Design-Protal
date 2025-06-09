@@ -48,10 +48,11 @@ export class MilestoneRepository implements IMilestoneRepository {
 
   async createMilestone(data: schema.InsertMilestone): Promise<schema.Milestone> {
     try {
-      // Convert string date to Date object if needed
+      // Convert string date to Date object and number billing percentage to string if needed
       const processedData = {
         ...data,
         plannedDate: typeof data.plannedDate === 'string' ? new Date(data.plannedDate) : data.plannedDate,
+        billingPercentage: data.billingPercentage !== undefined ? data.billingPercentage.toString() : undefined,
       };
 
       const result = await this.db

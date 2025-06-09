@@ -75,7 +75,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   // Create milestone mutation
   const createMilestoneMutation = useMutation({
     mutationFn: (data: any) =>
-      apiRequest(`/api/milestones`, "POST", { ...data, projectId }),
+      apiRequest(`/api/projects/${projectId}/milestones`, "POST", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       setIsCreateDialogOpen(false);
@@ -97,7 +97,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   // Update milestone mutation
   const updateMilestoneMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) =>
-      apiRequest(`/api/milestones/${id}`, "PATCH", data),
+      apiRequest(`/api/projects/${projectId}/milestones/${id}`, "PATCH", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       setEditingMilestone(null);
@@ -119,7 +119,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   // Complete milestone mutation (triggers billing)
   const completeMilestoneMutation = useMutation({
     mutationFn: (milestoneId: number) =>
-      apiRequest(`/api/milestones/${milestoneId}/complete`, "POST"),
+      apiRequest(`/api/projects/${projectId}/milestones/${milestoneId}/complete`, "PATCH"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       toast({
