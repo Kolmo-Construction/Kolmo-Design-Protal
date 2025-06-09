@@ -6,7 +6,7 @@ const router = Router();
 
 // Initialize Stripe with webhook endpoint secret
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20',
+  apiVersion: '2025-05-28.basil',
 }) : null;
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
