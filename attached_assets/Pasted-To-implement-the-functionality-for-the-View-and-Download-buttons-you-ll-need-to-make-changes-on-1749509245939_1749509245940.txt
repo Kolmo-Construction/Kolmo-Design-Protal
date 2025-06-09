@@ -1,0 +1,155 @@
+To implement the functionality for the "View" and "Download" buttons, you'll need to make changes on both the frontend and backend. The goal is to create a way for users to see a detailed invoice page and to download a PDF version of it.
+
+Here’s a comprehensive guide on what needs to be done to fill in the TODO in the code.
+
+1. Enable the UI Buttons
+First, you need to enable the buttons in the invoice table and add onClick handlers.
+
+File to Edit: client/src/components/project-details/ProjectFinancialsTab.tsx
+
+Change this code:
+
+JavaScript
+
+// client/src/components/project-details/ProjectFinancialsTab.tsx
+<Button variant="outline" size="sm" className="text-primary-600 gap-1" disabled>
+    <FileText className="h-4 w-4" /> View
+</Button>
+<Button variant="outline" size="sm" className="text-primary-600 gap-1" disabled>
+    <Download className="h-4 w-4" /> Download
+</Button>
+To this:
+
+JavaScript
+
+// client/src/components/project-details/ProjectFinancialsTab.tsx
+const handleViewInvoice = (invoiceId: number) => {
+  // This will navigate to a new page to view the invoice details.
+  // This requires setting up a new route and component.
+  window.open(`/invoices/${invoiceId}/view`, '_blank');
+};
+
+const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
+  try {
+    const response = await apiRequest('GET', `/api/invoices/${invoiceId}/download`);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Invoice-${invoiceNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (error) {
+    toast({
+      title: "Download Failed",
+      description: "Could not download the invoice PDF.",
+      variant: "destructive",
+    });
+  }
+};
+
+// ... inside the component, within the .map function for invoices ...
+<Button variant="outline" size="sm" className="text-primary-600 gap-1" onClick={() => handleViewInvoice(invoice.id)}>
+    <FileText className="h-4 w-4" /> View
+</Button>
+<Button variant="outline" size="sm" className="text-primary-600 gap-1" onClick={() => handleDownloadInvoice(invoice.id, invoice.invoiceNumber)}>
+    <Download className="h-4 w-4" /> Download
+</Button>
+2. Implement the "View Invoice" Page (Frontend)
+This involves creating a new page where users can see a detailed breakdown of a single invoice.
+
+Create a New Route: In your frontend routing setup (likely using React Router), add a new route.
+
+JavaScript
+
+<Route path="/invoices/:invoiceId/view" element={<InvoiceDetailPage />} />
+Create the InvoiceDetailPage Component: This new component will:
+
+Fetch the specific invoice details using its ID from the URL parameters.
+Fetch the associated invoice line items.
+Display the information in a clean, invoice-style format.
+3. Implement the "Download Invoice" Endpoint (Backend)
+This is the more complex part. The recommended approach is to generate the PDF on the server.
+
+Create a New API Endpoint: Add a new route to handle PDF downloads.
+
+File to Edit: server/routes/invoice.routes.ts
+
+TypeScript
+
+// server/routes/invoice.routes.ts
+// ... (add this new route)
+router.get(
+  "/:invoiceId/download",
+  isAuthenticated,
+  invoiceController.downloadInvoicePdf
+);
+Add the Controller Function: This function will orchestrate the PDF generation.
+
+File to Edit: server/controllers/invoice.controller.ts
+
+TypeScript
+
+// server/controllers/invoice.controller.ts
+// ... (import a PDF generation service)
+import { generateInvoicePdf } from '../services/pdf.service'; // You will create this service
+
+export const downloadInvoicePdf = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { invoiceId } = req.params;
+    const invoiceIdNum = parseInt(invoiceId, 10);
+    if (isNaN(invoiceIdNum)) {
+      throw new HttpError(400, 'Invalid invoice ID.');
+    }
+
+    const pdfBuffer = await generateInvoicePdf(invoiceIdNum);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    next(error);
+  }
+};
+Create a PDF Generation Service: This is the core of the download functionality. You can use a library like Puppeteer to render an HTML template into a PDF, which gives you great control over the appearance using simple HTML and CSS.
+
+Create a new file: server/services/pdf.service.ts
+
+TypeScript
+
+// server/services/pdf.service.ts
+import puppeteer from 'puppeteer';
+import { storage } from '../storage';
+
+export async function generateInvoicePdf(invoiceId: number): Promise<Buffer> {
+  const invoice = await storage.invoices.getInvoiceById(invoiceId);
+  if (!invoice) {
+    throw new Error('Invoice not found');
+  }
+
+  // You can fetch more details like line items or project info here
+
+  // 1. Create an HTML template for your invoice
+  const htmlContent = `
+    <html>
+      <head><style>/* Your CSS styles here */</style></head>
+      <body>
+        <h1>Invoice #${invoice.invoiceNumber}</h1>
+        <p><strong>Amount:</strong> $${invoice.amount}</p>
+        <p><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString()}</p>
+        {/* Add more details, tables for line items, etc. */}
+      </body>
+    </html>
+  `;
+
+  // 2. Launch Puppeteer and create PDF
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+  const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+  await browser.close();
+
+  return pdfBuffer;
+}
+Note: You will need to install Puppeteer: npm install puppeteer.
