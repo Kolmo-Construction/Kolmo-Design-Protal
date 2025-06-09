@@ -536,53 +536,113 @@ export class PaymentService {
         return;
       }
 
-      const subject = `Welcome to Your Project - ${project.name}`;
+      const subject = `Welcome to Your Kolmo Project - ${project.name}`;
       
       const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #3d4552;">Welcome to Your Project!</h2>
-          
-          <p>Dear ${project.customerName},</p>
-          
-          <p>Thank you for your payment! Your project <strong>${project.name}</strong> is now officially underway.</p>
-          
-          <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-            <h3 style="margin: 0 0 10px 0; color: #1e40af;">Payment Confirmed</h3>
-            <p><strong>Project Name:</strong> ${project.name}</p>
-            <p><strong>Down Payment:</strong> Received Successfully</p>
-            <p><strong>Project Status:</strong> Planning Phase</p>
-            <p><strong>Total Budget:</strong> $${parseFloat(project.totalBudget || '0').toFixed(2)}</p>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff;">
+          <!-- Header with Logo -->
+          <div style="background: #3d4552; padding: 30px 40px; text-align: center;">
+            <div style="background: #ffffff; display: inline-block; padding: 12px 24px; border-radius: 8px;">
+              <h1 style="margin: 0; color: #3d4552; font-size: 28px; font-weight: bold; letter-spacing: 2px;">KOLMO</h1>
+              <p style="margin: 0; color: #db973c; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">CONSTRUCTION</p>
+            </div>
           </div>
           
-          <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
-            <h3 style="margin: 0 0 10px 0; color: #047857;">Next Steps</h3>
-            <ul style="margin: 0; padding-left: 20px;">
-              <li>Project planning and scheduling will begin within 2 business days</li>
-              <li>You'll receive regular progress updates via email</li>
-              <li>Your project manager will contact you to schedule the kick-off meeting</li>
-              <li>Milestone payments will be requested as work progresses</li>
-            </ul>
+          <!-- Main Content -->
+          <div style="padding: 40px; background: #ffffff;">
+            <h2 style="color: #3d4552; font-size: 24px; margin: 0 0 24px 0; font-weight: 600;">Welcome to Your Project!</h2>
+            
+            <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Dear ${project.customerName},</p>
+            
+            <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+              Thank you for choosing Kolmo Construction! Your down payment has been received and your project 
+              <strong style="color: #db973c;">${project.name}</strong> is now officially underway.
+            </p>
+            
+            <!-- Payment Confirmation Card -->
+            <div style="background: #f5f5f5; padding: 24px; border-radius: 12px; margin: 30px 0; border-left: 6px solid #db973c;">
+              <h3 style="margin: 0 0 16px 0; color: #3d4552; font-size: 18px; font-weight: 600;">Payment Confirmed ✓</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Project Name:</td>
+                  <td style="padding: 6px 0; color: #3d4552; font-weight: 600;">${project.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Down Payment:</td>
+                  <td style="padding: 6px 0; color: #db973c; font-weight: 600;">Received Successfully</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Project Status:</td>
+                  <td style="padding: 6px 0; color: #3d4552; font-weight: 600;">Planning Phase</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #4a6670; font-weight: 500;">Total Budget:</td>
+                  <td style="padding: 6px 0; color: #3d4552; font-weight: 600;">$${parseFloat(project.totalBudget || '0').toFixed(2)}</td>
+                </tr>
+              </table>
+            </div>
+            
+            <!-- Next Steps Card -->
+            <div style="background: #f5f5f5; padding: 24px; border-radius: 12px; margin: 30px 0; border-left: 6px solid #4a6670;">
+              <h3 style="margin: 0 0 16px 0; color: #3d4552; font-size: 18px; font-weight: 600;">What Happens Next</h3>
+              <ul style="margin: 0; padding-left: 0; list-style: none; color: #3d4552; line-height: 1.8;">
+                <li style="margin: 8px 0; padding-left: 20px; position: relative;">
+                  <span style="position: absolute; left: 0; color: #db973c; font-weight: bold;">•</span>
+                  Project planning and scheduling begins within 2 business days
+                </li>
+                <li style="margin: 8px 0; padding-left: 20px; position: relative;">
+                  <span style="position: absolute; left: 0; color: #db973c; font-weight: bold;">•</span>
+                  Regular progress updates delivered to your inbox
+                </li>
+                <li style="margin: 8px 0; padding-left: 20px; position: relative;">
+                  <span style="position: absolute; left: 0; color: #db973c; font-weight: bold;">•</span>
+                  Your dedicated project manager will schedule a kick-off meeting
+                </li>
+                <li style="margin: 8px 0; padding-left: 20px; position: relative;">
+                  <span style="position: absolute; left: 0; color: #db973c; font-weight: bold;">•</span>
+                  Milestone payment requests as work progresses
+                </li>
+              </ul>
+            </div>
+            
+            <!-- Project Dashboard Card -->
+            <div style="background: linear-gradient(135deg, #db973c 0%, #e6a347 100%); padding: 24px; border-radius: 12px; margin: 30px 0; text-align: center;">
+              <h3 style="margin: 0 0 12px 0; color: #ffffff; font-size: 18px; font-weight: 600;">Project Dashboard Access</h3>
+              <p style="margin: 0 0 16px 0; color: #ffffff; font-size: 14px; opacity: 0.95;">
+                Monitor progress, view updates, and communicate with our team through your dedicated project portal.
+              </p>
+              <p style="margin: 0; color: #ffffff; font-size: 14px; font-weight: 500;">
+                Login credentials will be sent to you within 24 hours.
+              </p>
+            </div>
+            
+            <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 30px 0 20px 0;">
+              We're excited to work with you and bring your vision to life. Our team is committed to delivering 
+              exceptional results that exceed your expectations.
+            </p>
+            
+            <p style="color: #3d4552; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+              If you have any questions or concerns, please don't hesitate to reach out to us at any time.
+            </p>
+            
+            <p style="color: #3d4552; font-size: 16px; margin: 0;">
+              <strong>Best regards,</strong><br>
+              <span style="color: #db973c; font-weight: 600;">The Kolmo Construction Team</span>
+            </p>
           </div>
           
-          <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #facc15;">
-            <h3 style="margin: 0 0 10px 0; color: #a16207;">Project Dashboard Access</h3>
-            <p>You can monitor your project progress and communicate with our team through your project dashboard.</p>
-            <p>We'll send you login details shortly.</p>
+          <!-- Footer -->
+          <div style="background: #f5f5f5; padding: 30px 40px; text-align: center; border-top: 3px solid #db973c;">
+            <div style="margin-bottom: 16px;">
+              <h3 style="margin: 0; color: #3d4552; font-size: 20px; font-weight: bold; letter-spacing: 1px;">KOLMO</h3>
+              <p style="margin: 0; color: #4a6670; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">CONSTRUCTION</p>
+            </div>
+            <p style="margin: 0; color: #4a6670; font-size: 13px; line-height: 1.5;">
+              This email confirms your payment and project initiation.<br>
+              Please keep this confirmation for your records.
+            </p>
           </div>
-          
-          <p>We're excited to work with you and look forward to bringing your vision to life!</p>
-          
-          <p>If you have any questions, please don't hesitate to contact us.</p>
-          
-          <p>Best regards,<br>The Kolmo Construction Team</p>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          <p style="font-size: 12px; color: #666; text-align: center;">
-            This email confirms your payment and project initiation.<br>
-            Kolmo Construction | Building Excellence Together
-          </p>
-        </div>
-      `;
+        </div>`;
 
       await sendEmail({
         to: project.customerEmail,
