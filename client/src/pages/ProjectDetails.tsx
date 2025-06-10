@@ -36,7 +36,6 @@ import {
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
 import { ProjectDocumentsTab } from "@/components/project-details/ProjectDocumentsTab";
-import { ProjectFinancialsTab } from "@/components/project-details/ProjectFinancialsTab";
 import { ProjectFinanceTab } from "@/components/project-details/ProjectFinanceTab";
 import { ProjectMessagesTab } from "@/components/project-details/ProjectMessagesTab";
 import { ProjectScheduleTab } from "@/components/project-details/ProjectScheduleTab";

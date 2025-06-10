@@ -14,4 +14,10 @@ router.get("/payments", isAuthenticated, isAdmin, globalFinanceController.getAll
 // GET /api/milestones - Get all milestones across all projects (admin only)
 router.get("/milestones", isAuthenticated, isAdmin, globalFinanceController.getAllMilestones);
 
+// GET /api/invoices/:invoiceId/view - Get specific invoice details for viewing
+router.get("/invoices/:invoiceId/view", isAuthenticated, globalFinanceController.getInvoiceForView);
+
+// GET /api/invoices/:invoiceId/download - Download specific invoice as PDF
+router.get("/invoices/:invoiceId/download", isAuthenticated, globalFinanceController.downloadInvoice);
+
 export default router;

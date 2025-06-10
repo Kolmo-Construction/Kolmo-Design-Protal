@@ -40,14 +40,14 @@ export default function InvoiceDetailPage() {
     isLoading,
     error
   } = useQuery<InvoiceDetailResponse>({
-    queryKey: [`/api/projects/0/invoices/${invoiceId}/view`],
+    queryKey: [`/api/invoices/${invoiceId}/view`],
     queryFn: getQueryFn({ on401: "throw" }),
     enabled: !!invoiceId,
   });
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(`/api/projects/0/invoices/${invoiceId}/download`, {
+      const response = await fetch(`/api/invoices/${invoiceId}/download`, {
         credentials: 'include'
       });
       
