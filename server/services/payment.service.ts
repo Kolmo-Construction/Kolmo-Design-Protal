@@ -24,13 +24,6 @@ export interface PaymentSchedule {
 
 export class PaymentService {
   /**
-   * Generate a secure token for payment links
-   */
-  private generateSecureToken(): string {
-    return require('crypto').randomBytes(32).toString('hex');
-  }
-
-  /**
    * Calculate payment schedule from quote
    */
   calculatePaymentSchedule(quote: Quote): PaymentSchedule {
@@ -284,17 +277,13 @@ export class PaymentService {
       },
     });
 
-    // Generate secure payment token to protect against email link tracking corruption
-    const paymentToken = this.generateSecureToken();
-    const securePaymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/pay/${paymentToken}`;
-    const directPaymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`;
+    const paymentLink = `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`;
 
     // Update the invoice to 'pending' and add the Stripe details
     const updatedInvoice = await storage.invoices.updateInvoice(invoice.id, {
       status: 'pending',
       stripePaymentIntentId: paymentIntent.id,
-      paymentLink: directPaymentLink,
-      paymentToken: paymentToken,
+      paymentLink: paymentLink,
       issueDate: new Date(), // Update issue date to when it was sent
     });
 
@@ -308,7 +297,7 @@ export class PaymentService {
         customerName: updatedInvoice.customerName || 'Customer',
         projectName: updatedInvoice.description || 'Your Project',
         amount: parseFloat(updatedInvoice.amount),
-        paymentLink: securePaymentLink,
+        paymentLink: paymentLink,
         dueDate: new Date(updatedInvoice.dueDate),
         paymentType: 'milestone',
       });
