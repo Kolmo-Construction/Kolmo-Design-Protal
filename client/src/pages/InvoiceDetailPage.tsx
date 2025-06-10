@@ -49,7 +49,12 @@ export default function InvoiceDetailPage() {
   });
 
   const { mutate: sendInvoice, isPending: isSending } = useMutation({
-    mutationFn: () => apiRequest('POST', `/api/projects/${invoiceData?.invoice.projectId}/invoices/${invoiceData?.invoice.id}/send`),
+    mutationFn: async () => {
+      if (!invoiceData?.invoice.milestoneId) {
+        throw new Error("Invoice is not associated with a milestone");
+      }
+      return apiRequest('POST', `/api/projects/${invoiceData.invoice.projectId}/milestones/${invoiceData.invoice.milestoneId}/send-invoice`);
+    },
     onSuccess: () => {
       toast({
         title: "Invoice Sent",
@@ -57,6 +62,7 @@ export default function InvoiceDetailPage() {
       });
       // Refresh the invoice data to show its new 'pending' status
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${invoiceData?.invoice.projectId}/invoices`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${invoiceData?.invoice.projectId}/milestones`] });
       queryClient.invalidateQueries({ queryKey: [`/api/invoices/${invoiceId}/view`] });
     },
     onError: (error: any) => {
