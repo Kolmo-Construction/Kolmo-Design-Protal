@@ -121,14 +121,47 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     },
   });
 
+  // Send invoice mutation
+  const sendInvoiceMutation = useMutation({
+    mutationFn: async (milestoneId: number) => {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/milestones/${milestoneId}/send-invoice`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Invoice Sent",
+        description: `Invoice #${data.invoice.invoiceNumber} has been sent to the customer.`,
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
+      setLoadingMilestoneId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Send Failed",
+        description: error.message || "Failed to send invoice",
+        variant: "destructive",
+      });
+      setLoadingMilestoneId(null);
+    },
+  });
+
   const handleBillMilestone = (milestoneId: number) => {
     setLoadingMilestoneId(milestoneId);
     billMilestoneMutation.mutate(milestoneId);
   };
 
+  const handleSendInvoice = (milestoneId: number) => {
+    setLoadingMilestoneId(milestoneId);
+    sendInvoiceMutation.mutate(milestoneId);
+  };
+
   const getMilestoneStatusBadge = (milestone: Milestone) => {
     if (milestone.billedAt) {
       return <Badge className="bg-green-100 text-green-800">Invoiced</Badge>;
+    }
+    if (milestone.invoiceId && !milestone.billedAt) {
+      return <Badge className="bg-orange-100 text-orange-800">Draft Invoice</Badge>;
     }
     if (milestone.status === 'completed') {
       return <Badge className="bg-blue-100 text-blue-800">Ready to Bill</Badge>;
@@ -155,14 +188,14 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const calculateFinancialSummary = () => {
     const totalBillable = milestones
       .filter(m => m.isBillable)
-      .reduce((sum, m) => sum + (m.billingPercentage || 0), 0);
+      .reduce((sum, m) => sum + (Number(m.billingPercentage) || 0), 0);
     
     const totalInvoiced = invoices
-      .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+      .reduce((sum, inv) => sum + parseFloat(String(inv.amount)), 0);
     
     const totalPaid = invoices
       .filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+      .reduce((sum, inv) => sum + parseFloat(String(inv.amount)), 0);
 
     return { totalBillable, totalInvoiced, totalPaid };
   };
@@ -262,7 +295,8 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {milestone.status === 'completed' && !milestone.billedAt && milestone.isBillable && (
+                      {/* Generate Invoice button - when completed but no invoice created */}
+                      {milestone.status === 'completed' && !milestone.invoiceId && !milestone.billedAt && milestone.isBillable && (
                         <Button
                           size="sm"
                           onClick={() => handleBillMilestone(milestone.id)}
@@ -271,6 +305,20 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
                         >
                           <Receipt className="h-4 w-4" />
                           {loadingMilestoneId === milestone.id ? "Generating..." : "Generate Invoice"}
+                        </Button>
+                      )}
+                      
+                      {/* Send Invoice button - when draft invoice exists but not sent */}
+                      {milestone.invoiceId && !milestone.billedAt && milestone.isBillable && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleSendInvoice(milestone.id)}
+                          disabled={loadingMilestoneId === milestone.id}
+                          className="gap-1 bg-orange-600 hover:bg-orange-700"
+                        >
+                          <FileText className="h-4 w-4" />
+                          {loadingMilestoneId === milestone.id ? "Sending..." : "Send Invoice"}
                         </Button>
                       )}
                     </div>
