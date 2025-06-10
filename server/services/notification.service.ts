@@ -4,6 +4,7 @@ import { MessageWithSender } from '@server/storage/types'; // Adjust path if nee
 import { User, Project } from '@shared/schema';
 import { sendNewMessageNotificationEmail, isEmailServiceConfigured } from '@server/email'; // Import email function
 import { log as logger } from '@server/vite'; // Use the logger
+import { generateProjectUrl } from '@server/domain.config';
 
 /**
  * Sends email notifications for a newly created message.
@@ -34,9 +35,9 @@ export async function sendNewMessageNotification(message: MessageWithSender): Pr
         const senderName = `${message.sender.firstName} ${message.sender.lastName}`;
 
         // Construct the link to the project's messages tab
-        // Adjust the base URL based on environment
-        const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : ''); // Fallback needed
-        const messageLink = `${baseUrl}/projects/${message.projectId}?tab=messages`; // Example link structure
+        // Use kolmo.design as the production domain
+        const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://kolmo.design');
+        const messageLink = `${baseUrl}/projects/${message.projectId}?tab=messages`;
 
         // 2. Determine Recipients
         if (message.recipientId) {

@@ -318,13 +318,9 @@ export function setupAuth(app: Express) {
         }
       }
 
-      // Create the magic link URL
-      const host = process.env.NODE_ENV === 'production'
-        ? req.get('host')
-        : 'localhost:5000';
-
-      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-      const magicLink = `${protocol}://${host}/auth/magic-link/${token}`;
+      // Create the magic link URL using kolmo.design domain
+      const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://kolmo.design');
+      const magicLink = `${baseUrl}/auth/magic-link/${token}`;
 
       // Send the magic link email
       const isNewUser = !user.isActivated;

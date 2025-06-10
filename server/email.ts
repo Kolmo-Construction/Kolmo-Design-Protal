@@ -133,14 +133,14 @@ export async function sendMagicLinkEmail({
   resetPassword?: boolean;
   isNewUser?: boolean;
 }): Promise<boolean> {
-  // In Replit environment, use the public URL; otherwise fallback to localhost
+  // Use kolmo.design domain for production or BASE_URL if set
   let baseUrl = process.env.BASE_URL;
 
   if (!baseUrl) {
-    if (process.env.REPLIT_SLUG) {
-      baseUrl = `https://${process.env.REPLIT_SLUG}.replit.app`;
+    if (process.env.NODE_ENV === 'production' || process.env.REPLIT_SLUG) {
+      baseUrl = 'https://kolmo.design';
     } else {
-      baseUrl = 'http://localhost:5000'; // Adjust if your local dev port is different
+      baseUrl = 'http://localhost:5000'; // Local development
     }
   }
 

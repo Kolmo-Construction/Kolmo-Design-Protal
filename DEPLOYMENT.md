@@ -60,6 +60,7 @@ When deploying to Replit with custom domain kolmo.design:
    VITE_STRIPE_PUBLIC_KEY=pk_live_...
    STRIPE_WEBHOOK_SECRET=whsec_...
    SENDGRID_API_KEY=SG... (for email notifications)
+   BASE_URL=https://kolmo.design (for proper link generation in emails)
    ```
 
 3. **Build Configuration**
