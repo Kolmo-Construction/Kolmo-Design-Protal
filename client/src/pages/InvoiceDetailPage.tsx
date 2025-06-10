@@ -1,6 +1,6 @@
 import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { Invoice, Project } from "@shared/schema";
 import {
   Card,
@@ -12,10 +12,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Download, FileText, MapPin, Calendar, DollarSign } from "lucide-react";
+import { ArrowLeft, Download, FileText, MapPin, Calendar, DollarSign, Send, Loader2 } from "lucide-react";
 import { formatDate, getInvoiceStatusLabel, getInvoiceStatusBadgeClasses } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface InvoiceDetailResponse {
   invoice: Invoice;
@@ -34,6 +35,8 @@ export default function InvoiceDetailPage() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const {
     data: invoiceData,
@@ -43,6 +46,26 @@ export default function InvoiceDetailPage() {
     queryKey: [`/api/invoices/${invoiceId}/view`],
     queryFn: getQueryFn({ on401: "throw" }),
     enabled: !!invoiceId,
+  });
+
+  const { mutate: sendInvoice, isPending: isSending } = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/projects/${invoiceData?.invoice.projectId}/invoices/${invoiceData?.invoice.id}/send`),
+    onSuccess: () => {
+      toast({
+        title: "Invoice Sent",
+        description: "The invoice has been successfully emailed to the customer.",
+      });
+      // Refresh the invoice data to show its new 'pending' status
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${invoiceData?.invoice.projectId}/invoices`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/invoices/${invoiceId}/view`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Send Failed",
+        description: error.message || "Could not send the invoice.",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleDownload = async () => {
@@ -122,7 +145,25 @@ export default function InvoiceDetailPage() {
               <Badge className={getInvoiceStatusBadgeClasses(invoice.status as any)}>
                 {getInvoiceStatusLabel(invoice.status as any)}
               </Badge>
-              <Button onClick={handleDownload} className="gap-2">
+              
+              {/* Only show the "Send" button if the invoice is in 'draft' status */}
+              {invoice.status === 'draft' && (
+                <Button onClick={() => sendInvoice()} disabled={isSending}>
+                  {isSending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Invoice
+                    </>
+                  )}
+                </Button>
+              )}
+
+              <Button onClick={handleDownload} variant="outline" className="gap-2">
                 <Download className="h-4 w-4" />
                 Download PDF
               </Button>
