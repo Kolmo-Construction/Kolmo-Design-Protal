@@ -70,26 +70,14 @@ export default function PaymentPage() {
           }
         }
       } catch (apiError) {
-        console.warn('API request failed, using fallback data:', apiError);
+        console.warn('API request failed:', apiError);
+        
+        // For production, if API fails, show error instead of fallback data
+        throw new Error('Unable to load payment information. Please contact support.');
       }
 
-      // Extract payment intent ID for identification
-      const paymentIntentId = clientSecret.split('_secret_')[0];
-      
-      // For production, we need to handle payment info differently
-      // since the API endpoint is being intercepted by Vite in development
-      
-      // Extract amount from Stripe's payment intent format if possible
-      // This is a temporary solution until API routing is fixed
-      const defaultPaymentInfo: PaymentInfo = {
-        amount: 0, // Will be set by Stripe during payment processing
-        description: 'Milestone Payment',
-        customerName: undefined,
-        projectName: 'Your Project',
-        invoiceNumber: 'INV-PENDING',
-      };
-
-      setPaymentInfo(defaultPaymentInfo);
+      // This should not be reached if API is working correctly
+      throw new Error('Payment information could not be loaded');
     } catch (error: any) {
       console.error('Error loading payment info:', error);
       setError(error.message || 'Failed to load payment information');

@@ -228,6 +228,9 @@ router.get('/test', (req, res) => {
  * This endpoint is accessible without authentication for customer payments
  */
 router.get('/payment/info/:clientSecret', async (req, res, next) => {
+  // Force JSON response headers to prevent HTML interception
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
   try {
     if (!stripe) {
       throw new HttpError(503, 'Payment processing temporarily unavailable');
