@@ -22,6 +22,7 @@ import DevTools from "@/pages/dev-tools";
 import Quotes from "@/pages/quotes";
 import CustomerQuote from "@/pages/customer-quote";
 import QuotePaymentPage from "@/pages/quote-payment";
+import MilestonePaymentPage from "@/pages/milestone-payment";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/quote/:token" component={CustomerQuote} />
       <Route path="/customer/quote/:token" component={CustomerQuote} />
       <Route path="/quote-payment/:id" component={QuotePaymentPage} />
+      <Route path="/payment/:clientSecret" component={MilestonePaymentPage} />
       <Route path="/payment-success" component={PaymentSuccessPage} />
 
       {/* Development-only routes */}
