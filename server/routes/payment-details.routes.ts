@@ -1,126 +1,98 @@
-import { Router } from 'express';
-import { storage } from '../storage';
-import { stripeService } from '../services/stripe.service';
-import { HttpError } from '../errors';
+import { Router } from "express";
+import { storage } from "../storage";
+import Stripe from 'stripe';
+
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2025-05-28.basil',
+}) : null;
 
 const router = Router();
 
-/**
- * Get payment details by client secret
- * This endpoint is used by customers when they click on payment links
- */
-router.get('/payment/details/:clientSecret', async (req, res, next) => {
+// GET /api/payment-details/:clientSecret - Lookup payment details for legacy payment links
+router.get('/payment-details/:clientSecret', async (req, res) => {
   try {
     const { clientSecret } = req.params;
     
     if (!clientSecret) {
-      throw new HttpError(400, 'Client secret is required');
+      return res.status(400).json({ error: 'Client secret is required' });
+    }
+
+    if (!stripe) {
+      return res.status(503).json({ error: 'Payment processing temporarily unavailable' });
     }
 
     // Extract payment intent ID from client secret
-    // Client secrets have format: pi_xxxxx_secret_xxxxx
     const paymentIntentId = clientSecret.split('_secret_')[0];
     
-    if (!paymentIntentId) {
-      throw new HttpError(400, 'Invalid client secret format');
-    }
+    try {
+      // Try to retrieve the payment intent from Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (!paymentIntent) {
+        return res.status(404).json({ error: 'Payment not found' });
+      }
 
-    // Get payment intent from Stripe
-    const paymentIntent = await stripeService.getPaymentIntent(paymentIntentId);
+      const metadata = paymentIntent.metadata;
+      let paymentDetails: any = {
+        amount: paymentIntent.amount / 100, // Convert from cents
+        currency: paymentIntent.currency.toUpperCase(),
+        status: paymentIntent.status,
+        description: paymentIntent.description || 'Payment'
+      };
+
+      // Check if this payment has been migrated to a Payment Link
+      if (metadata?.invoiceId) {
+        const invoiceId = parseInt(metadata.invoiceId);
+        const invoice = await storage.invoices.getInvoiceById(invoiceId);
+        
+        if (invoice?.stripePaymentUrl) {
+          // Redirect to the new Stripe Payment Link
+          paymentDetails.stripePaymentUrl = invoice.stripePaymentUrl;
+          paymentDetails.description = `Invoice #${invoice.invoiceNumber}`;
+          paymentDetails.projectId = invoice.projectId;
+        }
+      } else if (metadata?.quoteId) {
+        const quoteId = parseInt(metadata.quoteId);
+        const quote = await storage.quotes.getQuoteById(quoteId);
+        
+        if (quote?.stripePaymentUrl) {
+          paymentDetails.stripePaymentUrl = quote.stripePaymentUrl;
+          paymentDetails.description = `Quote #${quote.quoteNumber}`;
+        }
+      }
+
+      return res.json(paymentDetails);
+      
+    } catch (stripeError: any) {
+      // If payment intent not found in Stripe, check our database for migrated payments
+      console.error('Stripe lookup failed:', stripeError.message);
+      
+      // Try to find invoice or quote with matching client secret
+      const invoices = await storage.invoices.getAllInvoices();
+      const matchingInvoice = invoices.find((inv: any) => 
+        inv.stripeClientSecret === clientSecret || 
+        inv.stripePaymentIntentId === paymentIntentId
+      );
+      
+      if (matchingInvoice && matchingInvoice.stripePaymentUrl) {
+        return res.json({
+          amount: matchingInvoice.amount,
+          currency: 'USD',
+          description: `Invoice #${matchingInvoice.invoiceNumber}`,
+          stripePaymentUrl: matchingInvoice.stripePaymentUrl,
+          projectId: matchingInvoice.projectId
+        });
+      }
+      
+      return res.status(404).json({ 
+        error: 'Payment link not found or has expired',
+        message: 'This payment link may no longer be valid. Please contact support for a new payment link.'
+      });
+    }
     
-    if (!paymentIntent) {
-      return res.json({
-        isValid: false,
-        error: 'Payment not found'
-      });
-    }
-
-    // Check if payment is already completed
-    if (paymentIntent.status === 'succeeded') {
-      return res.json({
-        isValid: false,
-        error: 'This payment has already been completed'
-      });
-    }
-
-    // Check if payment intent is valid and not expired
-    if (paymentIntent.status === 'canceled') {
-      return res.json({
-        isValid: false,
-        error: 'This payment link has been canceled'
-      });
-    }
-
-    // Get invoice details from metadata
-    const invoiceId = paymentIntent.metadata?.invoiceId;
-    if (!invoiceId) {
-      return res.json({
-        isValid: false,
-        error: 'Payment details not found'
-      });
-    }
-
-    const invoiceIdNum = parseInt(invoiceId, 10);
-    if (isNaN(invoiceIdNum)) {
-      return res.json({
-        isValid: false,
-        error: 'Invalid invoice ID'
-      });
-    }
-
-    // Fetch invoice from database
-    const invoice = await storage.invoices.getInvoiceById(invoiceIdNum);
-    if (!invoice) {
-      return res.json({
-        isValid: false,
-        error: 'Invoice not found'
-      });
-    }
-
-    // Get project details
-    if (!invoice.projectId) {
-      return res.json({
-        isValid: false,
-        error: 'Project information not found for this invoice'
-      });
-    }
-    
-    const project = await storage.projects.getProjectById(invoice.projectId!);
-    if (!project) {
-      return res.json({
-        isValid: false,
-        error: 'Project not found'
-      });
-    }
-
-    // Determine payment type from metadata or invoice type
-    const paymentType = paymentIntent.metadata?.paymentType || invoice.invoiceType || 'milestone';
-
-    // Return payment details
-    res.json({
-      isValid: true,
-      amount: paymentIntent.amount / 100, // Convert from cents to dollars
-      description: paymentIntent.description || invoice.description,
-      projectName: project.name,
-      customerName: invoice.customerName || project.customerName || 'Customer',
-      customerEmail: invoice.customerEmail || project.customerEmail || '',
-      invoiceNumber: invoice.invoiceNumber,
-      dueDate: invoice.dueDate.toISOString(),
-      paymentType: paymentType === 'final' ? 'final' : 'milestone',
-    });
-
   } catch (error) {
-    console.error('Error fetching payment details:', error);
-    
-    // Handle Stripe errors
-    if (error instanceof Error && error.message.includes('No such payment_intent')) {
-      return res.json({
-        isValid: false,
-        error: 'Payment not found or invalid link'
-      });
-    }
-    
-    next(error);
+    console.error('Payment details lookup error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
