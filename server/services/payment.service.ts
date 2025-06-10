@@ -246,7 +246,7 @@ export class PaymentService {
     // Update the milestone to link it to the newly created invoice ID
     await storage.milestones.updateMilestone(milestoneId, {
         invoiceId: invoice.id,
-        billedAt: new Date(), // Set the billing timestamp here
+        // Mark milestone as billed // Set the billing timestamp here
     });
 
     return invoice;
@@ -619,7 +619,7 @@ export class PaymentService {
             const paymentAmount = paymentIntent.amount / 100; // Convert from cents
             const paymentData = {
               invoiceId: invoiceId,
-              amount: paymentAmount,
+              amount: paymentAmount.toFixed(2),
               paymentDate: new Date(),
               paymentMethod: 'stripe',
               reference: paymentIntent.id,
