@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { storage } from '../storage';
-import { HttpError } from '../errors';
+import { storage } from '../storage.js';
 
 const router = Router();
 
@@ -8,71 +7,95 @@ const router = Router();
  * Secure payment link redirect endpoint
  * This protects against email click tracking corruption by using a secure token system
  */
-router.get('/secure-payment/:token', async (req, res, next) => {
+router.get('/pay/:token', async (req, res) => {
   try {
     const { token } = req.params;
     
     if (!token) {
-      throw new HttpError(400, 'Payment token is required');
+      return res.status(400).json({ error: 'Payment token is required' });
     }
 
     // Find invoice by payment token
     const invoice = await storage.invoices.getInvoiceByPaymentToken(token);
     
     if (!invoice) {
-      throw new HttpError(404, 'Payment link not found or expired');
+      return res.status(404).json({ error: 'Invalid or expired payment link' });
     }
 
+    // Check if invoice is still payable
     if (invoice.status === 'paid') {
-      // Redirect to payment success page
-      return res.redirect('/payment-success?invoice=' + invoice.invoiceNumber);
+      return res.status(400).json({ error: 'This invoice has already been paid' });
     }
 
-    // Redirect to the actual Stripe payment page
-    if (invoice.paymentLink) {
-      return res.redirect(invoice.paymentLink);
+    if (invoice.status === 'cancelled') {
+      return res.status(400).json({ error: 'This invoice has been cancelled' });
     }
 
-    throw new HttpError(404, 'Payment link not available');
+    // Redirect to the actual Stripe payment URL
+    if (!invoice.stripePaymentIntentId) {
+      return res.status(400).json({ error: 'Payment not available for this invoice' });
+    }
+
+    // Construct the direct Stripe payment URL
+    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const directPaymentUrl = `${baseUrl}/payment/${invoice.stripePaymentIntentId}`;
+    
+    // Redirect to the actual payment page
+    return res.redirect(directPaymentUrl);
     
   } catch (error) {
-    next(error);
+    console.error('Payment redirect error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 /**
  * Public payment link for invoices (using invoice number)
  */
-router.get('/invoice/:invoiceNumber', async (req, res, next) => {
+router.get('/invoice/:invoiceNumber/pay', async (req, res) => {
   try {
     const { invoiceNumber } = req.params;
     
     if (!invoiceNumber) {
-      throw new HttpError(400, 'Invoice number is required');
+      return res.status(400).json({ error: 'Invoice number is required' });
     }
 
     // Find invoice by invoice number
     const invoice = await storage.invoices.getInvoiceByNumber(invoiceNumber);
     
     if (!invoice) {
-      throw new HttpError(404, 'Invoice not found');
+      return res.status(404).json({ error: 'Invoice not found' });
     }
 
+    // Check if invoice is still payable
     if (invoice.status === 'paid') {
-      // Redirect to payment success page
-      return res.redirect('/payment-success?invoice=' + invoice.invoiceNumber);
+      return res.status(400).json({ error: 'This invoice has already been paid' });
     }
 
-    // Redirect to the actual Stripe payment page
-    if (invoice.paymentLink) {
-      return res.redirect(invoice.paymentLink);
+    if (invoice.status === 'cancelled') {
+      return res.status(400).json({ error: 'This invoice has been cancelled' });
     }
 
-    throw new HttpError(404, 'Payment link not available');
+    // Redirect to secure payment link if available
+    if (invoice.paymentToken) {
+      const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+      const securePaymentUrl = `${baseUrl}/pay/${invoice.paymentToken}`;
+      return res.redirect(securePaymentUrl);
+    }
+
+    // Fallback to direct payment link
+    if (invoice.stripePaymentIntentId) {
+      const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+      const directPaymentUrl = `${baseUrl}/payment/${invoice.stripePaymentIntentId}`;
+      return res.redirect(directPaymentUrl);
+    }
+
+    return res.status(400).json({ error: 'Payment not available for this invoice' });
     
   } catch (error) {
-    next(error);
+    console.error('Invoice payment redirect error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-export default router;
+export { router as paymentRedirectRoutes };
