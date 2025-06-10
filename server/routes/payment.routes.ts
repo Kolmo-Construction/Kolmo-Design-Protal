@@ -224,9 +224,10 @@ router.get('/test', (req, res) => {
 });
 
 /**
- * Get payment information by client secret
+ * Get payment information by client secret - PUBLIC ENDPOINT
+ * This endpoint is accessible without authentication for customer payments
  */
-router.get('/info/:clientSecret', async (req, res, next) => {
+router.get('/payment/info/:clientSecret', async (req, res, next) => {
   try {
     if (!stripe) {
       throw new HttpError(503, 'Payment processing temporarily unavailable');
