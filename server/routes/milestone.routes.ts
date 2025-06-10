@@ -11,7 +11,7 @@ const paymentService = new PaymentService();
 // Get milestones for a project
 router.get('/', async (req, res, next) => {
   try {
-    const projectId = parseInt(req.params.projectId as string);
+    const projectId = parseInt((req.params as any).projectId);
     if (isNaN(projectId)) {
       throw new HttpError(400, 'Invalid project ID');
     }
@@ -32,7 +32,7 @@ router.get('/', async (req, res, next) => {
 // Create a new milestone
 router.post('/', async (req, res, next) => {
   try {
-    const projectId = parseInt(req.params.projectId as string);
+    const projectId = parseInt((req.params as any).projectId);
     if (isNaN(projectId)) {
       throw new HttpError(400, 'Invalid project ID');
     }
@@ -65,8 +65,8 @@ router.post('/', async (req, res, next) => {
 // Update milestone
 router.patch('/:milestoneId', async (req, res, next) => {
   try {
-    const projectId = parseInt(req.params.projectId);
-    const milestoneId = parseInt(req.params.milestoneId);
+    const projectId = parseInt(req.params.projectId as string);
+    const milestoneId = parseInt(req.params.milestoneId as string);
     
     if (isNaN(projectId) || isNaN(milestoneId)) {
       throw new HttpError(400, 'Invalid project ID or milestone ID');
@@ -90,8 +90,8 @@ router.patch('/:milestoneId', async (req, res, next) => {
 // Complete milestone
 router.patch('/:milestoneId/complete', async (req, res, next) => {
   try {
-    const projectId = parseInt(req.params.projectId);
-    const milestoneId = parseInt(req.params.milestoneId);
+    const projectId = parseInt(req.params.projectId as string);
+    const milestoneId = parseInt(req.params.milestoneId as string);
     
     if (isNaN(projectId) || isNaN(milestoneId)) {
       throw new HttpError(400, 'Invalid project ID or milestone ID');
@@ -137,8 +137,8 @@ router.patch('/:milestoneId/complete', async (req, res, next) => {
 // Trigger billing for a completed milestone
 router.post('/:milestoneId/bill', async (req, res, next) => {
   try {
-    const projectId = parseInt(req.params.projectId);
-    const milestoneId = parseInt(req.params.milestoneId);
+    const projectId = parseInt(req.params.projectId as string);
+    const milestoneId = parseInt(req.params.milestoneId as string);
     
     if (isNaN(projectId) || isNaN(milestoneId)) {
       throw new HttpError(400, 'Invalid project ID or milestone ID');
@@ -168,29 +168,17 @@ router.post('/:milestoneId/bill', async (req, res, next) => {
       throw new HttpError(404, 'Project not found');
     }
 
-    // Create draft invoice and immediately send it with Payment Link
-    let sentInvoice = null;
+    // Create draft invoice for review
+    let draftInvoice = null;
     if (milestone.isBillable) {
-        console.log(`Milestone ${milestoneId} is billable, creating and sending invoice.`);
-        
-        // Create draft invoice
-        const draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
-        
-        if (draftInvoice) {
-            // Immediately send the draft invoice with Payment Link
-            sentInvoice = await paymentService.sendDraftInvoice(draftInvoice.id);
-            
-            // Mark milestone as billed
-            await storage.milestones.updateMilestone(milestoneId, {
-                billedAt: new Date()
-            });
-        }
+        console.log(`Milestone ${milestoneId} is billable, creating draft invoice for review.`);
+        draftInvoice = await paymentService.createDraftInvoiceForMilestone(projectId, milestoneId);
     }
 
-    // Update the response to return the sent invoice
+    // Return draft invoice for review - do not send automatically
     res.json({
-      message: 'Invoice created and sent successfully',
-      invoice: sentInvoice,
+      message: 'Draft invoice created successfully. Review and send when ready.',
+      invoice: draftInvoice,
       milestone: await storage.milestones.getMilestoneById(milestoneId),
     });
   } catch (error) {
