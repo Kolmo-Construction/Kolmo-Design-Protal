@@ -27,27 +27,7 @@ export interface CreateCustomerOptions {
 }
 
 export class StripeService {
-  /**
-   * Create a payment intent for one-time payments
-   */
-  async createPaymentIntent(options: CreatePaymentIntentOptions): Promise<Stripe.PaymentIntent> {
-    try {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(options.amount), // Ensure it's an integer
-        currency: options.currency || 'usd',
-        description: options.description,
-        metadata: options.metadata || {},
-        automatic_payment_methods: {
-          enabled: true,
-        },
-      });
 
-      return paymentIntent;
-    } catch (error: any) {
-      console.error('Error creating payment intent:', error);
-      throw new HttpError(400, `Payment intent creation failed: ${error.message}`);
-    }
-  }
 
   /**
    * Create or retrieve a Stripe customer

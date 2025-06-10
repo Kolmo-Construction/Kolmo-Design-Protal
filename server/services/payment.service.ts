@@ -62,7 +62,7 @@ export class PaymentService {
   }): Promise<{
     project: Project;
     downPaymentInvoice: Invoice;
-    paymentIntent: any;
+    paymentLink: string;
   }> {
     try {
       // Get quote details
@@ -85,24 +85,23 @@ export class PaymentService {
         customerInfo
       );
 
-      // Create Stripe payment intent for down payment
-      const paymentIntent = await stripeService.createPaymentIntent({
+      // Create Stripe payment link for down payment
+      const stripePaymentLink = await stripeService.createPaymentLink({
         amount: Math.round(paymentSchedule.downPayment.amount * 100), // Convert to cents
-        customerEmail: customerInfo.email,
-        customerName: customerInfo.name,
         description: `Down payment for ${quote.title} - Quote #${quote.quoteNumber}`,
-        metadata: {
-          quoteId: quote.id.toString(),
-          invoiceId: downPaymentInvoice.id.toString(),
-          projectId: project.id.toString(),
-          paymentType: 'down_payment',
-        },
+        invoiceId: downPaymentInvoice.id,
+        customerEmail: customerInfo.email,
+        successUrl: `${getBaseUrl()}/payment-success?invoice_id=${downPaymentInvoice.id}`,
       });
 
-      // Update invoice with Stripe payment intent ID
+      if (!stripePaymentLink || !stripePaymentLink.url) {
+        throw new HttpError(500, 'Failed to create Stripe Payment Link.');
+      }
+
+      // Update invoice with payment link
       await storage.invoices.updateInvoice(downPaymentInvoice.id, {
-        stripePaymentIntentId: paymentIntent.id,
-        paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
+        status: 'pending',
+        paymentLink: stripePaymentLink.url,
       });
 
       // Note: For down payments, we don't send payment instructions immediately.
@@ -112,7 +111,7 @@ export class PaymentService {
       return {
         project,
         downPaymentInvoice,
-        paymentIntent,
+        paymentLink: stripePaymentLink.url,
       };
     } catch (error) {
       console.error('Error processing quote acceptance:', error);
