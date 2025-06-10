@@ -2,6 +2,7 @@ import { stripeService } from './stripe.service';
 import { storage } from '../storage';
 import { HttpError } from '../errors';
 import { sendEmail } from '../email';
+import { generatePaymentSuccessUrl, getBaseUrl } from '../domain.config';
 import { insertInvoiceSchema } from '@shared/schema';
 import type { Quote, Invoice, Project } from '@shared/schema';
 import type Stripe from 'stripe';
@@ -101,7 +102,7 @@ export class PaymentService {
       // Update invoice with Stripe payment intent ID
       await storage.invoices.updateInvoice(downPaymentInvoice.id, {
         stripePaymentIntentId: paymentIntent.id,
-        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+        paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
       });
 
       // Note: For down payments, we don't send payment instructions immediately.
@@ -445,7 +446,7 @@ export class PaymentService {
     // Update invoice with payment intent
     await storage.invoices.updateInvoice(invoice.id, {
       stripePaymentIntentId: paymentIntent.id,
-      paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+      paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
     });
 
     // Send milestone payment email
@@ -454,7 +455,7 @@ export class PaymentService {
         customerName: project.customerName || 'Customer',
         projectName: project.name,
         amount: milestoneAmount,
-        paymentLink: `${process.env.BASE_URL || 'http://localhost:5000'}/payment/${paymentIntent.client_secret}`,
+        paymentLink: `${getBaseUrl()}/payment/${paymentIntent.client_secret}`,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         paymentType: 'milestone',
       });

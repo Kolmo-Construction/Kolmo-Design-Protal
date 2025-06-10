@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { HttpError } from '../errors';
+import { generatePaymentSuccessUrl } from '../domain.config';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -117,7 +118,7 @@ export class StripeService {
         after_completion: {
           type: 'redirect',
           redirect: {
-            url: options.successUrl || `${process.env.BASE_URL || 'http://localhost:5000'}/payment-success`,
+            url: options.successUrl || generatePaymentSuccessUrl(),
           },
         },
       });
