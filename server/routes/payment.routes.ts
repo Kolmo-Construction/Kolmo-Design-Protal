@@ -274,4 +274,68 @@ async function sendProjectWelcomeEmail(
   });
 }
 
+/**
+ * Get payment details by client secret for milestone payment page
+ */
+router.get('/details/:clientSecret', async (req, res, next) => {
+  try {
+    if (!stripe) {
+      throw new HttpError(503, 'Payment processing temporarily unavailable');
+    }
+
+    const clientSecret = req.params.clientSecret;
+    
+    // Extract payment intent ID from client secret
+    const paymentIntentId = clientSecret.split('_secret_')[0];
+    
+    // Retrieve payment intent from Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (!paymentIntent) {
+      throw new HttpError(404, 'Payment not found');
+    }
+
+    // Get invoice details from metadata
+    const invoiceId = paymentIntent.metadata.invoiceId;
+    if (!invoiceId) {
+      throw new HttpError(404, 'Invoice not found');
+    }
+
+    const invoice = await storage.invoices.getInvoiceById(parseInt(invoiceId));
+    if (!invoice || !invoice.projectId) {
+      throw new HttpError(404, 'Invoice not found');
+    }
+
+    // Get project details
+    const project = await storage.projects.getProjectById(invoice.projectId);
+    if (!project) {
+      throw new HttpError(404, 'Project not found');
+    }
+
+    // Check if payment is already completed
+    if (paymentIntent.status === 'succeeded') {
+      throw new HttpError(400, 'Payment has already been completed');
+    }
+
+    res.json({
+      invoice: {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        amount: invoice.amount,
+        description: invoice.description,
+        customerName: invoice.customerName,
+        customerEmail: invoice.customerEmail,
+        dueDate: invoice.dueDate,
+      },
+      project: {
+        id: project.id,
+        name: project.name,
+      },
+      clientSecret: paymentIntent.client_secret,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export { router as paymentRoutes };
