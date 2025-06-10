@@ -9,6 +9,7 @@ import { User as SelectUser } from "@shared/schema";
 import { sendMagicLinkEmail, isEmailServiceConfigured } from "@server/email";
 import { UserProfile } from "@server/storage/types"; // Import UserProfile
 import { HttpError } from "./errors";
+import { generateMagicLinkUrl } from "@server/domain.config";
 
 declare global {
   namespace Express {
@@ -318,9 +319,8 @@ export function setupAuth(app: Express) {
         }
       }
 
-      // Create the magic link URL using kolmo.design domain
-      const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://kolmo.design');
-      const magicLink = `${baseUrl}/auth/magic-link/${token}`;
+      // Create the magic link URL using centralized domain configuration
+      const magicLink = generateMagicLinkUrl(token);
 
       // Send the magic link email
       const isNewUser = !user.isActivated;

@@ -35,9 +35,7 @@ export async function sendNewMessageNotification(message: MessageWithSender): Pr
         const senderName = `${message.sender.firstName} ${message.sender.lastName}`;
 
         // Construct the link to the project's messages tab
-        // Use kolmo.design as the production domain
-        const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://kolmo.design');
-        const messageLink = `${baseUrl}/projects/${message.projectId}?tab=messages`;
+        const messageLink = generateProjectUrl(message.projectId, 'messages');
 
         // 2. Determine Recipients
         if (message.recipientId) {

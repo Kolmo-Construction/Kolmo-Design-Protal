@@ -1,4 +1,5 @@
 import sgMail from '@sendgrid/mail';
+import { getBaseUrl } from '@server/domain.config';
 
 // Initialize SendGrid with API key
 if (!process.env.SENDGRID_API_KEY) {
@@ -133,16 +134,8 @@ export async function sendMagicLinkEmail({
   resetPassword?: boolean;
   isNewUser?: boolean;
 }): Promise<boolean> {
-  // Use kolmo.design domain for production or BASE_URL if set
-  let baseUrl = process.env.BASE_URL;
-
-  if (!baseUrl) {
-    if (process.env.NODE_ENV === 'production' || process.env.REPLIT_SLUG) {
-      baseUrl = 'https://kolmo.design';
-    } else {
-      baseUrl = 'http://localhost:5000'; // Local development
-    }
-  }
+  // Use centralized domain configuration
+  const baseUrl = getBaseUrl();
 
   // Determine the correct path based on the purpose
   // *** FIX: Corrected magic link path to match auth controller ***
