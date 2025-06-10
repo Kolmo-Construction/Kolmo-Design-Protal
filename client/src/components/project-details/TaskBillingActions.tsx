@@ -17,8 +17,8 @@ export function TaskBillingActions({ task, projectId }: TaskBillingActionsProps)
   const { completeAndBillMutation } = useProjectTaskMutations(projectId);
   const [actualHours, setActualHours] = useState<number | undefined>();
 
-  // Check if task is completed (status is "Done")
-  const isCompleted = task.status === "Done";
+  // Check if task is completed (status is "done")
+  const isCompleted = task.status === "done";
   
   // Check if task can be billed (not yet completed or no milestone created)
   const canBeBilled = !isCompleted && !task.milestoneId;

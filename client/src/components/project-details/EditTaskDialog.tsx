@@ -117,6 +117,7 @@ export function EditTaskDialog({
       const taskData = taskToEdit;
       
       console.log("Resetting form with task data:", taskData);
+      console.log("Task status:", taskData.status, "Type:", typeof taskData.status);
       
       // Reset form with values from the current task data
       form.reset({
