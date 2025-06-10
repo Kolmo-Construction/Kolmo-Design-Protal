@@ -1,0 +1,77 @@
+Here is the verification of the backend code and a detailed guide on how to add the missing "Send Invoice" button to your InvoiceDetailPage.tsx component.
+
+Backend Verification
+The functionality to send an invoice is handled by a dedicated API endpoint:
+
+Route: POST /api/projects/:projectId/invoices/:invoiceId/send.
+Controller: The invoice.controller.ts file has a sendInvoice function that handles the request.
+Service: This controller calls the paymentService.sendDraftInvoice function, which creates a Stripe payment intent and emails the customer.
+The backend is ready. The problem is purely on the frontend.
+
+How to Fix: Add the "Send Invoice" Button
+You need to modify your InvoiceDetailPage.tsx component to include a button that calls the correct API endpoint.
+
+Step 1: Define the Mutation
+In your InvoiceDetailPage.tsx component, use the useMutation hook from TanStack Query to define the logic for sending the invoice.
+
+TypeScript
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { Send, Loader2 } from 'lucide-react';
+
+// Inside your component, assuming you have 'invoice' and 'projectId' available
+const { toast } = useToast();
+const queryClient = useQueryClient();
+
+const { mutate: sendInvoice, isPending: isSending } = useMutation({
+  mutationFn: () => apiRequest('POST', `/api/projects/${invoice.projectId}/invoices/${invoice.id}/send`),
+  onSuccess: () => {
+    toast({
+      title: "Invoice Sent",
+      description: "The invoice has been successfully emailed to the customer.",
+    });
+    // Refresh the invoice data to show its new 'pending' status
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${invoice.projectId}/invoices`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${invoice.projectId}/invoices/${invoice.id}/view`] });
+  },
+  onError: (error: any) => {
+    toast({
+      title: "Send Failed",
+      description: error.message || "Could not send the invoice.",
+      variant: "destructive",
+    });
+  },
+});
+Step 2: Add the Button to the UI
+In the header of your invoice view page, next to the "Download PDF" button, add the new "Send Invoice" button. It's crucial to only show this button if the invoice is in a draft status, as you cannot re-send an already processed invoice.
+
+TypeScript
+
+{/* In the header of your InvoiceDetailPage.tsx */}
+<div className="flex items-center gap-2">
+  
+  {/* Only show the "Send" button if the invoice is in 'draft' status */}
+  {invoice.status === 'draft' && (
+    <Button onClick={() => sendInvoice()} disabled={isSending}>
+      {isSending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Sending...
+        </>
+      ) : (
+        <>
+          <Send className="mr-2 h-4 w-4" />
+          Send Invoice
+        </>
+      )}
+    </Button>
+  )}
+
+  <Button variant="outline">
+    Download PDF
+  </Button>
+</div>
+By adding these two pieces of code, the "Send Invoice" button will appear for any draft invoices, and clicking it will trigger the entire backend process to bill your customer via Stripe.
