@@ -53,13 +53,13 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
     });
 
     res.json({
-      clientSecret: result.paymentIntent.client_secret,
+      paymentLink: result.paymentLink,
       amount: parseFloat(result.downPaymentInvoice.amount.toString()),
-      downPaymentPercentage: result.paymentIntent.metadata.downPaymentPercentage || '30',
+      downPaymentPercentage: '30', // Default down payment percentage
       quote: {
         id: quoteId,
         title: result.project.name,
-        quoteNumber: result.paymentIntent.metadata.quoteNumber,
+        quoteNumber: result.downPaymentInvoice.invoiceNumber,
         total: result.project.totalBudget,
       },
       project: {
@@ -80,35 +80,34 @@ router.post('/quotes/:id/accept-payment', async (req, res, next) => {
 });
 
 /**
- * Handle successful payment confirmation from client-side
- * This endpoint processes payments that are confirmed on the client side.
- * It uses the same payment processing logic as the webhook to ensure consistency.
+ * Handle successful payment confirmation from Stripe webhooks
+ * This endpoint processes payments that are confirmed via Stripe's webhook system.
  */
 router.post('/payment-success', async (req, res, next) => {
   try {
-    const { paymentIntentId } = req.body;
+    const { sessionId } = req.body;
 
-    if (!paymentIntentId) {
-      throw new HttpError(400, 'Payment intent ID is required');
+    if (!sessionId) {
+      throw new HttpError(400, 'Session ID is required');
     }
 
     if (!stripe) {
       throw new HttpError(503, 'Payment processing temporarily unavailable');
     }
 
-    // Retrieve payment intent from Stripe to verify it succeeded
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    // Retrieve checkout session from Stripe to verify it was completed
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    if (paymentIntent.status !== 'succeeded') {
-      throw new HttpError(400, 'Payment has not succeeded');
+    if (session.payment_status !== 'paid') {
+      throw new HttpError(400, 'Payment has not been completed');
     }
 
     // Use the same payment processing logic as the webhook
-    await paymentService.handlePaymentSuccess(paymentIntentId);
+    await paymentService.handlePaymentSuccess(session);
 
     // Get the processed invoice and project details for response
-    const metadata = paymentIntent.metadata;
-    const invoiceId = metadata.invoiceId ? parseInt(metadata.invoiceId) : null;
+    const metadata = session.metadata;
+    const invoiceId = metadata?.invoiceId ? parseInt(metadata.invoiceId) : null;
     const projectId = metadata.projectId ? parseInt(metadata.projectId) : null;
     const quoteId = metadata.quoteId ? parseInt(metadata.quoteId) : null;
 
