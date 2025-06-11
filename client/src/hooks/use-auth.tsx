@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Heavy logging for user state changes
   useEffect(() => {
     console.log('[useAuth] User state changed:', {
-      user: user ? `User ID ${user.id} (${user.username})` : 'No user',
+      user: user ? `User ID ${(user as any).id} (${(user as any).username})` : 'No user',
       isLoading,
       isFetching,
       error: error?.message || 'No error',
@@ -225,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user: user ?? null,
+        user: (user as SelectUser) ?? null,
         isLoading,
         isFetching,
         error,
