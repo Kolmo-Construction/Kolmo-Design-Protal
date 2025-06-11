@@ -1,19 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-
-interface User {
-  id: number;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  phone?: string | null;
-  isActivated?: boolean;
-  stripeCustomerId?: string | null;
-  stripeSubscriptionId?: string | null;
-}
+import { User } from "@shared/schema";
 
 interface AuthContextType {
   user: User | null;
@@ -40,6 +28,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     error
   } = useQuery<User | null>({
     queryKey: ["/api/user"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/user", {
+          credentials: "include",
+        });
+        
+        if (response.status === 401) {
+          return null; // User not authenticated
+        }
+        
+        if (!response.ok) {
+          throw new Error(`Authentication check failed: ${response.statusText}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error("[AuthProvider] User query error:", error);
+        throw error;
+      }
+    },
     retry: false,
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
