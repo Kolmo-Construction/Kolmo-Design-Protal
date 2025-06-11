@@ -86,12 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginData) => {
       return await apiRequest("POST", "/api/login", credentials);
     },
-    onSuccess: async () => {
-      // Optimistically set user data first to prevent UI flicker
-      queryClient.setQueryData(["/api/user"], null);
+    onSuccess: async (userData) => {
+      // Set the user data immediately from the login response
+      queryClient.setQueryData(["/api/user"], userData);
       
-      // Wait for the user query to refetch to ensure consistent state
-      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+      // Also invalidate to ensure fresh data
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
       // Clear any stale user data on login failure
