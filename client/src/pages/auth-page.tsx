@@ -180,18 +180,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     );
   }
 
-  // After loading, if the user object exists (meaning they are logged in),
-  // show a loading state while redirecting.
-  if (user && !isMagicLink && !isPasswordReset && !loginMutation.isPending && !isFetching) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-[#3d4552] mx-auto" />
-          <p className="text-gray-600 text-lg">Redirecting to dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  // Removed old redirect logic - now handled directly in login mutation onSuccess callback
 
   // Magic link loading/success/error states
   if (isMagicLink) {
