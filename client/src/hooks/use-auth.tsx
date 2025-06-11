@@ -72,8 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
-      return await res.json();
+      return await apiRequest("POST", "/api/login", credentials);
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -89,8 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
+      return await apiRequest("POST", "/api/register", credentials);
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -106,8 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/logout");
-      return await res.json();
+      return await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
       // Clear user data cache
@@ -136,8 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyMagicLinkMutation = useMutation({
     mutationFn: async (token: string) => {
-      const res = await apiRequest("GET", `/api/auth/magic-link/${token}`);
-      return await res.json();
+      return await apiRequest("GET", `/api/auth/magic-link/${token}`);
     },
     onSuccess: (data: MagicLinkResponse) => {
       if (data.user) {
@@ -159,8 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setupProfileMutation = useMutation({
     mutationFn: async (data: ProfileSetupData) => {
-      const res = await apiRequest("POST", "/api/auth/setup-profile", data);
-      return await res.json();
+      return await apiRequest("POST", "/api/auth/setup-profile", data);
     },
     onSuccess: (data: ProfileSetupResponse) => {
       queryClient.setQueryData(["/api/user"], data.user);
@@ -180,8 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const createMagicLinkMutation = useMutation({
     mutationFn: async (data: MagicLinkCreationData) => {
-      const res = await apiRequest("POST", "/api/admin/create-magic-link", data);
-      return await res.json();
+      return await apiRequest("POST", "/api/admin/create-magic-link", data);
     },
     onSuccess: (data: MagicLinkCreationResponse) => {
       if (data.warning) {
