@@ -1,0 +1,44 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+protected-route.tsx:19 [ProtectedRoute] Auth check: {path: '/', user: 'No user', isLoading: true, shouldShowLoader: true, shouldRedirect: false, …}
+protected-route.tsx:30 [ProtectedRoute] Showing loader for path: /
+protected-route.tsx:19 [ProtectedRoute] Auth check: {path: '/', user: 'User ID 1', isLoading: true, shouldShowLoader: true, shouldRedirect: false, …}
+protected-route.tsx:30 [ProtectedRoute] Showing loader for path: /
+protected-route.tsx:19 [ProtectedRoute] Auth check: {path: '/', user: 'User ID 1', isLoading: false, shouldShowLoader: false, shouldRedirect: false, …}
+protected-route.tsx:45 [ProtectedRoute] Rendering component for authenticated user on path: /
+ChatContext.tsx:83 initializeAdminChat called with: {token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkI…tMSJ9.DRFpz86U9PWAdE-4XXz64bkD1FapA3HeJxudKgM56lo', userId: 'admin-1', apiKey: 'cux8fxg93kgc'}
+ChatContext.tsx:100 Creating Stream client with API key: cux8fxg93kgc
+ChatContext.tsx:102 Connecting user: {id: 'admin-1', name: 'KOLMO'}
+ChatContext.tsx:110 Stream client connected successfully
+queryClient.ts:33 [apiRequest] /api/logout POST no body
+use-auth-unified.tsx:77 Logout error: TypeError: Failed to execute 'fetch' on 'Window': '/api/logout' is not a valid HTTP method.
+    at apiRequest (queryClient.ts:35:21)
+    at logout (use-auth-unified.tsx:71:13)
+    at handleLogout (TopNavBar.tsx:30:13)
+    at handleEvent (chunk-5Q5YC75F.js?v=e3256777:4:45)
+    at HTMLUnknownElement.callCallback2 (chunk-276SZO74.js?v=e3256777:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-276SZO74.js?v=e3256777:3699:24)
+    at invokeGuardedCallback (chunk-276SZO74.js?v=e3256777:3733:39)
+    at invokeGuardedCallbackAndCatchFirstError (chunk-276SZO74.js?v=e3256777:3736:33)
+    at executeDispatch (chunk-276SZO74.js?v=e3256777:7014:11)
+    at processDispatchQueueItemsInOrder (chunk-276SZO74.js?v=e3256777:7034:15)
+overrideMethod @ hook.js:608
+logout @ use-auth-unified.tsx:77
+await in logout
+handleLogout @ TopNavBar.tsx:30
+handleEvent @ chunk-5Q5YC75F.js?v=e3256777:4
+callCallback2 @ chunk-276SZO74.js?v=e3256777:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=e3256777:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=e3256777:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=e3256777:3736
+executeDispatch @ chunk-276SZO74.js?v=e3256777:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=e3256777:7034
+processDispatchQueue @ chunk-276SZO74.js?v=e3256777:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=e3256777:7051
+(anonymous) @ chunk-276SZO74.js?v=e3256777:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=e3256777:18913
+batchedUpdates @ chunk-276SZO74.js?v=e3256777:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=e3256777:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=e3256777:5478
+dispatchEvent @ chunk-276SZO74.js?v=e3256777:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=e3256777:5449

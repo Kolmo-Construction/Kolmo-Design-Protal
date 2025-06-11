@@ -68,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async (): Promise<void> => {
     try {
-      await apiRequest("/api/logout", "POST");
+      await apiRequest("POST", "/api/logout");
 
       // Clear all queries and reset auth state
       queryClient.clear();
