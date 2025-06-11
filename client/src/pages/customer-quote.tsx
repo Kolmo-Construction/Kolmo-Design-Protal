@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Check, X, MessageSquare, Calendar, MapPin, Clock, Phone, Mail, Shield, Award, Star, FileText, DollarSign, Calculator, Wrench, Home, Hammer, Zap, Paintbrush, Users, Package, Truck, HardHat, Eye, EyeOff, CreditCard } from "lucide-react";
 import QuoteAnalytics from "@/lib/quote-analytics";
@@ -108,6 +108,7 @@ const getCategoryIcon = (category: string) => {
 
 export default function CustomerQuotePage() {
   const { token } = useParams<{ token: string }>();
+  const [, setLocation] = useLocation();
   const [showResponse, setShowResponse] = useState(false);
   const [showDeclineReason, setShowDeclineReason] = useState(false);
   const [showAcceptSummary, setShowAcceptSummary] = useState(false);
@@ -212,7 +213,7 @@ export default function CustomerQuotePage() {
 
   const handleContinueToPayment = () => {
     const quoteData = quote as QuoteResponse;
-    window.location.href = `/quote-payment/${quoteData.id}`;
+    setLocation(`/quote-payment/${quoteData.id}`);
   };
 
   const handleDecline = () => {
