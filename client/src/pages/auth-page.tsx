@@ -52,17 +52,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const { token } = useParams<{ token: string }>();
   const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
 
-  // Redirect authenticated users to dashboard (unless magic link or password reset)
+  // Only redirect if already authenticated when page loads (not after login)
   useEffect(() => {
-    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
-      // Use timeout to ensure state is stable before redirecting
-      const redirectTimer = setTimeout(() => {
-        navigate("/");
-      }, 50);
-      
-      return () => clearTimeout(redirectTimer);
+    if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending) {
+      // Only redirect if we're not in the middle of a login process
+      navigate("/");
     }
-  }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
+  }, [user, navigate, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending]);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -117,10 +113,11 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
       const result = await loginMutation.mutateAsync(data);
       console.log("Login successful, user data:", result);
       
-      // Force immediate navigation after successful login
-      setTimeout(() => {
-        navigate("/");
-      }, 100);
+      // Immediately set the user in query client to prevent race conditions
+      queryClient.setQueryData(["/api/user"], result);
+      
+      // Force navigation without waiting for useEffect
+      navigate("/");
       
     } catch (error: any) {
       console.error("Login failed:", error);
