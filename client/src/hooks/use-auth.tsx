@@ -97,13 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginData) => {
       return await apiRequest("POST", "/api/login", credentials);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('[LoginMutation] onSuccess: Invalidating user query to trigger refetch.');
       
-      // Invalidate the user query. This tells any component using this query
-      // (like our useAuth hook) that its data is stale and needs to be refetched.
-      // React Query will automatically make a new GET /api/user request.
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      // Invalidate and wait for the refetch to complete
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      console.log('[LoginMutation] User query refetched successfully');
     },
     onError: (error: Error) => {
       console.log('[LoginMutation] onError called:', error);
