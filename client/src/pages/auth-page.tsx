@@ -109,16 +109,12 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   const onLogin = async (data: LoginFormValues) => {
     try {
-      const result = await loginMutation.mutateAsync(data);
-      console.log("Login successful, user data:", result);
-      
-      // Immediately set the user in query client to trigger the useEffect
-      queryClient.setQueryData(["/api/user"], result);
-      
-      // Remove imperative navigation - let useEffect handle redirection
-      
+      // The mutation's own onSuccess handler now manages the state.
+      // You no longer need to do anything else here.
+      await loginMutation.mutateAsync(data);
     } catch (error: any) {
       console.error("Login failed:", error);
+      // The mutation's onError will show the toast, but you can still set form errors.
       loginForm.setError("root", {
         type: "manual",
         message: error.message || "Login failed",
