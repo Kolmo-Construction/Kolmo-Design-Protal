@@ -164,10 +164,15 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   };
 
   const calculateFinancialSummary = () => {
+    const projectBudget = project ? parseFloat(project.totalBudget) : 0;
+    
     // Calculate total billable percentage (sum of all billable milestone percentages)
-    const totalBillable = milestones
+    const totalBillablePercentage = milestones
       .filter(m => m.isBillable)
       .reduce((sum, m) => sum + parseFloat(m.billingPercentage || '0'), 0);
+    
+    // Calculate total billable amount based on project budget
+    const totalBillableAmount = (projectBudget * totalBillablePercentage) / 100;
     
     const totalInvoiced = invoices
       .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
@@ -176,12 +181,31 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
       .filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
 
-    return { totalBillable, totalInvoiced, totalPaid };
+    const remainingToInvoice = Math.max(0, totalBillableAmount - totalInvoiced);
+    const remainingToPay = Math.max(0, totalInvoiced - totalPaid);
+
+    return { 
+      projectBudget,
+      totalBillablePercentage, 
+      totalBillableAmount,
+      totalInvoiced, 
+      totalPaid,
+      remainingToInvoice,
+      remainingToPay
+    };
   };
 
-  const { totalBillable, totalInvoiced, totalPaid } = calculateFinancialSummary();
+  const { 
+    projectBudget,
+    totalBillablePercentage, 
+    totalBillableAmount,
+    totalInvoiced, 
+    totalPaid,
+    remainingToInvoice,
+    remainingToPay
+  } = calculateFinancialSummary();
 
-  if (isLoadingMilestones || isLoadingInvoices) {
+  if (isLoadingMilestones || isLoadingInvoices || isLoadingProject) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-32 w-full" />
@@ -191,7 +215,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     );
   }
 
-  if (milestonesError || invoicesError) {
+  if (milestonesError || invoicesError || projectError) {
     return (
       <Alert>
         <AlertTriangle className="h-4 w-4" />
@@ -213,18 +237,43 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-700">{totalBillable}%</div>
-              <div className="text-sm text-blue-600">Total Billable</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Project Budget */}
+            <div className="text-center p-4 bg-slate-50 rounded-lg border">
+              <div className="text-2xl font-bold text-slate-700">${projectBudget.toFixed(2)}</div>
+              <div className="text-sm text-slate-600">Total Project Value</div>
             </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-700">${totalInvoiced.toFixed(2)}</div>
-              <div className="text-sm text-green-600">Total Invoiced</div>
+            
+            {/* Total Billable Amount */}
+            <div className="text-center p-4 bg-blue-50 rounded-lg border">
+              <div className="text-2xl font-bold text-blue-700">${totalBillableAmount.toFixed(2)}</div>
+              <div className="text-sm text-blue-600">Total Billable ({totalBillablePercentage.toFixed(1)}%)</div>
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-700">${totalPaid.toFixed(2)}</div>
-              <div className="text-sm text-purple-600">Total Paid</div>
+            
+            {/* Total Collected */}
+            <div className="text-center p-4 bg-green-50 rounded-lg border">
+              <div className="text-2xl font-bold text-green-700">${totalPaid.toFixed(2)}</div>
+              <div className="text-sm text-green-600">Total Collected</div>
+            </div>
+            
+            {/* Remaining to Collect */}
+            <div className="text-center p-4 bg-orange-50 rounded-lg border">
+              <div className="text-2xl font-bold text-orange-700">${remainingToPay.toFixed(2)}</div>
+              <div className="text-sm text-orange-600">Remaining to Collect</div>
+            </div>
+          </div>
+          
+          {/* Additional breakdown */}
+          <div className="mt-6 pt-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Total Invoiced:</span>
+                <span className="font-medium">${totalInvoiced.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Remaining to Invoice:</span>
+                <span className="font-medium">${remainingToInvoice.toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </CardContent>
