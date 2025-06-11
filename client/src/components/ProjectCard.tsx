@@ -95,16 +95,12 @@ export default function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Key Personnel */}
         <div className="space-y-2 mb-4">
-          {/* Clients */}
+          {/* Client */}
           {project.clients && project.clients.length > 0 && (
             <div className="flex items-center text-sm">
               <div className="w-16 text-slate-500 flex-shrink-0">Client:</div>
               <div className="flex-1 font-medium text-slate-700">
-                {project.clients.length === 1 ? (
-                  `${project.clients[0].firstName} ${project.clients[0].lastName}`
-                ) : (
-                  `${project.clients[0].firstName} ${project.clients[0].lastName} +${project.clients.length - 1}`
-                )}
+                {project.clients[0].firstName} {project.clients[0].lastName}
               </div>
             </div>
           )}

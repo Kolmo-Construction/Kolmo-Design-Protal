@@ -191,36 +191,32 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
             </div>
           )}
 
-          {/* Clients */}
+          {/* Client */}
           <div className="space-y-2">
             <h4 className="font-medium text-slate-900 flex items-center gap-2">
               <Home className="h-4 w-4 text-primary-600" />
-              Client{project.clients && project.clients.length > 1 ? 's' : ''}
+              Project Owner
             </h4>
             {project.clients && project.clients.length > 0 ? (
-              <div className="space-y-2">
-                {project.clients.map((client, index) => (
-                  <div key={client.id} className="bg-primary-50 rounded-lg p-3 border border-primary-100">
-                    <p className="font-medium text-slate-900">
-                      {client.firstName} {client.lastName}
-                    </p>
-                    {client.email && (
-                      <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
-                        <Mail className="h-3 w-3" />
-                        <span>{client.email}</span>
-                      </div>
-                    )}
-                    {client.phone && (
-                      <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
-                        <Phone className="h-3 w-3" />
-                        <span>{client.phone}</span>
-                      </div>
-                    )}
+              <div className="bg-primary-50 rounded-lg p-3 border border-primary-100">
+                <p className="font-medium text-slate-900">
+                  {project.clients[0].firstName} {project.clients[0].lastName}
+                </p>
+                {project.clients[0].email && (
+                  <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
+                    <Mail className="h-3 w-3" />
+                    <span>{project.clients[0].email}</span>
                   </div>
-                ))}
+                )}
+                {project.clients[0].phone && (
+                  <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
+                    <Phone className="h-3 w-3" />
+                    <span>{project.clients[0].phone}</span>
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="text-sm text-slate-500 italic">No clients assigned</p>
+              <p className="text-sm text-slate-500 italic">No project owner assigned</p>
             )}
           </div>
         </CardContent>
