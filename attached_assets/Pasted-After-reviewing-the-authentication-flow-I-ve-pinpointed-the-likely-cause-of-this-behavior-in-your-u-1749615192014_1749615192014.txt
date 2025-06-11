@@ -1,0 +1,54 @@
+After reviewing the authentication flow, I've pinpointed the likely cause of this behavior in your useAuth hook.
+
+The Root Cause
+In your client/src/hooks/use-auth.txt file, the loginMutation has an onSuccess handler that does two things:
+
+queryClient.setQueryData(...): This immediately and optimistically updates the local cache with the user data returned from the successful login.
+queryClient.refetchQueries(...): This immediately tells React Query to ask the server for that same user data again.
+While both actions aim to update the user's state, calling them back-to-back like this can sometimes create a race condition. The refetchQueries might be invalidating the data you just set with setQueryData before React has a chance to re-render the components that depend on it (like AuthPage and its redirect logic).
+
+The refetchQueries call is also redundant here. Since the /api/login endpoint already returns the complete and up-to-date user object, simply setting that data in the cache is sufficient and more efficient.
+
+The Solution
+To fix this, you should simplify the onSuccess handler in your loginMutation to only use setQueryData. This is the standard and most effective pattern for this situation.
+
+File to Edit: client/src/hooks/use-auth.txt
+
+1. Locate the loginMutation: Find the useMutation hook for logging in.
+
+2. Modify the onSuccess handler:
+
+Change this:
+
+TypeScript
+
+// client/src/hooks/use-auth.txt
+...
+    onSuccess: async (userData) => {
+      console.log('[LoginMutation] onSuccess called with userData:', userData);
+      
+      // Set the user data immediately from the login response
+      queryClient.setQueryData(["/api/user"], userData);
+      console.log('[LoginMutation] User data set in cache');
+      
+      // Force an immediate refetch instead of just invalidating
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+      console.log('[LoginMutation] Queries refetched');
+    },
+...
+To this:
+
+TypeScript
+
+// client/src/hooks/use-auth.txt
+...
+    onSuccess: (userData) => {
+      console.log('[LoginMutation] onSuccess called with userData:', userData);
+      
+      // Set the user data immediately from the login response.
+      // This is sufficient to trigger a re-render in all components using useAuth().
+      queryClient.setQueryData(["/api/user"], userData);
+      console.log('[LoginMutation] User data set in cache');
+    },
+...
+By removing the redundant refetchQueries call, you eliminate the potential race condition. The setQueryData function will update the cache, React Query will notify the useAuth hook of the new data, the user object will update, and the useEffect in your AuthPage will trigger the redirect as intended, all without requiring a manual page refresh
