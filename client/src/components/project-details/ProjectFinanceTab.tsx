@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
-import type { Milestone, Invoice } from "@shared/schema";
+import type { Milestone, Invoice, Project } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +84,17 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
     enabled: !!projectId,
   });
 
+  // Fetch project data to get total budget
+  const {
+    data: project,
+    isLoading: isLoadingProject,
+    error: projectError,
+  } = useQuery<Project>({
+    queryKey: [`/api/projects/${projectId}`],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!projectId,
+  });
+
   // Billing mutation for completed milestones
   const billMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: number) => {
@@ -153,9 +164,10 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   };
 
   const calculateFinancialSummary = () => {
+    // Calculate total billable percentage (sum of all billable milestone percentages)
     const totalBillable = milestones
       .filter(m => m.isBillable)
-      .reduce((sum, m) => sum + (m.billingPercentage || 0), 0);
+      .reduce((sum, m) => sum + parseFloat(m.billingPercentage || '0'), 0);
     
     const totalInvoiced = invoices
       .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
