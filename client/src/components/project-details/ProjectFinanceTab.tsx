@@ -265,17 +265,17 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
             </div>
           </div>
           
-          {/* Additional breakdown */}
+          {/* Payment Progress */}
           <div className="mt-6 pt-4 border-t">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Total Invoiced:</span>
-                <span className="font-medium">${totalInvoiced.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Remaining to Invoice:</span>
-                <span className="font-medium">${remainingToInvoice.toFixed(2)}</span>
-              </div>
+            <div className="mb-2 flex justify-between text-sm">
+              <span className="text-slate-600">Payment Progress</span>
+              <span className="font-medium">{totalInvoiced > 0 ? Math.round((totalPaid / totalInvoiced) * 100) : 0}% Collected</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${totalInvoiced > 0 ? (totalPaid / totalInvoiced) * 100 : 0}%` }}
+              ></div>
             </div>
           </div>
         </CardContent>
