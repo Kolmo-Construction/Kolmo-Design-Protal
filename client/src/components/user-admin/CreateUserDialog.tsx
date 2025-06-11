@@ -52,7 +52,7 @@ export function CreateUserDialog({
       projectIds?: number[];
       phoneNumber?: string;
     }): Promise<{ magicLink: string; user: any }> => {
-      return await apiRequest("POST", "/api/create-magic-link", userData);
+      return await apiRequest("POST", "/api/admin/create-magic-link", userData);
     },
     onSuccess: () => {
       // Invalidate users list to refresh
@@ -98,25 +98,31 @@ export function CreateUserDialog({
     createMagicLinkMutation.mutate(submissionData, {
       onSuccess: (response) => {
          console.log("Magic link mutation response:", response);
-        // Only set magic link if it's available in the response
-        if (response?.magicLink) {
+         console.log("Response type:", typeof response);
+         console.log("Response keys:", Object.keys(response || {}));
+         
+        // Check if response has magicLink property
+        if (response && response.magicLink) {
+          console.log("Setting magic link:", response.magicLink);
           setCreatedMagicLink(response.magicLink);
-        } else if (response?.user && emailConfigured) {
+          toast({ 
+            title: "User Created", 
+            description: "Magic link generated successfully. Share the link below with the user." 
+          });
+        } else if (response && emailConfigured) {
             // If no link but email configured, assume success (link sent via email)
              toast({ title: "User Created", description: "Invitation email sent successfully."});
-
              closeAndReset(); // Close dialog after successful email send
-        } else if (response?.user && !emailConfigured) {
-             // Handle case where user created but email failed - RARE if API is robust
-             toast({ title: "User Created (Manual Link Needed)", description: "User created, but email service is down. No magic link available.", variant: "destructive"});
-
-             // Don't close dialog yet? Or provide alternative?
+        } else {
+             // Fallback case
+             console.log("Unexpected response format:", response);
+             toast({ 
+               title: "User Created", 
+               description: "User created but unable to generate magic link. Please check server logs.", 
+               variant: "destructive" 
+             });
         }
         queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-        // Don't close automatically if magic link needs copying
-
-        // Removed automatic close check - handled above
-
       },
       onError: (error: Error) => {
            console.error("Create user / magic link error:", error);
