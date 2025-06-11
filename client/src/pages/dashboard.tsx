@@ -36,7 +36,7 @@ export default function Dashboard() {
   });
 
   // Fetch analytics dashboard data
-  const { data: analytics = { summary: {} }, isLoading: analyticsLoading } = useQuery({
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["/api/analytics/dashboard"],
   });
 
@@ -101,7 +101,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-[#3d4552]">
-                {analytics?.summary?.totalViews || 0}
+                {(analytics as any)?.summary?.totalViews || 0}
               </div>
               <p className="text-xs text-gray-500">
                 Total views this month

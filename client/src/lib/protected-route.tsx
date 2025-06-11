@@ -27,8 +27,8 @@ export function ProtectedRoute({
         });
 
         // 1. First, and most importantly, handle the loading state.
-        //    While loading or fetching initial auth state, show a spinner and do nothing else.
-        if (isLoading || isFetching) {
+        //    While loading initial auth state (but not fetching updates), show a spinner.
+        if (isLoading || (isFetching && !user)) {
           console.log('[ProtectedRoute] Showing loader for path:', path);
           return (
             <div className="flex items-center justify-center min-h-screen">
