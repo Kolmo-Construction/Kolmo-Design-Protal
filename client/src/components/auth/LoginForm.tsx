@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,7 +29,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { loginMutation } = useAuth();
+  const { login } = useAuth();
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -41,11 +41,9 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    setIsLoading(true);
     try {
-      await loginMutation.mutateAsync({
-        username: data.username,
-        password: data.password,
-      });
+      await login(data.username, data.password);
 
       toast({
         title: "Login Successful",
@@ -65,10 +63,13 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
         description: error.message || "Invalid username or password",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const isLoading = loginMutation.isPending || form.formState.isSubmitting;
+  const [isLoading, setIsLoading] = useState(false);
+  const formIsLoading = isLoading || form.formState.isSubmitting;
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg">
@@ -146,14 +147,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
             </Label>
           </div>
 
-          {/* Error Display */}
-          {loginMutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {loginMutation.error.message || "Login failed. Please try again."}
-              </AlertDescription>
-            </Alert>
-          )}
+          {/* Error Display - handled by toast now */}
 
           {/* Submit Button */}
           <Button
