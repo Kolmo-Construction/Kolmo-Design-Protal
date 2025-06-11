@@ -88,12 +88,12 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
-        <AuthProvider>
+        <AuthProviderV2>
           <ChatProvider>
             <Toaster />
             <Router />
           </ChatProvider>
-        </AuthProvider>
+        </AuthProviderV2>
       </TooltipProvider>
     </ThemeProvider>
   );
