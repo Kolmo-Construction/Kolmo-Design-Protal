@@ -268,63 +268,423 @@ export class QuoteController {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Quote - ${quote.quoteNumber}</title>
     <style>
-        body { margin: 0; padding: 0; font-family: 'Arial', 'Helvetica', sans-serif; background-color: #f4f6f8; line-height: 1.6; }
-        .container { max-width: 650px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header { background-color: #2c3e50; color: #ffffff; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 32px; font-weight: 300; letter-spacing: 2px; }
-        .header p { margin: 8px 0 0 0; font-size: 16px; opacity: 0.9; font-weight: 300; }
-        .content { padding: 40px 30px; color: #2c3e50; }
-        .greeting { font-size: 18px; margin-bottom: 25px; color: #2c3e50; }
-        .quote-summary { background-color: #ffffff; border: 1px solid #e8edf3; border-radius: 6px; padding: 30px; margin: 30px 0; }
-        .quote-header { border-bottom: 2px solid #3498db; padding-bottom: 15px; margin-bottom: 20px; }
-        .quote-number { font-size: 16px; color: #7f8c8d; margin-bottom: 5px; }
-        .project-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin: 0; }
-        .project-description { color: #5a6c7d; margin: 15px 0 0 0; font-size: 15px; }
-        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 25px 0; }
-        .detail-item { }
-        .detail-label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px; letter-spacing: 0.5px; }
-        .detail-value { font-size: 16px; color: #2c3e50; font-weight: 500; }
-        .total-section { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 25px; margin: 30px 0; text-align: center; }
-        .total-label { font-size: 14px; color: #6c757d; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .total-value { font-size: 36px; font-weight: 600; color: #2c3e50; }
-        .cta-section { text-align: center; margin: 35px 0; }
-        .cta-button { display: inline-block; background-color: #3498db; color: #ffffff; text-decoration: none; padding: 15px 35px; border-radius: 5px; font-weight: 600; font-size: 16px; transition: background-color 0.3s; }
-        .cta-button:hover { background-color: #2980b9; }
-        .validity-section { background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 20px; margin: 25px 0; }
-        .validity-section strong { color: #856404; }
-        .included-section { margin: 30px 0; }
-        .included-section h3 { color: #2c3e50; font-size: 18px; margin-bottom: 15px; }
-        .included-list { list-style: none; padding: 0; }
-        .included-list li { color: #5a6c7d; margin: 8px 0; padding-left: 20px; position: relative; }
-        .included-list li:before { content: "✓"; color: #27ae60; font-weight: bold; position: absolute; left: 0; }
-        .contact-section { background-color: #f8f9fa; border-radius: 6px; padding: 25px; margin: 30px 0; }
-        .contact-section h3 { margin: 0 0 15px 0; color: #2c3e50; font-size: 18px; }
-        .contact-info { color: #5a6c7d; margin: 8px 0; }
-        .closing { margin: 35px 0 20px 0; color: #2c3e50; }
-        .signature { font-weight: 600; color: #2c3e50; }
-        .footer { background-color: #ecf0f1; padding: 25px; text-align: center; border-top: 1px solid #bdc3c7; }
-        .footer p { margin: 5px 0; color: #7f8c8d; font-size: 14px; }
-        .footer .company-name { font-weight: 600; color: #2c3e50; }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; 
+            background-color: #f5f5f5; 
+            line-height: 1.6; 
+            color: #3d4552;
+        }
+        
+        .email-wrapper { 
+            background-color: #f5f5f5; 
+            padding: 20px 0; 
+            min-height: 100vh; 
+        }
+        
+        .container { 
+            max-width: 680px; 
+            margin: 0 auto; 
+            background-color: #ffffff; 
+            border-radius: 12px; 
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(61, 69, 82, 0.1);
+        }
+        
+        .header { 
+            background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%);
+            color: #ffffff; 
+            padding: 40px 30px; 
+            text-align: center; 
+            position: relative;
+        }
+        
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #db973c;
+        }
+        
+        .logo-section {
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: #ffffff;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 24px;
+            color: #3d4552;
+            letter-spacing: -1px;
+            box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+        }
+        
+        .company-name { 
+            margin: 0; 
+            font-size: 28px; 
+            font-weight: 700; 
+            letter-spacing: 1.5px; 
+            text-transform: uppercase;
+        }
+        
+        .tagline { 
+            margin: 8px 0 0 0; 
+            font-size: 16px; 
+            opacity: 0.9; 
+            font-weight: 300; 
+            letter-spacing: 0.5px;
+        }
+        
+        .content { 
+            padding: 45px 35px; 
+            color: #3d4552; 
+        }
+        
+        .greeting { 
+            font-size: 20px; 
+            margin-bottom: 30px; 
+            color: #3d4552; 
+            font-weight: 500;
+        }
+        
+        .intro-text {
+            font-size: 16px;
+            line-height: 1.7;
+            margin-bottom: 35px;
+            color: #4a6670;
+        }
+        
+        .quote-card { 
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+            border: 2px solid #db973c; 
+            border-radius: 12px; 
+            padding: 35px; 
+            margin: 35px 0; 
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .quote-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #db973c 0%, #4a6670 100%);
+        }
+        
+        .quote-header { 
+            border-bottom: 2px solid #f5f5f5; 
+            padding-bottom: 20px; 
+            margin-bottom: 25px; 
+        }
+        
+        .quote-number { 
+            font-size: 14px; 
+            color: #4a6670; 
+            margin-bottom: 8px; 
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        
+        .project-title { 
+            font-size: 26px; 
+            font-weight: 700; 
+            color: #3d4552; 
+            margin: 0; 
+            line-height: 1.3;
+        }
+        
+        .project-description { 
+            color: #4a6670; 
+            margin: 18px 0 0 0; 
+            font-size: 16px; 
+            line-height: 1.6;
+        }
+        
+        .details-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+            gap: 25px; 
+            margin: 30px 0; 
+        }
+        
+        .detail-item {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #db973c;
+        }
+        
+        .detail-label { 
+            font-size: 12px; 
+            color: #4a6670; 
+            text-transform: uppercase; 
+            font-weight: 700; 
+            margin-bottom: 8px; 
+            letter-spacing: 1px; 
+        }
+        
+        .detail-value { 
+            font-size: 18px; 
+            color: #3d4552; 
+            font-weight: 600; 
+        }
+        
+        .total-section { 
+            background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%);
+            color: #ffffff;
+            border-radius: 12px; 
+            padding: 35px; 
+            margin: 40px 0; 
+            text-align: center; 
+            position: relative;
+        }
+        
+        .total-section::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #db973c, #3d4552, #db973c);
+            border-radius: 14px;
+            z-index: -1;
+        }
+        
+        .total-label { 
+            font-size: 16px; 
+            margin-bottom: 10px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            font-weight: 600;
+            opacity: 0.9;
+        }
+        
+        .total-value { 
+            font-size: 42px; 
+            font-weight: 800; 
+            color: #ffffff; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .cta-section { 
+            text-align: center; 
+            margin: 45px 0; 
+        }
+        
+        .cta-button { 
+            display: inline-block; 
+            background: linear-gradient(135deg, #db973c 0%, #c8852f 100%);
+            color: #ffffff; 
+            text-decoration: none; 
+            padding: 18px 40px; 
+            border-radius: 50px; 
+            font-weight: 700; 
+            font-size: 16px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(219, 151, 60, 0.3);
+        }
+        
+        .cta-button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(219, 151, 60, 0.4);
+        }
+        
+        .validity-section { 
+            background: linear-gradient(135deg, #fff8e7 0%, #fef3d9 100%);
+            border: 2px solid #db973c; 
+            border-radius: 12px; 
+            padding: 25px; 
+            margin: 35px 0; 
+            position: relative;
+        }
+        
+        .validity-section::before {
+            content: '⚠';
+            position: absolute;
+            top: -15px;
+            left: 25px;
+            background: #db973c;
+            color: #ffffff;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .validity-section strong { 
+            color: #3d4552; 
+            font-weight: 700;
+        }
+        
+        .included-section { 
+            margin: 40px 0; 
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 30px;
+        }
+        
+        .included-section h3 { 
+            color: #3d4552; 
+            font-size: 20px; 
+            margin: 0 0 20px 0; 
+            font-weight: 700;
+            text-align: center;
+        }
+        
+        .included-list { 
+            list-style: none; 
+            padding: 0; 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        
+        .included-list li { 
+            color: #4a6670; 
+            margin: 0; 
+            padding: 15px 15px 15px 45px; 
+            position: relative; 
+            background: #ffffff;
+            border-radius: 8px;
+            border-left: 4px solid #db973c;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        
+        .included-list li::before { 
+            content: "✓"; 
+            color: #db973c; 
+            font-weight: 900; 
+            position: absolute; 
+            left: 18px; 
+            font-size: 16px;
+            top: 15px;
+        }
+        
+        .contact-section { 
+            background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%);
+            color: #ffffff;
+            border-radius: 12px; 
+            padding: 35px; 
+            margin: 40px 0; 
+        }
+        
+        .contact-section h3 { 
+            margin: 0 0 20px 0; 
+            color: #ffffff; 
+            font-size: 20px; 
+            text-align: center;
+            font-weight: 700;
+        }
+        
+        .contact-info { 
+            color: rgba(255, 255, 255, 0.9); 
+            margin: 12px 0; 
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        .contact-info strong {
+            color: #db973c;
+        }
+        
+        .closing { 
+            margin: 40px 0 25px 0; 
+            color: #3d4552; 
+            font-size: 16px;
+            line-height: 1.7;
+            text-align: center;
+            font-style: italic;
+        }
+        
+        .signature { 
+            font-weight: 700; 
+            color: #3d4552; 
+            text-align: center;
+            font-size: 18px;
+            margin-top: 30px;
+        }
+        
+        .footer { 
+            background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%);
+            color: #ffffff;
+            padding: 35px; 
+            text-align: center; 
+        }
+        
+        .footer p { 
+            margin: 8px 0; 
+            font-size: 14px; 
+            opacity: 0.8;
+        }
+        
+        .footer .company-name { 
+            font-weight: 700; 
+            color: #db973c; 
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .footer .accent-line {
+            width: 60px;
+            height: 3px;
+            background: #db973c;
+            margin: 20px auto;
+            border-radius: 2px;
+        }
+        
         @media (max-width: 600px) {
             .details-grid { grid-template-columns: 1fr; }
-            .content { padding: 25px 20px; }
-            .header { padding: 20px; }
+            .content { padding: 30px 25px; }
+            .header { padding: 30px 20px; }
+            .total-value { font-size: 36px; }
+            .company-name { font-size: 24px; }
+            .included-list { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>KOLMO CONSTRUCTION</h1>
-            <p>Professional Construction Services</p>
-        </div>
+    <div class="email-wrapper">
+        <div class="container">
+            <div class="header">
+                <div class="logo-section">
+                    <div class="logo">K</div>
+                </div>
+                <h1 class="company-name">Kolmo Construction</h1>
+                <p class="tagline">Excellence in Every Build</p>
+            </div>
         
-        <div class="content">
-            <div class="greeting">Dear ${quote.customerName || 'Valued Client'},</div>
-            
-            <p>Thank you for requesting a quote for your construction project. We have carefully reviewed your requirements and are pleased to provide you with the following detailed proposal.</p>
-            
-            <div class="quote-summary">
+            <div class="content">
+                <div class="greeting">Dear ${quote.customerName || 'Valued Client'},</div>
+                
+                <div class="intro-text">
+                    Thank you for choosing Kolmo Construction for your project needs. We have carefully reviewed your requirements and are pleased to present this comprehensive proposal tailored specifically for your construction project.
+                </div>
+                
+                <div class="quote-card">
                 <div class="quote-header">
                     <div class="quote-number">Quote Reference: ${quote.quoteNumber}</div>
                     <div class="project-title">${quote.title}</div>
@@ -357,102 +717,134 @@ export class QuoteController {
                 </div>
             </div>
 
-            <div class="total-section">
-                <div class="total-label">Total Project Cost</div>
-                <div class="total-value">${formatCurrency(quote.total)}</div>
-            </div>
+                <div class="total-section">
+                    <div class="total-label">Total Investment</div>
+                    <div class="total-value">${formatCurrency(quote.total)}</div>
+                </div>
 
-            <div class="cta-section">
-                <a href="${quoteLink}" class="cta-button">View Complete Quote Details</a>
-            </div>
+                <div class="cta-section">
+                    <a href="${quoteLink}" class="cta-button">View Complete Proposal</a>
+                </div>
 
-            <div class="validity-section">
-                <strong>Important:</strong> This quote is valid until <strong>${formatDate(quote.validUntil)}</strong>. 
-                Please review and confirm your acceptance by this date to secure your project scheduling and pricing.
-            </div>
+                <div class="validity-section">
+                    <strong>Quote Validity:</strong> This proposal is valid until <strong>${formatDate(quote.validUntil)}</strong>. 
+                    Please review and confirm your acceptance by this date to secure your project scheduling and locked-in pricing.
+                </div>
 
-            <div class="included-section">
-                <h3>Your Quote Includes:</h3>
-                <ul class="included-list">
-                    <li>Comprehensive materials and labor breakdown</li>
-                    <li>Professional project timeline and milestones</li>
-                    <li>Detailed scope of work documentation</li>
-                    <li>All permits and regulatory compliance</li>
-                    <li>Quality assurance and warranty coverage</li>
-                    <li>Project management and coordination</li>
-                </ul>
-            </div>
+                <div class="included-section">
+                    <h3>What's Included in Your Quote</h3>
+                    <ul class="included-list">
+                        <li>Comprehensive materials and labor breakdown</li>
+                        <li>Professional project timeline with milestones</li>
+                        <li>Detailed scope of work documentation</li>
+                        <li>All permits and regulatory compliance</li>
+                        <li>Quality assurance and warranty coverage</li>
+                        <li>Dedicated project management</li>
+                        <li>Progress tracking and regular updates</li>
+                        <li>Post-completion support and maintenance guidance</li>
+                    </ul>
+                </div>
 
-            <div class="contact-section">
-                <h3>Questions or Need Clarification?</h3>
-                <div class="contact-info">Our project team is available to discuss any aspect of your quote and answer your questions.</div>
-                <div class="contact-info"><strong>Email:</strong> info@kolmo.io</div>
-                <div class="contact-info"><strong>Phone:</strong> (555) 123-4567</div>
-                <div class="contact-info"><strong>Business Hours:</strong> Monday - Friday, 8:00 AM - 6:00 PM</div>
-            </div>
+                <div class="contact-section">
+                    <h3>Ready to Discuss Your Project?</h3>
+                    <div class="contact-info">Our experienced project consultants are standing by to answer your questions and guide you through the next steps.</div>
+                    <div class="contact-info"><strong>Email:</strong> projects@kolmo.io</div>
+                    <div class="contact-info"><strong>Phone:</strong> (555) 123-KOLMO</div>
+                    <div class="contact-info"><strong>Hours:</strong> Monday - Friday, 8:00 AM - 6:00 PM PST</div>
+                </div>
 
-            <div class="closing">
-                <p>We appreciate the opportunity to work with you and look forward to bringing your construction project to life with our commitment to quality, craftsmanship, and professional service.</p>
+                <div class="closing">
+                    We appreciate the opportunity to partner with you on this exciting project. Our commitment to excellence, superior craftsmanship, and client satisfaction drives everything we do.
+                </div>
+                
+                <div class="signature">
+                    With appreciation,<br>
+                    The Kolmo Construction Team
+                </div>
             </div>
             
-            <div class="signature">
-                Sincerely,<br>
-                The Kolmo Construction Team
+            <div class="footer">
+                <p class="company-name">Kolmo Construction</p>
+                <div class="accent-line"></div>
+                <p>Licensed • Bonded • Insured</p>
+                <p>Building Excellence Since 2020</p>
+                <p>www.kolmo.io | projects@kolmo.io | (555) 123-KOLMO</p>
+                <p style="font-size: 12px; margin-top: 15px; opacity: 0.7;">This email was sent to ${quote.customerEmail}. All quotes are confidential and proprietary.</p>
             </div>
-        </div>
-        
-        <div class="footer">
-            <p class="company-name">KOLMO CONSTRUCTION SERVICES</p>
-            <p>Licensed • Bonded • Insured</p>
-            <p>www.kolmo.io | info@kolmo.io | (555) 123-4567</p>
         </div>
     </div>
 </body>
 </html>`;
 
       const emailText = `
+═══════════════════════════════════════════════════════════════════════════════
 KOLMO CONSTRUCTION
-Professional Construction Services
+Excellence in Every Build
+═══════════════════════════════════════════════════════════════════════════════
 
 Dear ${quote.customerName || 'Valued Client'},
 
-Thank you for requesting a quote for your construction project. We have carefully reviewed your requirements and are pleased to provide you with the following detailed proposal.
+Thank you for choosing Kolmo Construction for your project needs. We have carefully reviewed your requirements and are pleased to present this comprehensive proposal tailored specifically for your construction project.
 
-QUOTE DETAILS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROJECT PROPOSAL DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 Quote Reference: ${quote.quoteNumber}
-Project: ${quote.title}
+Project Title: ${quote.title}
 Project Type: ${quote.projectType}
-Total Project Cost: ${formatCurrency(quote.total)}
-Quote Valid Until: ${formatDate(quote.validUntil)}
+${quote.location ? `Location: ${quote.location}` : ''}
+${quote.estimatedStartDate ? `Estimated Start: ${formatDate(quote.estimatedStartDate)}` : ''}
+${quote.estimatedCompletionDate ? `Estimated Completion: ${formatDate(quote.estimatedCompletionDate)}` : ''}
 
-View your complete quote and detailed breakdown:
+TOTAL INVESTMENT: ${formatCurrency(quote.total)}
+
+➤ View your complete proposal and detailed breakdown:
 ${quoteLink}
 
-YOUR QUOTE INCLUDES:
-• Comprehensive materials and labor breakdown
-• Professional project timeline and milestones
-• Detailed scope of work documentation
-• All permits and regulatory compliance
-• Quality assurance and warranty coverage
-• Project management and coordination
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT'S INCLUDED IN YOUR QUOTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-IMPORTANT: This quote is valid until ${formatDate(quote.validUntil)}. Please review and confirm your acceptance by this date to secure your project scheduling and pricing.
+✓ Comprehensive materials and labor breakdown
+✓ Professional project timeline with milestones  
+✓ Detailed scope of work documentation
+✓ All permits and regulatory compliance
+✓ Quality assurance and warranty coverage
+✓ Dedicated project management
+✓ Progress tracking and regular updates
+✓ Post-completion support and maintenance guidance
 
-QUESTIONS OR NEED CLARIFICATION?
-Our project team is available to discuss any aspect of your quote and answer your questions.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMPORTANT NOTICE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Email: info@kolmo.io
-Phone: (555) 123-4567
-Business Hours: Monday - Friday, 8:00 AM - 6:00 PM
+⚠ QUOTE VALIDITY: This proposal is valid until ${formatDate(quote.validUntil)}
+Please review and confirm your acceptance by this date to secure your project scheduling and locked-in pricing.
 
-We appreciate the opportunity to work with you and look forward to bringing your construction project to life with our commitment to quality, craftsmanship, and professional service.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
+READY TO DISCUSS YOUR PROJECT?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Sincerely,
+Our experienced project consultants are standing by to answer your questions and guide you through the next steps.
+
+Email: projects@kolmo.io
+Phone: (555) 123-KOLMO  
+Hours: Monday - Friday, 8:00 AM - 6:00 PM PST
+
+We appreciate the opportunity to partner with you on this exciting project. Our commitment to excellence, superior craftsmanship, and client satisfaction drives everything we do.
+
+With appreciation,
 The Kolmo Construction Team
 
-KOLMO CONSTRUCTION SERVICES
+═══════════════════════════════════════════════════════════════════════════════
+KOLMO CONSTRUCTION
 Licensed • Bonded • Insured
-www.kolmo.io | info@kolmo.io | (555) 123-4567
+Building Excellence Since 2020
+www.kolmo.io | projects@kolmo.io | (555) 123-KOLMO
+
+This email was sent to ${quote.customerEmail}. All quotes are confidential and proprietary.
+═══════════════════════════════════════════════════════════════════════════════
 `;
 
       return await sendEmail({
