@@ -50,7 +50,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { token } = useParams<{ token: string }>();
-  const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
+  const { user, isLoading: authLoading, isFetching, loginMutation, registerMutation } = useAuth();
 
   // Debug logging to understand the state
   useEffect(() => {
@@ -70,13 +70,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
       isMagicLink,
       isPasswordReset,
       authLoading,
-      isFetching: loginMutation.isPending,
-      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending),
+      isFetching: isFetching,
+      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching),
       timestamp: new Date().toISOString()
     });
     
-    // Only redirect if user exists, not in special flows, auth is complete, and no mutations are pending
-    if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending) {
+    // Only redirect if user exists, not in special flows, auth is complete, no mutations pending, and not fetching
+    if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching) {
       console.log('[AuthPage] EXECUTING NAVIGATION TO DASHBOARD');
       try {
         navigate('/');
@@ -85,7 +85,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         console.error('[AuthPage] Navigation failed:', error);
       }
     }
-  }, [user, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending, navigate]);
+  }, [user, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending, isFetching, navigate]);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -137,7 +137,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   const onLogin = async (data: LoginFormValues) => {
     try {
+      console.log('[AuthPage] Starting login process...');
       await loginMutation.mutateAsync(data);
+      console.log('[AuthPage] Login mutation completed, waiting for auth state...');
+      
+      // Wait for the user query to refetch and update
+      await queryClient.refetchQueries({ queryKey: ['/api/user'] });
+      console.log('[AuthPage] Auth state refreshed after login');
     } catch (error: any) {
       console.error("Login failed:", error);
       loginForm.setError("root", {
