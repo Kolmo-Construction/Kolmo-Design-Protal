@@ -601,6 +601,11 @@ export class QuoteController {
             color: #db973c;
         }
         
+        .contact-info .email-link {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+        }
+        
         .closing { 
             margin: 40px 0 25px 0; 
             color: #3d4552; 
@@ -662,7 +667,10 @@ export class QuoteController {
         <div class="container">
             <div class="header">
                 <div class="logo-section">
-                    <img src="${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/assets/kolmo-logo.png" alt="Kolmo Construction" class="logo" />
+                    <div class="logo-placeholder" style="width: 120px; height: 80px; background: white; border-radius: 8px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="font-size: 28px; font-weight: 900; color: #4a6670; letter-spacing: -2px;">K</div>
+                        <div style="font-size: 16px; font-weight: 700; color: #db973c; margin-left: 5px;">OLMO</div>
+                    </div>
                 </div>
                 <h1 class="company-name">Kolmo Construction</h1>
                 <p class="tagline">Excellence in Every Build</p>
@@ -739,7 +747,7 @@ export class QuoteController {
                 <div class="contact-section">
                     <h3>Ready to Discuss Your Project?</h3>
                     <div class="contact-info">Our experienced project consultants are standing by to answer your questions and guide you through the next steps.</div>
-                    <div class="contact-info"><strong>Email:</strong> projects@kolmo.io</div>
+                    <div class="contact-info"><strong>Email:</strong> <span class="email-link">projects@kolmo.io</span></div>
                     <div class="contact-info"><strong>Phone:</strong> (555) 123-KOLMO</div>
                     <div class="contact-info"><strong>Hours:</strong> Monday - Friday, 8:00 AM - 6:00 PM PST</div>
                 </div>
@@ -759,7 +767,7 @@ export class QuoteController {
                 <div class="accent-line"></div>
                 <p>Licensed • Bonded • Insured</p>
                 <p>Building Excellence Since 2020</p>
-                <p>www.kolmo.io | projects@kolmo.io | (555) 123-KOLMO</p>
+                <p>www.kolmo.io | <span style="color: rgba(255, 255, 255, 0.7);">projects@kolmo.io</span> | (555) 123-KOLMO</p>
                 <p style="font-size: 12px; margin-top: 15px; opacity: 0.7;">This email was sent to ${quote.customerEmail}. All quotes are confidential and proprietary.</p>
             </div>
         </div>
