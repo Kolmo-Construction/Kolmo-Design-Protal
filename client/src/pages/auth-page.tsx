@@ -420,18 +420,17 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
                         <Button
                           type="submit"
-                          disabled={loginForm.formState.isSubmitting || loginMutation.isPending}
+                          disabled={loginForm.formState.isSubmitting || isSubmitting}
                           className="w-full h-12 bg-[#db973c] hover:bg-[#db973c]/90 text-white font-medium transition-all duration-200"
                           onClick={() => {
                             console.log('[AuthPage] [Login Button] Button clicked, form state:', {
                               isSubmitting: loginForm.formState.isSubmitting,
-                              isPending: loginMutation.isPending,
                               formValues: loginForm.getValues(),
                               timestamp: new Date().toISOString()
                             });
                           }}
                         >
-                          {loginForm.formState.isSubmitting || loginMutation.isPending ? (
+                          {loginForm.formState.isSubmitting || isSubmitting ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Signing in...
@@ -613,10 +612,10 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
                         <Button
                           type="submit"
-                          disabled={registerForm.formState.isSubmitting || registerMutation.isPending}
+                          disabled={registerForm.formState.isSubmitting}
                           className="w-full h-12 bg-[#db973c] hover:bg-[#db973c]/90 text-white font-medium transition-all duration-200"
                         >
-                          {registerForm.formState.isSubmitting || registerMutation.isPending ? (
+                          {registerForm.formState.isSubmitting ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Creating Account...
