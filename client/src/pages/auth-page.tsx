@@ -75,32 +75,40 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
       timestamp: new Date().toISOString()
     };
     
-    console.log('[AuthPage] [Redirect Effect] Effect triggered with state:', redirectState);
+    console.log('[AuthPage] [Redirect Effect] ========== REDIRECT EFFECT TRIGGERED ==========');
+    console.log('[AuthPage] [Redirect Effect] Current state:', redirectState);
     
     // Check each condition individually for detailed logging
-    console.log('[AuthPage] [Redirect Effect] Condition checks:');
-    console.log('  - user exists:', !!user);
-    console.log('  - NOT magic link:', !isMagicLink);
-    console.log('  - NOT password reset:', !isPasswordReset);
-    console.log('  - NOT auth loading:', !authLoading);
-    console.log('  - NOT login pending:', !loginMutation.isPending);
-    console.log('  - NOT fetching:', !isFetching);
+    console.log('[AuthPage] [Redirect Effect] Detailed condition checks:');
+    console.log('  ✓ user exists:', !!user, user ? `(User: ${user.username})` : '(No user)');
+    console.log('  ✓ NOT magic link:', !isMagicLink, `(isMagicLink: ${isMagicLink})`);
+    console.log('  ✓ NOT password reset:', !isPasswordReset, `(isPasswordReset: ${isPasswordReset})`);
+    console.log('  ✓ NOT auth loading:', !authLoading, `(authLoading: ${authLoading})`);
+    console.log('  ✓ NOT login pending:', !loginMutation.isPending, `(loginPending: ${loginMutation.isPending})`);
+    console.log('  ✓ NOT fetching:', !isFetching, `(isFetching: ${isFetching})`);
     
     const shouldRedirect = !!(user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching);
-    console.log('[AuthPage] [Redirect Effect] Overall shouldRedirect:', shouldRedirect);
+    console.log('[AuthPage] [Redirect Effect] FINAL DECISION - shouldRedirect:', shouldRedirect);
     
     // Only redirect if user exists, not in special flows, auth is complete, no mutations pending, and not fetching
     if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending && !isFetching) {
-      console.log('[AuthPage] [Redirect Effect] ALL CONDITIONS MET - EXECUTING NAVIGATION TO DASHBOARD');
+      console.log('[AuthPage] [Redirect Effect] 🚀 ALL CONDITIONS MET - EXECUTING NAVIGATION TO DASHBOARD 🚀');
       try {
         navigate('/');
-        console.log('[AuthPage] [Redirect Effect] Navigation called successfully');
+        console.log('[AuthPage] [Redirect Effect] ✅ Navigation executed successfully');
       } catch (error) {
-        console.error('[AuthPage] [Redirect Effect] Navigation failed:', error);
+        console.error('[AuthPage] [Redirect Effect] ❌ Navigation failed:', error);
       }
     } else {
-      console.log('[AuthPage] [Redirect Effect] NOT redirecting - conditions not met');
+      console.log('[AuthPage] [Redirect Effect] ⏸️  NOT redirecting - conditions not met');
+      if (!user) console.log('[AuthPage] [Redirect Effect]   ❌ Missing: user');
+      if (isMagicLink) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: isMagicLink');
+      if (isPasswordReset) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: isPasswordReset');
+      if (authLoading) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: authLoading');
+      if (loginMutation.isPending) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: loginPending');
+      if (isFetching) console.log('[AuthPage] [Redirect Effect]   ❌ Blocking: isFetching');
     }
+    console.log('[AuthPage] [Redirect Effect] ========================================');
   }, [user, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending, isFetching, navigate]);
 
   const loginForm = useForm<LoginFormValues>({

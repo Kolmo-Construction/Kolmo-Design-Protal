@@ -69,16 +69,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isFetching,
   } = useQuery<SelectUser | undefined, Error>({
     queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    queryFn: (...args) => {
+      console.log('[useQuery] [queryFn] User query function called with args:', args);
+      const result = getQueryFn({ on401: "returnNull" })(...args);
+      console.log('[useQuery] [queryFn] Query function returning:', result);
+      return result;
+    },
     staleTime: 0, // Always consider data stale to allow immediate updates
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     retry: (failureCount, error: any) => {
+      console.log('[useQuery] [retry] Retry check - failureCount:', failureCount, 'error:', error);
       // Don't retry on 401 (unauthorized) - user is not logged in
       if (error?.status === 401) {
+        console.log('[useQuery] [retry] Not retrying - 401 error');
         return false;
       }
-      return failureCount < 2;
+      const shouldRetry = failureCount < 2;
+      console.log('[useQuery] [retry] Should retry:', shouldRetry);
+      return shouldRetry;
     },
   });
 
@@ -101,10 +110,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return result;
     },
     onSuccess: async () => {
-      console.log('[LoginMutation] Login successful - invalidating user queries');
+      console.log('[LoginMutation] [onSuccess] Step 1: Login successful - about to invalidate user queries');
+      
+      // Check current query state before invalidation
+      const beforeData = queryClient.getQueryData(["/api/user"]);
+      const beforeState = queryClient.getQueryState(["/api/user"]);
+      console.log('[LoginMutation] [onSuccess] Step 2: Query state BEFORE invalidation:', {
+        data: beforeData,
+        state: beforeState
+      });
+      
       // This tells React Query the user data is stale and triggers automatic refetch
+      console.log('[LoginMutation] [onSuccess] Step 3: Calling invalidateQueries...');
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      console.log('[LoginMutation] User queries invalidated and refetched');
+      
+      // Check query state after invalidation
+      const afterData = queryClient.getQueryData(["/api/user"]);
+      const afterState = queryClient.getQueryState(["/api/user"]);
+      console.log('[LoginMutation] [onSuccess] Step 4: Query state AFTER invalidation:', {
+        data: afterData,
+        state: afterState
+      });
+      
+      console.log('[LoginMutation] [onSuccess] Step 5: User queries invalidated and refetched - mutation complete');
     },
     onError: (error: Error) => {
       console.log('[LoginMutation] Login failed:', error.message);
