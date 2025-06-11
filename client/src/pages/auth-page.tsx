@@ -52,6 +52,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const { token } = useParams<{ token: string }>();
   const { user, isLoading: authLoading, loginMutation, registerMutation } = useAuth();
 
+  // Redirect authenticated users to dashboard (unless magic link or password reset)
+  useEffect(() => {
+    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+      navigate("/");
+    }
+  }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
+
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -102,8 +109,9 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   const onLogin = async (data: LoginFormValues) => {
     try {
-      await loginMutation.mutateAsync(data);
-      navigate("/");
+      const result = await loginMutation.mutateAsync(data);
+      console.log("Login successful, user data:", result);
+      // Navigation will be handled by the useEffect hook above
     } catch (error: any) {
       console.error("Login failed:", error);
       loginForm.setError("root", {
