@@ -119,14 +119,13 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const onLogin = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     try {
-      const user = await login(data);
+      await login(data.username, data.password);
       
-      queryClient.setQueryData(['/api/user'], user);
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       
       toast({
         title: "Login Successful",
-        description: `Welcome back, ${user.firstName}!`,
+        description: `Welcome back!`,
       });
       
       setTimeout(() => navigate('/'), 100);
@@ -148,7 +147,27 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   const onRegister = async (data: RegisterFormValues) => {
     try {
-      await registerMutation.mutateAsync(data);
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      toast({
+        title: "Registration Successful",
+        description: "Your account has been created successfully!",
+      });
+
+      // Switch to login tab after successful registration
+      setActiveTab("login");
     } catch (error: any) {
       console.error("Registration failed:", error);
       registerForm.setError("root", {
