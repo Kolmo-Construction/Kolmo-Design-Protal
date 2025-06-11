@@ -51,7 +51,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { token } = useParams<{ token: string }>();
-  const { user, isLoading: authLoading, isFetching, loginMutation, registerMutation } = useAuth();
+  const { user, isLoading: authLoading, login, register } = useAuth();
   const { toast } = useToast();
 
   // Track mutation state changes
@@ -95,14 +95,25 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   const verifyMagicLink = async (token: string) => {
     try {
-      const response = await fetch(`/api/auth/verify-magic-link/${token}`, {
-        method: 'POST',
+      const response = await fetch(`/api/auth/magic-link/${token}`, {
+        method: 'GET',
       });
 
       if (response.ok) {
+        const data = await response.json();
         setMagicLinkStatus('success');
+        
+        // Update the authentication cache with the user data
         await queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-        setTimeout(() => navigate('/'), 2000);
+        
+        // Handle redirect based on server response
+        if (data.redirect === '/setup-profile') {
+          // New user needs to set up their profile
+          setTimeout(() => navigate('/setup-profile'), 2000);
+        } else {
+          // Existing user, redirect to dashboard
+          setTimeout(() => navigate('/'), 2000);
+        }
       } else {
         const error = await response.text();
         setMagicLinkError(error || 'Invalid or expired magic link');
