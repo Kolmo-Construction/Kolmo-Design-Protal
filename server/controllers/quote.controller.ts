@@ -667,10 +667,7 @@ export class QuoteController {
         <div class="container">
             <div class="header">
                 <div class="logo-section">
-                    <div class="logo-placeholder" style="width: 120px; height: 80px; background: white; border-radius: 8px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                        <div style="font-size: 28px; font-weight: 900; color: #4a6670; letter-spacing: -2px;">K</div>
-                        <div style="font-size: 16px; font-weight: 700; color: #db973c; margin-left: 5px;">OLMO</div>
-                    </div>
+                    <img src="cid:kolmo-logo" alt="Kolmo Construction" class="logo" style="width: 150px; height: auto; display: block; margin: 0 auto 15px;" />
                 </div>
                 <h1 class="company-name">Kolmo Construction</h1>
                 <p class="tagline">Excellence in Every Build</p>
@@ -846,13 +843,35 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
 ═══════════════════════════════════════════════════════════════════════════════
 `;
 
+      // Read the logo file and convert to base64
+      const fs = require('fs');
+      const path = require('path');
+      
+      let logoAttachment = null;
+      try {
+        const logoPath = path.join(process.cwd(), 'public', 'assets', 'kolmo-logo.png');
+        const logoBuffer = fs.readFileSync(logoPath);
+        const logoBase64 = logoBuffer.toString('base64');
+        
+        logoAttachment = {
+          content: logoBase64,
+          filename: 'kolmo-logo.png',
+          type: 'image/png',
+          disposition: 'inline',
+          contentId: 'kolmo-logo'
+        };
+      } catch (error) {
+        console.error('Failed to read logo file:', error);
+      }
+
       return await sendEmail({
         to: quote.customerEmail,
         subject: `Your Project Quote #${quote.quoteNumber} from Kolmo Construction`,
         text: emailText,
         html: emailHtml,
         from: 'projects@kolmo.io',
-        fromName: 'Kolmo Construction'
+        fromName: 'Kolmo Construction',
+        attachments: logoAttachment ? [logoAttachment] : undefined
       });
     } catch (error) {
       console.error("Error sending quote email:", error);

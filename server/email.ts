@@ -21,7 +21,14 @@ interface EmailOptions {
   text?: string;
   html?: string;
   from?: string;
-  fromName?: string; // Added fromName
+  fromName?: string;
+  attachments?: Array<{
+    content: string;
+    filename: string;
+    type: string;
+    disposition: string;
+    contentId: string;
+  }>;
 }
 
 // Default sender email - should be a verified domain in SendGrid account
@@ -88,7 +95,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         .trim();
     }
 
-    const msg = {
+    const msg: any = {
       to: options.to,
       from: {
         email: fromEmail,
@@ -98,6 +105,10 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       text: textContent || 'Please view this email in HTML format.',
       html: options.html || options.text || ''
     };
+
+    if (options.attachments) {
+      msg.attachments = options.attachments;
+    }
 
     await sgMail.send(msg);
     console.log(`Email sent successfully to ${options.to}`);
