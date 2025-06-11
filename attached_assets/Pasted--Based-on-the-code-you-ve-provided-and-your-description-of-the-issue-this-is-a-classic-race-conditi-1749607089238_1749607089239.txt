@@ -1,0 +1,115 @@
+ Based on the code you've provided and your description of the issue, this is a classic race condition problem common in modern web applications. You're right, there's likely no explicit error being thrown, which makes it tricky to debug.
+
+Here’s a technical breakdown of what's happening and how to fix it.
+
+The Root Cause: A Race Condition
+The issue lies in the conflict between two different navigation triggers you've implemented:
+
+Imperative Navigation: In your onLogin function, upon a successful API call, you immediately force a redirect:
+
+TypeScript
+
+// src/features/auth/routes/AuthPage.tsx:112
+export default function AuthPage(...) {
+  // ...
+  const onLogin = async (data: LoginFormValues) => {
+    try {
+      const result = await loginMutation.mutateAsync(data);
+      queryClient.setQueryData(["/api/user"], result);
+      navigate("/"); // <-- Problematic navigation trigger
+    } catch (error: any) {
+      // ...
+    }
+  };
+  //...
+}
+Declarative Redirection: You also have a useEffect hook that listens for changes in the authentication state and is responsible for redirecting the user.
+
+TypeScript
+
+// src/features/auth/routes/AuthPage.tsx:57
+export default function AuthPage(...) {
+   // ...
+   useEffect(() => {
+    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+      const redirectTimer = setTimeout(() => {
+        navigate("/");
+      }, 50);
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
+   // ...
+}
+Here's the sequence of events causing the bug:
+
+You submit the login form.
+onLogin is called, loginMutation.mutateAsync() successfully completes.
+You manually update react-query's cache with queryClient.setQueryData.
+Crucially, you immediately call Maps("/").
+The application navigates to the home page (/). Let's assume there's a component there (e.g., a layout or the page itself) that also uses the useAuth() hook to check if a user is authenticated.
+At the exact moment the home page renders, the useAuth() hook might not have had enough time to re-render and propagate the updated user state from the react-query cache update. The authLoading state might still be true, or the user object might still be null.
+The authentication check on the home page sees user as null or authLoading as true, assumes the user is not logged in, and immediately redirects you back to the login page.
+A few milliseconds later, the useAuth hook finally updates with the correct user data, but it's too late—you're already back on the AuthPage.
+The fact that it works sometimes is characteristic of a race condition; it depends entirely on whether the state propagation or the navigation wins the "race". The setTimeout in your useEffect is a symptom of trying to patch a similar timing issue, but it doesn't solve this core conflict.
+
+The Solution: Rely on a Single Source of Truth
+The fix is to remove the imperative navigation from your onLogin function and let the declarative useEffect handle the redirection exclusively. The useEffect is designed to react to state changes, which is exactly what you want.
+
+Remove the Imperative Navigation:
+Delete the Maps("/") line from both your onLogin and onRegister functions.
+
+TypeScript
+
+// src/features/auth/routes/AuthPage.tsx:112
+const onLogin = async (data: LoginFormValues) => {
+  try {
+    const result = await loginMutation.mutateAsync(data);
+    console.log("Login successful, user data:", result);
+    
+    // Immediately set the user in query client to trigger the useEffect
+    queryClient.setQueryData(["/api/user"], result);
+    
+    // navigate("/"); // <-- REMOVE THIS LINE
+    
+  } catch (error: any) {
+    console.error("Login failed:", error);
+    loginForm.setError("root", {
+      type: "manual",
+      message: error.message || "Login failed",
+    });
+  }
+};
+
+// src/features/auth/routes/AuthPage.tsx:127
+const onRegister = async (data: RegisterFormValues) => {
+  try {
+    await registerMutation.mutateAsync(data);
+    // navigate("/"); // <-- REMOVE THIS LINE TOO
+  } catch (error: any) {
+    // ...
+  }
+};
+Clean up the Declarative useEffect:
+Now that it's your single source of truth for redirection, you can also remove the setTimeout hack for a cleaner implementation.
+
+TypeScript
+
+// src/features/auth/routes/AuthPage.tsx:57
+useEffect(() => {
+  // If the user object exists, we are not in a special flow, and auth is not loading...
+  if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+    // ...then we can safely navigate away.
+    navigate("/");
+  }
+}, [user, navigate, isMagicLink, isPasswordReset, authLoading]);
+Why This Works
+By making this change, the new sequence becomes deterministic:
+
+You submit the login form.
+onLogin is called, and the mutation completes.
+queryClient.setQueryData updates the cache.
+The useAuth hook reacts to the cache change, updating its internal state and providing the new user object.
+This change in the user object triggers your useEffect hook.
+The useEffect now sees that user is defined and authLoading is false, so it reliably calls Maps("/").
+You are no longer navigating to a new page before the application's auth state has been fully resolved. You are letting the state change drive the navigation, which is the correct and intended pattern in React.
