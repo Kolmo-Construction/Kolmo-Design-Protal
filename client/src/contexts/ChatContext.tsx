@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { StreamChat, Channel as StreamChannel } from 'stream-chat';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -59,8 +59,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     }
   }, [isCustomer, adminChatData, client]);
 
+  const initializationPromiseRef = useRef<Promise<void> | null>(null);
+  
   const initializeAdminChat = async (chatData: any) => {
-    console.log('initializeAdminChat called with:', chatData);
+    // Prevent multiple concurrent initializations by using a shared promise
+    if (initializationPromiseRef.current) {
+      console.log('Waiting for existing initialization to complete');
+      return initializationPromiseRef.current;
+    }
     
     // Prevent multiple initializations
     if (isLoading) {
@@ -73,41 +79,50 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       return;
     }
     
-    // Disconnect existing client if any
-    if (client) {
-      try {
-        await client.disconnectUser();
-      } catch (err) {
-        console.log('Error disconnecting existing client:', err);
+    const initPromise = (async () => {
+      console.log('initializeAdminChat called with:', chatData);
+      
+      // Disconnect existing client if any
+      if (client) {
+        try {
+          await client.disconnectUser();
+        } catch (err) {
+          console.log('Error disconnecting existing client:', err);
+        }
+        setClient(null);
+        setIsConnected(false);
       }
-      setClient(null);
-      setIsConnected(false);
-    }
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        console.log('Creating Stream client with API key:', chatData.apiKey);
+        const chatClient = StreamChat.getInstance(chatData.apiKey);
+        console.log('Connecting user:', { id: chatData.userId, name: 'KOLMO' });
+        await chatClient.connectUser(
+          { 
+            id: chatData.userId,
+            name: 'KOLMO',
+          },
+          chatData.token
+        );
+        console.log('Stream client connected successfully');
+        setClient(chatClient);
+        setIsConnected(true);
+      } catch (err) {
+        console.error('Error initializing admin chat:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to initialize admin chat';
+        setError(errorMessage);
+        throw err; // Re-throw to prevent setting success state
+      } finally {
+        setIsLoading(false);
+        initializationPromiseRef.current = null;
+      }
+    })();
     
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Creating Stream client with API key:', chatData.apiKey);
-      const chatClient = StreamChat.getInstance(chatData.apiKey);
-      console.log('Connecting user:', { id: chatData.userId, name: 'KOLMO' });
-      await chatClient.connectUser(
-        { 
-          id: chatData.userId,
-          name: 'KOLMO',
-        },
-        chatData.token
-      );
-      console.log('Stream client connected successfully');
-      setClient(chatClient);
-      setIsConnected(true);
-    } catch (err) {
-      console.error('Error initializing admin chat:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize admin chat';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+    initializationPromiseRef.current = initPromise;
+    return initPromise;
   };
 
   const initializeCustomerChat = async (token: string, name: string, email: string) => {

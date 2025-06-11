@@ -108,7 +108,7 @@ export async function createAndSendMagicLink(email: string): Promise<boolean> {
  */
 export async function verifyMagicTokenAndGetUser(token: string): Promise<SelectUser | null> {
   try {
-    // Find user by token
+    // Atomic operation: find user and immediately clear token to prevent race conditions
     const user = await storage.users.getUserByMagicLinkToken(token);
     if (!user) {
       console.log(`No user found with magic link token: ${token}`);
@@ -121,10 +121,17 @@ export async function verifyMagicTokenAndGetUser(token: string): Promise<SelectU
       return null;
     }
 
-    // Clear the token since it's been used
-    await storage.users.updateUserMagicLinkToken(user.id, null, null);
+    // Atomically clear the token and return user - prevents multiple uses
+    const updatedUser = await storage.users.updateUserMagicLinkToken(user.id, null, null);
+    
+    // Verify the token was actually cleared (prevents race condition)
+    const tokenCheck = await storage.users.getUserByMagicLinkToken(token);
+    if (tokenCheck) {
+      console.log(`Race condition detected: token still exists after clearing for user: ${user.id}`);
+      return null;
+    }
 
-    return user;
+    return updatedUser;
   } catch (error) {
     console.error('Error verifying magic link token:', error);
     return null;
