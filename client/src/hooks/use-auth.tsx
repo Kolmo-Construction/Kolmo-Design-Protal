@@ -105,8 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     // The mutation's only job is to call the API.
     // Component will handle success and error side-effects.
-    mutationFn: (credentials: LoginData) =>
-      apiRequest("POST", "/api/login", credentials),
+    mutationFn: async (credentials: LoginData) => {
+      console.log('[useAuth] [loginMutation] Starting API request to /api/login');
+      const result = await apiRequest("POST", "/api/login", credentials);
+      console.log('[useAuth] [loginMutation] API request successful, returning:', result);
+      return result;
+    },
   });
 
   const registerMutation = useMutation({

@@ -54,6 +54,18 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   const { user, isLoading: authLoading, isFetching, loginMutation, registerMutation } = useAuth();
   const { toast } = useToast();
 
+  // Track mutation state changes
+  useEffect(() => {
+    console.log('[AuthPage] [MutationState] Login mutation state changed:', {
+      isPending: loginMutation.isPending,
+      isSuccess: loginMutation.isSuccess,
+      isError: loginMutation.isError,
+      data: loginMutation.data,
+      error: loginMutation.error,
+      timestamp: new Date().toISOString()
+    });
+  }, [loginMutation.isPending, loginMutation.isSuccess, loginMutation.isError, loginMutation.data, loginMutation.error]);
+
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -103,33 +115,50 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
   };
 
   const onLogin = (data: LoginFormValues) => {
-    console.log('[AuthPage] [onLogin] Starting login with direct mutation callbacks');
+    console.log('[AuthPage] [onLogin] ===== STARTING LOGIN PROCESS =====');
+    console.log('[AuthPage] [onLogin] Credentials:', { username: data.username, hasPassword: !!data.password });
+    console.log('[AuthPage] [onLogin] Current query cache state before login:', queryClient.getQueryData(['/api/user']));
     
     loginMutation.mutate(data, {
       onSuccess: (loggedInUser) => {
-        console.log('[AuthPage] [onLogin] [onSuccess] Login successful, updating cache and navigating');
+        console.log('[AuthPage] [onLogin] [onSuccess] 🎉 LOGIN MUTATION SUCCESS CALLBACK TRIGGERED 🎉');
+        console.log('[AuthPage] [onLogin] [onSuccess] Received user data:', loggedInUser);
+        console.log('[AuthPage] [onLogin] [onSuccess] Cache state before manual update:', queryClient.getQueryData(['/api/user']));
         
         // Step 1: Manually update the cache with the data we just received from the login
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 1: Updating query cache manually...');
         queryClient.setQueryData(['/api/user'], loggedInUser);
+        console.log('[AuthPage] [onLogin] [onSuccess] Cache state after manual update:', queryClient.getQueryData(['/api/user']));
         
         // Step 2: Now that the local state is correct, navigate to the dashboard
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 2: Navigating to dashboard...');
         navigate('/');
+        console.log('[AuthPage] [onLogin] [onSuccess] ✅ Navigation called successfully');
 
+        console.log('[AuthPage] [onLogin] [onSuccess] Step 3: Showing success toast...');
         toast({
           title: "Login Successful",
           description: `Welcome back, ${loggedInUser.firstName}!`,
         });
+        
+        console.log('[AuthPage] [onLogin] [onSuccess] ===== LOGIN SUCCESS FLOW COMPLETE =====');
       },
       onError: (error) => {
-        console.error('[AuthPage] [onLogin] [onError] Login failed:', error.message);
+        console.error('[AuthPage] [onLogin] [onError] ❌ LOGIN MUTATION ERROR CALLBACK TRIGGERED ❌');
+        console.error('[AuthPage] [onLogin] [onError] Error details:', error);
+        console.error('[AuthPage] [onLogin] [onError] Error message:', error.message);
         
         // Handle login errors directly here
         loginForm.setError("root", {
           type: "manual",
           message: error.message || "Login failed due to an unknown error.",
         });
+        
+        console.error('[AuthPage] [onLogin] [onError] Form error set, login failed');
       },
     });
+    
+    console.log('[AuthPage] [onLogin] Mutation.mutate() called, waiting for callbacks...');
   };
 
   const onRegister = async (data: RegisterFormValues) => {
