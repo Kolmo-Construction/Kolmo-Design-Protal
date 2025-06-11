@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 // REMOVED: z import
-import { Project, UserRole } from "@shared/schema";
+import { Project } from "@shared/schema";
 // ADDED Imports for validation schema and type
 import { newUserSchema, NewUserFormValues } from '@/lib/validations';
 import {
@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 import { getQueryFn, apiRequest } from "@/lib/queryClient"; // Removed queryClient import as it's obtained via hook
 
 import { Loader2, Copy, CheckCircle2 } from "lucide-react";
@@ -42,7 +42,30 @@ export function CreateUserDialog({
 }: CreateUserDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient(); // Obtain queryClient via hook
-  const { createMagicLinkMutation } = useAuth();
+  // Create magic link mutation directly
+  const createMagicLinkMutation = useMutation({
+    mutationFn: async (userData: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: string;
+      projectIds?: number[];
+      phoneNumber?: string;
+    }): Promise<{ magicLink: string; user: any }> => {
+      return await apiRequest("POST", "/api/create-magic-link", userData);
+    },
+    onSuccess: () => {
+      // Invalidate users list to refresh
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating user",
+        description: error.message || "Failed to create user and magic link",
+        variant: "destructive",
+      });
+    },
+  });
 
   const [createdMagicLink, setCreatedMagicLink] = useState<string | null>(null);
 
