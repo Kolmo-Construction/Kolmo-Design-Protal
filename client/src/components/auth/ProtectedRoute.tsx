@@ -1,7 +1,7 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
-import { useAuthV2 } from "@/hooks/use-auth-v2";
+import { useAuth } from "@/hooks/use-auth-unified";
 
 interface ProtectedRouteProps {
   path: string;
@@ -14,7 +14,7 @@ export function ProtectedRoute({
   component: Component, 
   fallback 
 }: ProtectedRouteProps) {
-  const { authState, user } = useAuthV2();
+  const { authState, user } = useAuth();
 
   return (
     <Route path={path}>
@@ -65,7 +65,7 @@ export function withAuth<P extends object>(
   Component: React.ComponentType<P>
 ): React.ComponentType<P> {
   return function AuthenticatedComponent(props: P) {
-    const { authState, user } = useAuthV2();
+    const { authState, user } = useAuth();
 
     if (authState === "loading") {
       return (

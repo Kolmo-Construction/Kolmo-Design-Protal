@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import { Project, User } from "@shared/schema"; // Keep User type for managers

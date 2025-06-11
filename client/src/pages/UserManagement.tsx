@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth"; // Assuming user object is available here
+import { useAuth } from "@/hooks/use-auth-unified"; // Assuming user object is available here
 import { useLocation } from "wouter";
 import { getQueryFn } from "@/lib/queryClient";
 import TopNavBar from "@/components/TopNavBar";
