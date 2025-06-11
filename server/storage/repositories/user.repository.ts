@@ -32,10 +32,29 @@ export interface IUserRepository {
 // Implementation
 class UserRepository implements IUserRepository {
     private db: NeonDatabase<typeof schema>;
+    private queryCache = new Map<string, Promise<any>>();
+    private cacheTimeout = 5000; // 5 seconds cache for auth queries
 
     // Allow injecting db instance for testing, default to imported db
     constructor(database: NeonDatabase<typeof schema> = db) {
         this.db = database;
+    }
+
+    private getCachedQuery<T>(key: string, queryFn: () => Promise<T>): Promise<T> {
+        const cached = this.queryCache.get(key);
+        if (cached) {
+            return cached as Promise<T>;
+        }
+
+        const promise = queryFn().finally(() => {
+            // Clear cache after timeout
+            setTimeout(() => {
+                this.queryCache.delete(key);
+            }, this.cacheTimeout);
+        });
+
+        this.queryCache.set(key, promise);
+        return promise;
     }
 
     async findUserByEmail(email: string): Promise<schema.User | null> {
@@ -51,15 +70,19 @@ class UserRepository implements IUserRepository {
     }
 
     async getUserById(userId: string): Promise<schema.User | null> {
-         try {
-            const result = await this.db.query.users.findFirst({
-                where: eq(schema.users.id, userId),
-            });
-            return result ?? null;
-        } catch (error) {
-            console.error(`Error getting user by ID (${userId}):`, error);
-            throw new Error('Database error while getting user.');
-        }
+        const cacheKey = `user:id:${userId}`;
+        return this.getCachedQuery(cacheKey, async () => {
+            try {
+                const numericUserId = parseInt(userId, 10);
+                const result = await this.db.query.users.findFirst({
+                    where: eq(schema.users.id, numericUserId),
+                });
+                return result ?? null;
+            } catch (error) {
+                console.error(`Error getting user by ID (${userId}):`, error);
+                throw new Error('Database error while getting user.');
+            }
+        });
     }
 
     async getUserProfileById(userId: string): Promise<UserProfile | null> {

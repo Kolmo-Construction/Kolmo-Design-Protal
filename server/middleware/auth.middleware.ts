@@ -14,7 +14,7 @@ export interface AuthenticatedRequest extends Request {
  * Express middleware to check if a user is authenticated via Passport.
  * Sends a 401 Unauthorized response if not authenticated.
  */
-export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
     const requestPath = `${req.method} ${req.originalUrl}`;
     logger(`[isAuthenticated] Checking auth for: ${requestPath}`, 'AuthMiddleware');
 
@@ -26,13 +26,22 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
         logger(`[isAuthenticated] IsAuthenticated: ${req.isAuthenticated()}`, 'AuthMiddleware');
     }
 
-    // Ensure session is saved before checking authentication
+    // Ensure session is saved before checking authentication - make it synchronous
     if (req.session && req.session.save) {
-        req.session.save((err) => {
-            if (err) {
-                logger(`[isAuthenticated] Session save error: ${err.message}`, 'AuthMiddleware');
-            }
-        });
+        try {
+            await new Promise<void>((resolve, reject) => {
+                req.session.save((err) => {
+                    if (err) {
+                        logger(`[isAuthenticated] Session save error: ${err.message}`, 'AuthMiddleware');
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        } catch (error) {
+            logger(`[isAuthenticated] Failed to save session: ${error}`, 'AuthMiddleware');
+        }
     }
 
     // Use req.isAuthenticated() provided by Passport
