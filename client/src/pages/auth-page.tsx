@@ -65,9 +65,23 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   // Handle redirect when user is authenticated
   useEffect(() => {
+    console.log('[AuthPage] Redirect effect triggered:', {
+      user: user ? `User ID ${user.id}` : 'No user',
+      isMagicLink,
+      isPasswordReset,
+      authLoading,
+      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset && !authLoading),
+      timestamp: new Date().toISOString()
+    });
+    
     if (user && !isMagicLink && !isPasswordReset && !authLoading) {
-      console.log('[AuthPage] Redirecting authenticated user to dashboard');
-      navigate('/');
+      console.log('[AuthPage] EXECUTING NAVIGATION TO DASHBOARD');
+      try {
+        navigate('/');
+        console.log('[AuthPage] Navigation called successfully');
+      } catch (error) {
+        console.error('[AuthPage] Navigation failed:', error);
+      }
     }
   }, [user, isMagicLink, isPasswordReset, authLoading, navigate]);
 

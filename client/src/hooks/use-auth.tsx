@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
 import {
   useQuery,
   useMutation,
@@ -81,6 +81,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return failureCount < 2;
     },
   });
+
+  // Heavy logging for user state changes
+  useEffect(() => {
+    console.log('[useAuth] User state changed:', {
+      user: user ? `User ID ${user.id} (${user.username})` : 'No user',
+      isLoading,
+      isFetching,
+      error: error?.message || 'No error',
+      timestamp: new Date().toISOString()
+    });
+  }, [user, isLoading, isFetching, error]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
