@@ -120,12 +120,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     setError(null);
     
     try {
-      const res = await apiRequest('POST', '/api/chat/customer-token', {
+      const response = await apiRequest('POST', '/api/chat/customer-token', {
         quoteToken: token,
         customerName: name,
         customerEmail: email,
       });
-      const response = await res.json();
 
       // Get existing instance or create new one, but avoid multiple connections
       const chatClient = StreamChat.getInstance(response.apiKey);
