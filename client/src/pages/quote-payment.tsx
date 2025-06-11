@@ -27,6 +27,9 @@ interface Quote {
   total: number;
   downPaymentPercentage: number;
   status: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
 }
 
 interface PaymentData {
@@ -64,8 +67,7 @@ export default function QuotePaymentPage() {
   const loadQuote = async () => {
     try {
       setIsLoadingQuote(true);
-      const response = await apiRequest('GET', `/api/quotes/${quoteId}`);
-      const quoteData = await response.json();
+      const quoteData = await apiRequest('GET', `/api/quotes/${quoteId}`);
       setQuote(quoteData);
       
       // Pre-fill customer information from quote
@@ -114,13 +116,12 @@ export default function QuotePaymentPage() {
 
     try {
       setIsCreatingPayment(true);
-      const response = await apiRequest('POST', `/api/quotes/${quoteId}/accept-payment`, {
+      const paymentData = await apiRequest('POST', `/api/quotes/${quoteId}/accept-payment`, {
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
         customerPhone: customerInfo.phone,
       });
       
-      const paymentData = await response.json();
       setPaymentData(paymentData);
       setShowPaymentForm(true);
     } catch (error) {
