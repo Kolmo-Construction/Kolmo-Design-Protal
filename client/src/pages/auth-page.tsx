@@ -63,18 +63,20 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     });
   }, [user, authLoading, isMagicLink, isPasswordReset]);
 
-  // Handle redirect when user is authenticated
+  // Handle redirect when user is authenticated with proper dependency management
   useEffect(() => {
     console.log('[AuthPage] Redirect effect triggered:', {
       user: user ? `User ID ${user.id}` : 'No user',
       isMagicLink,
       isPasswordReset,
       authLoading,
-      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset && !authLoading),
+      isFetching: loginMutation.isPending,
+      shouldRedirect: !!(user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending),
       timestamp: new Date().toISOString()
     });
     
-    if (user && !isMagicLink && !isPasswordReset && !authLoading) {
+    // Only redirect if user exists, not in special flows, auth is complete, and no mutations are pending
+    if (user && !isMagicLink && !isPasswordReset && !authLoading && !loginMutation.isPending) {
       console.log('[AuthPage] EXECUTING NAVIGATION TO DASHBOARD');
       try {
         navigate('/');
@@ -83,7 +85,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         console.error('[AuthPage] Navigation failed:', error);
       }
     }
-  }, [user, isMagicLink, isPasswordReset, authLoading, navigate]);
+  }, [user, isMagicLink, isPasswordReset, authLoading, loginMutation.isPending, navigate]);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -195,7 +197,7 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
 
   // After loading, if the user object exists (meaning they are logged in),
   // show a loading state while redirecting.
-  if (user && !isMagicLink && !isPasswordReset) {
+  if (user && !isMagicLink && !isPasswordReset && !loginMutation.isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100">
         <div className="text-center space-y-4">
