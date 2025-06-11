@@ -1,23 +1,23 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { useAuthV2 } from "@/hooks/use-auth-v2";
+import { useAuth } from "@/hooks/use-auth-unified";
 import { Shield, Building2, Users, CheckCircle } from "lucide-react";
 
 
 export default function AuthPageV2() {
   const [, navigate] = useLocation();
-  const { authState } = useAuthV2();
+  const { user, isLoading } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (authState === "authenticated") {
+    if (user && !isLoading) {
       navigate("/");
     }
-  }, [authState, navigate]);
+  }, [user, isLoading, navigate]);
 
   // Don't render anything while checking auth state
-  if (authState === "loading") {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="animate-pulse flex items-center gap-2">

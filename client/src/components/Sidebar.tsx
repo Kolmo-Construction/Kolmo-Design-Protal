@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-unified";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
@@ -28,24 +28,15 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ open, setOpen }: SidebarProps) {
-  const { user, logoutMutation } = useAuth();
+  const { user, logout } = useAuth();
   const [location] = useLocation();
 
-  const handleLogout = () => {
-    // First, call the server to logout
-    fetch("/api/logout", { 
-      method: "POST",
-      credentials: "include" 
-    })
-    .then(() => {
-      // Force clear all query cache and redirect
-      console.log("Logout successful, redirecting to auth page");
-      window.location.href = '/auth';
-    })
-    .catch(err => {
-      console.error("Logout error:", err);
-      window.location.href = '/auth';
-    });
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const closeSidebarOnMobile = () => {
@@ -216,10 +207,9 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                 variant="ghost" 
                 className="flex items-center w-full px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 justify-start rounded-lg"
                 onClick={handleLogout}
-                disabled={logoutMutation.isPending}
               >
                 <LogOut className="h-5 w-5 mr-3" />
-                {logoutMutation.isPending ? "Logging out..." : "Sign Out"}
+                Sign Out
               </Button>
             </div>
           </ScrollArea>

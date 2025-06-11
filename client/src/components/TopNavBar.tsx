@@ -25,29 +25,12 @@ export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
   const { user, logout } = useAuth();
   const [location, navigate] = useLocation();
 
-  const handleLogout = () => {
-    // First, call the server to logout
-    fetch("/api/logout", { 
-      method: "POST",
-      credentials: "include" 
-    })
-    .then(() => {
-      // Force clear all query cache
-      queryClient.clear();
-      
-      // Reset user data in context
-      queryClient.setQueryData(["/api/user"], null);
-      
-      // IMPORTANT: Use full page reload to clear all React state and force a complete reset
-      console.log("Logout successful, redirecting to auth page");
-      window.location.href = '/auth';
-    })
-    .catch(err => {
-      console.error("Logout error:", err);
-      // Even on error, clear cache and redirect to ensure user can log out
-      queryClient.setQueryData(["/api/user"], null);
-      window.location.href = '/auth';
-    });
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
   
   // Quick navigation links for the top bar
@@ -163,10 +146,9 @@ export default function TopNavBar({ open, setOpen }: TopNavBarProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={handleLogout} 
-                disabled={logoutMutation.isPending}
                 className="text-red-600 focus:text-red-600"
               >
-                {logoutMutation.isPending ? "Logging out..." : "Sign Out"}
+                Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
