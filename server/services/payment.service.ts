@@ -119,13 +119,38 @@ export class PaymentService {
   }
 
   /**
-   * Create project from accepted quote
+   * Create project from accepted quote with automatic client portal creation
    */
   private async createProjectFromQuote(quote: Quote, customerInfo: {
     name: string;
     email: string;
     phone?: string;
   }): Promise<Project> {
+    // First, find or create a client user account
+    let clientUser = await storage.users.getUserByEmail(customerInfo.email);
+    
+    if (!clientUser) {
+      // Create new client user account
+      const [firstName, ...lastNameParts] = customerInfo.name.split(' ');
+      const lastName = lastNameParts.join(' ') || '';
+      
+      const userData = {
+        username: customerInfo.email,
+        password: 'temp-password', // Temporary password, client will use magic link to set real password
+        email: customerInfo.email,
+        firstName,
+        lastName,
+        role: 'client' as const,
+        isActivated: false, // Will be activated by createProjectWithClients
+        phone: customerInfo.phone || null,
+      };
+      
+      clientUser = await storage.users.createUser(userData);
+      if (!clientUser) {
+        throw new Error('Failed to create client user account');
+      }
+    }
+
     const projectData = {
       name: quote.title,
       description: quote.description || `Project created from Quote #${quote.quoteNumber}`,
@@ -142,7 +167,34 @@ export class PaymentService {
       customerPhone: customerInfo.phone || null,
     };
 
-    return await storage.projects.createProject(projectData);
+    // Use createProjectWithClients to automatically handle portal creation
+    const projectWithDetails = await storage.projects.createProjectWithClients(projectData, [clientUser.id.toString()]);
+    
+    if (!projectWithDetails) {
+      throw new Error('Failed to create project with client portal');
+    }
+
+    // Return the project data in the expected format
+    return {
+      id: projectWithDetails.id,
+      name: projectWithDetails.name,
+      description: projectWithDetails.description,
+      address: projectWithDetails.address,
+      city: projectWithDetails.city,
+      state: projectWithDetails.state,
+      zipCode: projectWithDetails.zipCode,
+      totalBudget: projectWithDetails.totalBudget,
+      status: projectWithDetails.status,
+      progress: projectWithDetails.progress,
+      estimatedCompletionDate: projectWithDetails.estimatedCompletionDate,
+      createdAt: projectWithDetails.createdAt,
+      updatedAt: projectWithDetails.updatedAt,
+      originQuoteId: projectWithDetails.originQuoteId,
+      customerName: projectWithDetails.customerName,
+      customerEmail: projectWithDetails.customerEmail,
+      customerPhone: projectWithDetails.customerPhone,
+      startDate: projectWithDetails.startDate
+    };
   }
 
   /**
