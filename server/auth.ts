@@ -574,20 +574,86 @@ export function setupAuth(app: Express) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Use direct database deletion with correct Drizzle syntax
       const { db } = await import("@server/db");
-      const { users } = await import("@shared/schema");
-      const { eq } = await import("drizzle-orm");
-      
-      const result = await db.delete(users).where(eq(users.id, userId));
-      
-      if (result.rowCount === 0) {
-        return res.status(404).json({ message: "User not found or could not be deleted" });
-      }
+      const { users, projects, clientProjects, documents, messages, dailyLogs, progressUpdates, punchListItems, tasks } = await import("@shared/schema");
+      const { eq, sql } = await import("drizzle-orm");
+
+      // Start a transaction to handle all deletions safely
+      await db.transaction(async (tx) => {
+        // Check for critical dependencies that would prevent deletion
+        const managedProjects = await tx.select({ id: projects.id, name: projects.name })
+          .from(projects)
+          .where(eq(projects.projectManagerId, userId));
+
+        if (managedProjects.length > 0) {
+          const projectNames = managedProjects.map(p => p.name).join(', ');
+          throw new Error(`Cannot delete user: they are the project manager for: ${projectNames}. Please reassign these projects first.`);
+        }
+
+        const clientProjectCount = await tx.select({ count: sql`count(*)` })
+          .from(clientProjects)
+          .where(eq(clientProjects.clientId, userId));
+
+        if (clientProjectCount[0]?.count > 0) {
+          throw new Error(`Cannot delete user: they are assigned as a client to ${clientProjectCount[0].count} project(s). Please remove these assignments first.`);
+        }
+
+        // If no critical dependencies, proceed with safe cleanup
+        console.log(`Deleting user ${userId} and cleaning up references...`);
+
+        // Remove client-project relationships (if any remain)
+        await tx.delete(clientProjects).where(eq(clientProjects.clientId, userId));
+
+        // Update references to set them to NULL where possible
+        await tx.update(documents)
+          .set({ uploadedById: null })
+          .where(eq(documents.uploadedById, userId));
+
+        await tx.update(dailyLogs)
+          .set({ createdById: null })
+          .where(eq(dailyLogs.createdById, userId));
+
+        await tx.update(progressUpdates)
+          .set({ createdById: null })
+          .where(eq(progressUpdates.createdById, userId));
+
+        // Tasks and punch list items should already handle SET NULL via constraints
+        // but we can be explicit
+        await tx.update(tasks)
+          .set({ assigneeId: null })
+          .where(eq(tasks.assigneeId, userId));
+
+        await tx.update(punchListItems)
+          .set({ assigneeId: null })
+          .where(eq(punchListItems.assigneeId, userId));
+
+        // For messages, we could either delete them or keep them with null references
+        // For now, we'll keep the messages but null the references
+        await tx.update(messages)
+          .set({ senderId: null })
+          .where(eq(messages.senderId, userId));
+
+        await tx.update(messages)
+          .set({ recipientId: null })
+          .where(eq(messages.recipientId, userId));
+
+        // Finally, delete the user
+        const result = await tx.delete(users).where(eq(users.id, userId));
+        
+        if (result.rowCount === 0) {
+          throw new Error("User not found or could not be deleted");
+        }
+      });
 
       res.status(204).send(); // No content response for successful deletion
     } catch (err) {
       console.error("Error deleting user:", err);
+      
+      // Return specific error messages for constraint violations
+      if (err.message && err.message.includes('Cannot delete user:')) {
+        return res.status(400).json({ message: err.message });
+      }
+      
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
