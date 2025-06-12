@@ -247,7 +247,7 @@ export const downloadInvoicePdf = async (
     // Authorization check: Admin or associated with the project
     let isAuthorized = user.role === 'ADMIN';
     if (!isAuthorized) {
-      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id, invoice.projectId);
+      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id.toString(), invoice.projectId);
       isAuthorized = canAccessProject;
     }
 
@@ -304,7 +304,7 @@ export const getInvoiceDetails = async (
     // Authorization check: Admin or associated with the project
     let isAuthorized = user.role === 'ADMIN';
     if (!isAuthorized) {
-      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id, invoice.projectId);
+      const canAccessProject = await storage.projects.checkUserProjectAccess(user.id.toString(), invoice.projectId);
       isAuthorized = canAccessProject;
     }
 
