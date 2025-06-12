@@ -45,10 +45,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Query for admin chat token
+  // Query for admin chat token - temporarily disabled due to WebSocket connection issues
   const { data: adminChatData, error: adminError } = useQuery({
     queryKey: ['/api/chat/token'],
-    enabled: !isCustomer && !client,
+    enabled: false, // Disabled until WebSocket connectivity is resolved
     retry: 2,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -135,9 +135,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
         console.log('Stream Chat connected successfully for user:', chatData.userId);
       } catch (err) {
         console.error('Error initializing admin chat:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to initialize admin chat';
+        console.error('Error details:', JSON.stringify(err, null, 2));
+        console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+        const errorMessage = err instanceof Error ? err.message : `Failed to initialize admin chat: ${String(err)}`;
+        console.error('Setting error message:', errorMessage);
         setError(errorMessage);
-        throw err; // Re-throw to prevent setting success state
+        // Don't re-throw to prevent unhandled rejections
       } finally {
         setIsLoading(false);
         initializationPromiseRef.current = null;

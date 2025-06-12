@@ -31,10 +31,8 @@ export function DeleteUserDialog({
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
-      // DELETE requests often return no content, so handle empty responses
-      const text = await res.text();
-      return text ? JSON.parse(text) : {};
+      await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      return { success: true };
     },
     onSuccess: () => {
       toast({
