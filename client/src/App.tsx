@@ -26,61 +26,66 @@ import CustomerQuote from "@/pages/customer-quote";
 import QuotePaymentPage from "@/pages/quote-payment";
 import PaymentPage from "@/pages/PaymentPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
+import ClientPortalPage from "@/pages/client-portal";
 
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth-unified";
 import { ChatProvider } from "@/contexts/ChatContext";
+import { ClientLayout } from "@/components/ClientLayout";
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/auth">
-        {() => <AuthPageV2 />}
-      </Route>
-      <Route path="/auth-legacy">
-        {() => <AuthPage />}
-      </Route>
-      <Route path="/auth/magic-link/:token">
-        {() => <MagicLinkVerifyPage />}
-      </Route>
-      <Route path="/reset-password/:token">
-        {() => <AuthPage isPasswordReset={true} />}
-      </Route>
-      <ProtectedRoute path="/setup-profile" component={SetupProfile} />
-      <ProtectedRoute path="/" component={Dashboard} />
-      <ProtectedRoute path="/projects" component={Projects} />
-      <ProtectedRoute path="/projects/:id" component={ProjectDetails} />
-      <ProtectedRoute path="/project-generation/:projectId" component={ProjectGeneration} />
-      <ProtectedRoute path="/project-management" component={ProjectManagement} />
-      <ProtectedRoute path="/documents" component={Documents} />
-      <ProtectedRoute path="/financials" component={Financials} />
-      <ProtectedRoute path="/messages" component={Messages} />
-      <ProtectedRoute path="/progress-updates" component={ProgressUpdates} />
-      <ProtectedRoute path="/schedule" component={Schedule} />
-      <ProtectedRoute path="/selections" component={Selections} />
-      <ProtectedRoute path="/quotes" component={Quotes} />
-      <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
-      <ProtectedRoute path="/settings" component={Settings} />
-      <ProtectedRoute path="/user-management" component={UserManagement} />
-      
-      {/* Public customer quote routes */}
-      <Route path="/quote/:token" component={CustomerQuote} />
-      <Route path="/customer/quote/:token" component={CustomerQuote} />
-      <Route path="/quote-payment/:id" component={QuotePaymentPage} />
-      
-      {/* Public payment route */}
-      <Route path="/payment/:clientSecret" component={PaymentPage} />
-
-      {/* Development-only routes */}
-      {import.meta.env.DEV && (
-        <Route path="/dev-tools">
-          {() => <DevTools />}
+    <ClientLayout>
+      <Switch>
+        <Route path="/auth">
+          {() => <AuthPageV2 />}
         </Route>
-      )}
-      <Route>
-        {() => <NotFound />}
-      </Route>
-    </Switch>
+        <Route path="/auth-legacy">
+          {() => <AuthPage />}
+        </Route>
+        <Route path="/auth/magic-link/:token">
+          {() => <MagicLinkVerifyPage />}
+        </Route>
+        <Route path="/reset-password/:token">
+          {() => <AuthPage isPasswordReset={true} />}
+        </Route>
+        <ProtectedRoute path="/setup-profile" component={SetupProfile} />
+        <ProtectedRoute path="/" component={Dashboard} />
+        <ProtectedRoute path="/client-portal" component={ClientPortalPage} />
+        <ProtectedRoute path="/projects" component={Projects} />
+        <ProtectedRoute path="/projects/:id" component={ProjectDetails} />
+        <ProtectedRoute path="/project-generation/:projectId" component={ProjectGeneration} />
+        <ProtectedRoute path="/project-management" component={ProjectManagement} />
+        <ProtectedRoute path="/documents" component={Documents} />
+        <ProtectedRoute path="/financials" component={Financials} />
+        <ProtectedRoute path="/messages" component={Messages} />
+        <ProtectedRoute path="/progress-updates" component={ProgressUpdates} />
+        <ProtectedRoute path="/schedule" component={Schedule} />
+        <ProtectedRoute path="/selections" component={Selections} />
+        <ProtectedRoute path="/quotes" component={Quotes} />
+        <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
+        <ProtectedRoute path="/settings" component={Settings} />
+        <ProtectedRoute path="/user-management" component={UserManagement} />
+        
+        {/* Public customer quote routes */}
+        <Route path="/quote/:token" component={CustomerQuote} />
+        <Route path="/customer/quote/:token" component={CustomerQuote} />
+        <Route path="/quote-payment/:id" component={QuotePaymentPage} />
+        
+        {/* Public payment route */}
+        <Route path="/payment/:clientSecret" component={PaymentPage} />
+
+        {/* Development-only routes */}
+        {import.meta.env.DEV && (
+          <Route path="/dev-tools">
+            {() => <DevTools />}
+          </Route>
+        )}
+        <Route>
+          {() => <NotFound />}
+        </Route>
+      </Switch>
+    </ClientLayout>
   );
 }
 

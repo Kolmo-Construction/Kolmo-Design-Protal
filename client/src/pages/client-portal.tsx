@@ -48,6 +48,20 @@ export default function ClientPortalPage() {
   const { data, isLoading, error } = useQuery<ClientDashboardData>({
     queryKey: ['/api/client/dashboard'],
     enabled: !!user && user.role === 'client',
+    retry: false,
+    // Fallback to show demo data structure
+    placeholderData: {
+      projects: [],
+      recentUpdates: [],
+      unreadMessages: [],
+      pendingInvoices: [],
+      overallStats: {
+        totalProjects: 0,
+        activeProjects: 0,
+        completedProjects: 0,
+        totalInvestment: "0.00"
+      }
+    }
   });
 
   if (!user || user.role !== 'client') {
