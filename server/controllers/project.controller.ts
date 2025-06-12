@@ -186,3 +186,44 @@ export const deleteProject = async (
     next(error);
   }
 };
+
+// Recalculate project progress based on task completion
+export const recalculateProjectProgress = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const projectId = parseInt(req.params.id, 10);
+    
+    // Get all tasks for the project
+    const tasks = await storage.tasks.getTasksForProject(projectId);
+    
+    let progressPercentage = 0;
+    if (tasks.length > 0) {
+      // Calculate progress based on completed tasks
+      const completedTasks = tasks.filter(task => 
+        task.status === 'done' || task.status === 'completed'
+      ).length;
+      
+      progressPercentage = Math.round((completedTasks / tasks.length) * 100);
+    }
+    
+    // Update the project progress
+    const updatedProject = await storage.projects.updateProjectDetailsAndClients(projectId, { progress: progressPercentage });
+    
+    if (!updatedProject) {
+      throw new HttpError(404, 'Project not found.');
+    }
+    
+    res.status(200).json({ 
+      message: 'Project progress recalculated successfully',
+      progress: progressPercentage,
+      completedTasks: tasks.filter(task => task.status === 'done' || task.status === 'completed').length,
+      totalTasks: tasks.length
+    });
+    
+  } catch(error) {
+    next(error);
+  }
+};
