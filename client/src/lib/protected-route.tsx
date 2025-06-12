@@ -6,10 +6,11 @@ import React from "react"; // Import React for ComponentType
 export function ProtectedRoute({
   path,
   component: Component,
+  adminOnly = false,
 }: {
   path: string;
-  // It's more conventional to use React.ComponentType for component props
   component: React.ComponentType;
+  adminOnly?: boolean;
 }) {
   const { user, isLoading } = useAuth();
 
@@ -28,6 +29,16 @@ export function ProtectedRoute({
         // Check if user should be redirected to login
         if (!user) {
           return <Redirect to="/auth" />;
+        }
+
+        // Check admin access for admin-only routes
+        if (adminOnly && user.role !== 'admin') {
+          return <Redirect to="/client-portal" />;
+        }
+
+        // Auto-redirect clients to their portal from main dashboard
+        if (path === "/" && user.role === 'client') {
+          return <Redirect to="/client-portal" />;
         }
 
         // Render the protected component
