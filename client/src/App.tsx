@@ -29,6 +29,7 @@ import CustomerQuote from "@/pages/customer-quote";
 import QuotePaymentPage from "@/pages/quote-payment";
 import PaymentPage from "@/pages/PaymentPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
+import AdminInvoices from "@/pages/AdminInvoices";
 import ClientPortalPage from "@/pages/client-portal";
 
 import { ProtectedRoute } from "./lib/protected-route";
@@ -69,6 +70,7 @@ function Router() {
         <ProtectedRoute path="/selections" component={Selections} />
         <ProtectedRoute path="/quotes" component={Quotes} adminOnly />
         <ProtectedRoute path="/invoices" component={ClientInvoices} />
+        <ProtectedRoute path="/admin/invoices" component={AdminInvoices} adminOnly />
         <ProtectedRoute path="/invoices/:invoiceId/view" component={InvoiceDetailPage} />
         <ProtectedRoute path="/settings" component={Settings} adminOnly />
         <ProtectedRoute path="/user-management" component={UserManagement} adminOnly />
