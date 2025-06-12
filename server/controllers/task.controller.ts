@@ -25,13 +25,16 @@ const taskCreateSchema = insertTaskSchema.omit({
   projectId: true, // Will be added from route params
   createdAt: true,
   updatedAt: true,
-  // Removed createdBy and displayOrder as they don't exist in schema
 });
 
 // Schema for updating tasks (making fields optional)
-const taskUpdateSchema = taskCreateSchema.partial().extend({
+const taskUpdateSchema = insertTaskSchema.partial().omit({
+  id: true,
+  projectId: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
     status: taskStatusEnum.optional(), // Allow updating status with enum validation
-    // No displayOrder field
 });
 
 // Schema for validating task dependency request bodies (both create and delete)
@@ -43,6 +46,41 @@ const taskDependencySchema = z.object({
 // Define AuthenticatedRequest locally if not exported globally or from auth middleware
 interface AuthenticatedRequest extends Request {
     user: User; // Use the imported User type
+}
+
+/**
+ * Calculate and update project progress based on task completion
+ */
+async function updateProjectProgress(projectId: number): Promise<void> {
+    try {
+        logger(`[updateProjectProgress] Calculating progress for project ${projectId}`, 'TaskController');
+        
+        // Get all tasks for the project
+        const tasks = await storage.tasks.getTasksForProject(projectId);
+        
+        if (tasks.length === 0) {
+            logger(`[updateProjectProgress] No tasks found for project ${projectId}, setting progress to 0`, 'TaskController');
+            await storage.projects.updateProjectDetailsAndClients(projectId, { progress: 0 });
+            return;
+        }
+        
+        // Calculate progress based on completed tasks
+        const completedTasks = tasks.filter(task => 
+            task.status === 'done' || task.status === 'completed'
+        ).length;
+        
+        const progressPercentage = Math.round((completedTasks / tasks.length) * 100);
+        
+        logger(`[updateProjectProgress] Project ${projectId}: ${completedTasks}/${tasks.length} tasks completed (${progressPercentage}%)`, 'TaskController');
+        
+        // Update the project progress
+        await storage.projects.updateProjectDetailsAndClients(projectId, { progress: progressPercentage });
+        
+        logger(`[updateProjectProgress] Successfully updated project ${projectId} progress to ${progressPercentage}%`, 'TaskController');
+    } catch (error) {
+        logger(`[updateProjectProgress] Error updating progress for project ${projectId}: ${error instanceof Error ? error.message : String(error)}`, 'TaskController');
+        // Don't throw the error to avoid breaking the main task update operation
+    }
 }
 
 
@@ -235,6 +273,12 @@ export const updateTask = async (
         // For now, just log that billing should be triggered
         // The actual billing logic will be handled through the dedicated billing endpoints
         console.log(`Billable task ${taskIdNum} completed - invoice creation should be triggered`);
+    }
+
+    // Update project progress if task status changed
+    if (validatedData.status && validatedData.status !== currentTask.status) {
+        logger(`[updateTask] Task status changed from ${currentTask.status} to ${validatedData.status}, updating project progress`, 'TaskController');
+        await updateProjectProgress(currentTask.projectId);
     }
 
     // Return the updated task (repository should return TaskWithAssignee)

@@ -24,6 +24,9 @@ router.put("/:id", isAdmin, validateIdParam, projectController.updateProject);
 // DELETE /api/projects/:id - Delete a specific project (Admin only)
 router.delete("/:id", isAdmin, validateIdParam, projectController.deleteProject);
 
+// POST /api/projects/:id/recalculate-progress - Recalculate project progress based on tasks
+router.post("/:id/recalculate-progress", isAuthenticated, validateIdParam, projectController.recalculateProjectProgress);
+
 // Note: Routes for associating clients, project managers, etc.,
 // could also be added here or in admin.routes.ts as appropriate.
 
