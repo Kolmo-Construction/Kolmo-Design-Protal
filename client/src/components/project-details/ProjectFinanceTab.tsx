@@ -31,25 +31,44 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   const [loadingMilestoneId, setLoadingMilestoneId] = useState<number | null>(null);
 
   const handleViewInvoice = async (invoice: any) => {
+    console.log('[FRONTEND-VIEW] Starting handleViewInvoice');
+    console.log('[FRONTEND-VIEW] Invoice:', invoice);
+    console.log('[FRONTEND-VIEW] ProjectId:', projectId);
+    console.log('[FRONTEND-VIEW] API URL:', `/api/projects/${projectId}/invoices/${invoice.id}/view`);
+    
     try {
+      console.log('[FRONTEND-VIEW] Making fetch request...');
       const response = await fetch(`/api/projects/${projectId}/invoices/${invoice.id}/view`, {
         credentials: 'include'
       });
       
+      console.log('[FRONTEND-VIEW] Response status:', response.status);
+      console.log('[FRONTEND-VIEW] Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch invoice details');
+        const errorText = await response.text();
+        console.log('[FRONTEND-VIEW] Error response:', errorText);
+        throw new Error(`Failed to fetch invoice details: ${response.status} - ${errorText}`);
       }
       
+      console.log('[FRONTEND-VIEW] Parsing response JSON...');
       const invoiceData = await response.json();
+      console.log('[FRONTEND-VIEW] Invoice data received:', invoiceData);
       
+      console.log('[FRONTEND-VIEW] Opening new window...');
       // Create a modal or new window to display invoice details
       const invoiceWindow = window.open('', '_blank', 'width=800,height=900,scrollbars=yes');
       if (invoiceWindow) {
+        console.log('[FRONTEND-VIEW] Writing HTML to window...');
         invoiceWindow.document.write(generateInvoiceHTML(invoiceData.invoice, invoiceData.project));
         invoiceWindow.document.close();
+        console.log('[FRONTEND-VIEW] Invoice view completed successfully');
+      } else {
+        console.log('[FRONTEND-VIEW] ERROR: Could not open new window');
+        throw new Error('Could not open new window - popup blocked?');
       }
     } catch (error) {
-      console.error('Invoice view error:', error);
+      console.error('[FRONTEND-VIEW] Invoice view error:', error);
       toast({
         title: "View Failed",
         description: "Could not load the invoice details.",
@@ -59,26 +78,46 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
   };
 
   const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
+    console.log('[FRONTEND-DOWNLOAD] Starting handleDownloadInvoice');
+    console.log('[FRONTEND-DOWNLOAD] InvoiceId:', invoiceId);
+    console.log('[FRONTEND-DOWNLOAD] InvoiceNumber:', invoiceNumber);
+    console.log('[FRONTEND-DOWNLOAD] ProjectId:', projectId);
+    console.log('[FRONTEND-DOWNLOAD] API URL:', `/api/projects/${projectId}/invoices/${invoiceId}/download`);
+    
     try {
+      console.log('[FRONTEND-DOWNLOAD] Making fetch request...');
       const response = await fetch(`/api/projects/${projectId}/invoices/${invoiceId}/download`, {
         credentials: 'include'
       });
       
+      console.log('[FRONTEND-DOWNLOAD] Response status:', response.status);
+      console.log('[FRONTEND-DOWNLOAD] Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        throw new Error('Download failed');
+        const errorText = await response.text();
+        console.log('[FRONTEND-DOWNLOAD] Error response:', errorText);
+        throw new Error(`Download failed: ${response.status} - ${errorText}`);
       }
       
+      console.log('[FRONTEND-DOWNLOAD] Converting response to blob...');
       const blob = await response.blob();
+      console.log('[FRONTEND-DOWNLOAD] Blob size:', blob.size);
+      console.log('[FRONTEND-DOWNLOAD] Blob type:', blob.type);
+      
+      console.log('[FRONTEND-DOWNLOAD] Creating download link...');
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `Invoice-${invoiceNumber}.pdf`;
       document.body.appendChild(a);
+      
+      console.log('[FRONTEND-DOWNLOAD] Triggering download...');
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      console.log('[FRONTEND-DOWNLOAD] Download completed successfully');
     } catch (error) {
-      console.error('Invoice download error:', error);
+      console.error('[FRONTEND-DOWNLOAD] Invoice download error:', error);
       toast({
         title: "Download Failed",
         description: "Could not download the invoice PDF.",
