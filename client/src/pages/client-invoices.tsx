@@ -103,9 +103,14 @@ export default function ClientInvoices() {
       <div className="container mx-auto px-6 pt-24 pb-12">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">My Invoices</h1>
+          <h1 className="text-3xl font-bold mb-2">
+            {isProjectContext ? `${project?.name || 'Project'} Invoices` : 'My Invoices'}
+          </h1>
           <p className="text-muted-foreground">
-            View and manage your project invoices and payment history
+            {isProjectContext 
+              ? `View invoices for this project only`
+              : 'View and manage your project invoices and payment history'
+            }
           </p>
         </div>
 
