@@ -31,12 +31,11 @@ class InvoiceRepository implements IInvoiceRepository {
     // Could enhance this to include payment status/summary if needed for list views
     async getInvoicesForProject(projectId: number): Promise<schema.Invoice[]> {
         try {
-            return await this.dbOrTx.query.invoices.findMany({
-                where: eq(schema.invoices.projectId, projectId),
-                orderBy: [desc(schema.invoices.issueDate)],
-                // Optionally add 'with: { payments: { columns: { id: true, amount: true } } }'
-                // if you need payment summaries in the list view, then adjust return type.
-            });
+            return await this.dbOrTx
+                .select()
+                .from(schema.invoices)
+                .where(eq(schema.invoices.projectId, projectId))
+                .orderBy(desc(schema.invoices.issueDate));
         } catch (error) {
             console.error(`Error fetching invoices for project ${projectId}:`, error);
             throw new Error('Database error while fetching invoices.');
@@ -45,9 +44,10 @@ class InvoiceRepository implements IInvoiceRepository {
 
     async getAllInvoices(): Promise<schema.Invoice[]> {
         try {
-            return await this.dbOrTx.query.invoices.findMany({
-                orderBy: [desc(schema.invoices.issueDate)],
-            });
+            return await this.dbOrTx
+                .select()
+                .from(schema.invoices)
+                .orderBy(desc(schema.invoices.issueDate));
         } catch (error) {
             console.error('Error fetching all invoices:', error);
             throw new Error('Database error while fetching all invoices.');
@@ -57,12 +57,12 @@ class InvoiceRepository implements IInvoiceRepository {
     async getInvoicesForClient(clientId: number): Promise<schema.Invoice[]> {
         try {
             // Get invoices for projects where the client is the owner
-            return await this.dbOrTx.query.invoices.findMany({
-                where: sql`${schema.invoices.projectId} IN (
-                    SELECT id FROM ${schema.projects} WHERE client_id = ${clientId}
-                )`,
-                orderBy: [desc(schema.invoices.issueDate)],
-            });
+            return await this.dbOrTx
+                .select()
+                .from(schema.invoices)
+                .innerJoin(schema.projects, eq(schema.invoices.projectId, schema.projects.id))
+                .where(eq(schema.projects.clientId, clientId))
+                .orderBy(desc(schema.invoices.issueDate));
         } catch (error) {
             console.error(`Error fetching invoices for client ${clientId}:`, error);
             throw new Error('Database error while fetching client invoices.');
