@@ -36,7 +36,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
 
   const handleDownloadInvoice = async (invoiceId: number, invoiceNumber: string) => {
     try {
-      const response = await fetch(`/api/projects/${projectId}/invoices/${invoiceId}/download`, {
+      const response = await fetch(`/api/invoices/${invoiceId}/download`, {
         credentials: 'include'
       });
       
@@ -54,6 +54,7 @@ export function ProjectFinanceTab({ projectId }: ProjectFinanceTabProps) {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
+      console.error('Invoice download error:', error);
       toast({
         title: "Download Failed",
         description: "Could not download the invoice PDF.",
