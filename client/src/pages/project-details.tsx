@@ -127,8 +127,10 @@ export default function ProjectDetails() {
     );
   }
 
-  // Calculate real task progress from fetched tasks
-  const completedTasks = projectTasks.filter(task => task.status === 'completed').length;
+  // Calculate real task progress from fetched tasks (handle both old and new status values)
+  const completedTasks = projectTasks.filter(task => 
+    task.status === 'done' || task.status === 'completed'
+  ).length;
   const totalTasks = projectTasks.length;
   const taskProgressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 

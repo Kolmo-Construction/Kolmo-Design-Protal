@@ -349,8 +349,10 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
         }
       });
       
-      // Calculate completed tasks
-      const completedTasks = sortedTasks.filter(task => task.status === 'done').length;
+      // Calculate completed tasks (handle both old and new status values)
+      const completedTasks = sortedTasks.filter(task => 
+        task.status === 'done' || task.status === 'completed'
+      ).length;
       const totalTasks = sortedTasks.length;
       const completionPercentage = Math.round((completedTasks / totalTasks) * 100);
       
@@ -451,12 +453,12 @@ export function ProjectTasksTab({ projectId, user, project }: ProjectTasksTabPro
                   let statusBorder = 'border-slate-200';
                   let statusIcon = <CircleDot className="h-4 w-4 mr-1.5" />;
                   
-                  if (task.status === 'done') {
+                  if (task.status === 'done' || task.status === 'completed') {
                     statusColor = 'bg-green-500';
                     statusBg = 'bg-green-50';
                     statusBorder = 'border-green-200';
                     statusIcon = <CheckCheck className="h-4 w-4 mr-1.5" />;
-                  } else if (task.status === 'in_progress') {
+                  } else if (task.status === 'in_progress' || task.status === 'in-progress') {
                     statusColor = 'bg-blue-500';
                     statusBg = 'bg-blue-50';
                     statusBorder = 'border-blue-200';

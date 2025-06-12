@@ -48,7 +48,7 @@ export default function ClientInvoices() {
   });
 
   // Get project name for header when in project context
-  const { data: project } = useQuery({
+  const { data: project } = useQuery<{ id: number; name: string }>({
     queryKey: [`/api/projects/${projectId}`],
     enabled: !!projectId && !!user
   });
