@@ -86,6 +86,37 @@ export const getAllInvoices = async (
 };
 
 /**
+ * Get client invoices - for both clients (their own) and admins (all).
+ */
+export const getClientInvoices = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user as User;
+
+    if (!user?.id) { throw new HttpError(401, 'Authentication required.'); }
+
+    let invoices;
+    
+    if (user.role === 'admin') {
+      // Admins can see all invoices
+      invoices = await storage.invoices.getAllInvoices();
+    } else if (user.role === 'client') {
+      // Clients can only see their own invoices
+      invoices = await storage.invoices.getInvoicesForClient(user.id);
+    } else {
+      throw new HttpError(403, 'Access denied.');
+    }
+
+    res.status(200).json(invoices);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Create a new invoice for a project.
  */
 export const createInvoice = async (

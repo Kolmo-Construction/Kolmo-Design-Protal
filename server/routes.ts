@@ -86,6 +86,12 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     return getAllInvoices(req, res, next);
   });
 
+  // Client invoice access - for both clients and admins
+  app.get("/api/client/invoices", isAuthenticated, async (req: any, res: any, next: any) => {
+    const { getClientInvoices } = await import("./controllers/invoice.controller");
+    return getClientInvoices(req, res, next);
+  });
+
   // --- Mount Project-Specific Routers ---
   // Apply common middleware like isAuthenticated and validateProjectId here
 

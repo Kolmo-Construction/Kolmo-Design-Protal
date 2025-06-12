@@ -33,10 +33,10 @@ export default function ClientInvoices() {
 
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
     queryKey: ['/api/client/invoices'],
-    enabled: !!user && user.role === 'client'
+    enabled: !!user && (user.role === 'client' || user.role === 'admin')
   });
 
-  if (!user || user.role !== 'client') {
+  if (!user || (user.role !== 'client' && user.role !== 'admin')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted">
         <ClientNavigation />
@@ -45,7 +45,7 @@ export default function ClientInvoices() {
             <CardContent className="pt-6 text-center">
               <DollarSign className="h-12 w-12 text-destructive mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-              <p className="text-muted-foreground">This page is for client users only.</p>
+              <p className="text-muted-foreground">You don't have access to view invoices.</p>
             </CardContent>
           </Card>
         </div>
