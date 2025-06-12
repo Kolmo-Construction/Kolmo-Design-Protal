@@ -68,6 +68,12 @@ export default function ProjectDetails() {
     enabled: !!user && !!id && (user.role === 'client' || user.role === 'admin')
   });
 
+  // Fetch actual project tasks
+  const { data: projectTasks = [], isLoading: isLoadingTasks } = useQuery<ProjectTask[]>({
+    queryKey: [`/api/projects/${id}/tasks`],
+    enabled: !!user && !!id && !!project
+  });
+
   if (!user || (user.role !== 'client' && user.role !== 'admin')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted">
@@ -121,7 +127,10 @@ export default function ProjectDetails() {
     );
   }
 
-  const progressPercentage = project.totalTasks > 0 ? (project.completedTasks / project.totalTasks) * 100 : 0;
+  // Calculate real task progress from fetched tasks
+  const completedTasks = projectTasks.filter(task => task.status === 'completed').length;
+  const totalTasks = projectTasks.length;
+  const taskProgressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -194,9 +203,9 @@ export default function ProjectDetails() {
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <span className="font-medium">Task Completion</span>
-                    <span className="font-bold">{project.completedTasks}/{project.totalTasks}</span>
+                    <span className="font-bold">{completedTasks}/{totalTasks}</span>
                   </div>
-                  <Progress value={progressPercentage} className="h-3" />
+                  <Progress value={taskProgressPercentage} className="h-3" />
                 </div>
                 
                 <div className="grid grid-cols-3 gap-4 pt-4 border-t">
