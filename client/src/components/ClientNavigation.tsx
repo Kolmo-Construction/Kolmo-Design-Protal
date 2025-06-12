@@ -15,6 +15,10 @@ import {
 export function ClientNavigation() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  
+  // Detect if we're in project context to show project-specific navigation
+  const projectMatch = location.match(/\/project-details\/(\d+)/);
+  const projectId = projectMatch ? projectMatch[1] : null;
 
   const handleLogout = async () => {
     await logout();
@@ -87,17 +91,32 @@ export function ClientNavigation() {
               </Button>
             </Link>
 
-            <Link to="/invoices">
-              <Button 
-                variant={location === '/invoices' ? 'secondary' : 'ghost'}
-                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
-                  location === '/invoices' ? 'bg-accent text-white' : ''
-                }`}
-              >
-                <DollarSign className="h-4 w-4 mr-2" />
-                Invoices
-              </Button>
-            </Link>
+            {/* Show project-specific invoices link when in project context */}
+            {projectId ? (
+              <Link to={`/project-details/${projectId}/invoices`}>
+                <Button 
+                  variant={location.includes('/invoices') ? 'secondary' : 'ghost'}
+                  className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                    location.includes('/invoices') ? 'bg-accent text-white' : ''
+                  }`}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Invoices
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/invoices">
+                <Button 
+                  variant={location === '/invoices' ? 'secondary' : 'ghost'}
+                  className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                    location === '/invoices' ? 'bg-accent text-white' : ''
+                  }`}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Invoices
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* User Menu */}
@@ -185,18 +204,34 @@ export function ClientNavigation() {
               </Button>
             </Link>
 
-            <Link to="/invoices">
-              <Button 
-                variant={location === '/invoices' ? 'secondary' : 'ghost'}
-                size="sm"
-                className={`text-primary-foreground hover:bg-primary-foreground/10 ${
-                  location === '/invoices' ? 'bg-accent text-white' : ''
-                }`}
-              >
-                <DollarSign className="h-4 w-4 mr-1" />
-                Invoices
-              </Button>
-            </Link>
+            {/* Show project-specific invoices link when in project context */}
+            {projectId ? (
+              <Link to={`/project-details/${projectId}/invoices`}>
+                <Button 
+                  variant={location.includes('/invoices') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                    location.includes('/invoices') ? 'bg-accent text-white' : ''
+                  }`}
+                >
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Invoices
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/invoices">
+                <Button 
+                  variant={location === '/invoices' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className={`text-primary-foreground hover:bg-primary-foreground/10 ${
+                    location === '/invoices' ? 'bg-accent text-white' : ''
+                  }`}
+                >
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Invoices
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>

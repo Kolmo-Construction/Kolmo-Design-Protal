@@ -15,7 +15,7 @@ import {
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useParams, useLocation } from 'wouter';
 
 interface Invoice {
   id: number;
@@ -30,10 +30,27 @@ interface Invoice {
 
 export default function ClientInvoices() {
   const { user } = useAuth();
+  const params = useParams();
+  const [location] = useLocation();
+  
+  // Detect if we're in project context (e.g., /project-details/:projectId/invoices)
+  const projectId = params.projectId;
+  const isProjectContext = projectId && location.includes('/project-details/');
+  
+  // Use project-specific endpoint if in project context, otherwise use global client endpoint
+  const apiEndpoint = isProjectContext 
+    ? `/api/projects/${projectId}/invoices`
+    : '/api/client/invoices';
 
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
-    queryKey: ['/api/client/invoices'],
+    queryKey: [apiEndpoint],
     enabled: !!user && (user.role === 'client' || user.role === 'admin')
+  });
+
+  // Get project name for header when in project context
+  const { data: project } = useQuery({
+    queryKey: [`/api/projects/${projectId}`],
+    enabled: !!projectId && !!user
   });
 
   if (!user || (user.role !== 'client' && user.role !== 'admin')) {
