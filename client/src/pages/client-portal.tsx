@@ -13,6 +13,7 @@ import {
   Calendar,
   Clock,
   DollarSign,
+  Circle,
   CheckCircle,
   AlertCircle,
   User,
@@ -23,6 +24,8 @@ import {
   Timer
 } from 'lucide-react';
 import { ClientNavigation } from '@/components/ClientNavigation';
+import { getQueryFn } from '@/lib/queryClient';
+import type { Task } from '@shared/schema';
 
 interface Project {
   id: number;
@@ -244,73 +247,7 @@ export default function ClientPortal() {
                 </div>
 
                 {/* Timeline of Tasks */}
-                <div className="relative">
-                  {/* Timeline Line */}
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
-                  
-                  {/* Mock tasks for visual timeline - replace with real task data */}
-                  {[
-                    { id: 1, name: 'Initial Planning & Design', status: 'completed', date: 'Jan 15', type: 'design' },
-                    { id: 2, name: 'Permits & Documentation', status: 'completed', date: 'Jan 22', type: 'admin' },
-                    { id: 3, name: 'Site Preparation', status: 'in-progress', date: 'Feb 1', type: 'construction' },
-                    { id: 4, name: 'Foundation Work', status: 'pending', date: 'Feb 8', type: 'construction' },
-                    { id: 5, name: 'Framing & Structure', status: 'pending', date: 'Feb 15', type: 'construction' },
-                    { id: 6, name: 'Final Inspection', status: 'pending', date: 'Mar 1', type: 'admin' }
-                  ].map((task, index) => (
-                    <div key={task.id} className="relative flex items-start gap-4 pb-6">
-                      {/* Timeline Dot */}
-                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${
-                        task.status === 'completed' 
-                          ? 'bg-green-100 border-green-500' 
-                          : task.status === 'in-progress' 
-                            ? 'bg-accent/10 border-accent' 
-                            : 'bg-gray-100 border-gray-300'
-                      }`}>
-                        {task.status === 'completed' ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : task.status === 'in-progress' ? (
-                          <Clock className="h-4 w-4 text-accent" />
-                        ) : (
-                          <Circle className="h-3 w-3 text-gray-400" />
-                        )}
-                      </div>
-
-                      {/* Task Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex-1">
-                            <h4 className={`font-medium text-sm ${
-                              task.status === 'completed' ? 'text-green-700' : 'text-foreground'
-                            }`}>
-                              {task.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" size="sm" className="text-xs">
-                                {task.type}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {task.date}
-                              </span>
-                            </div>
-                          </div>
-                          <Badge 
-                            variant={task.status === 'completed' ? 'default' : 'secondary'}
-                            className={`text-xs ${
-                              task.status === 'completed' 
-                                ? 'bg-green-100 text-green-800 border-green-200' 
-                                : task.status === 'in-progress'
-                                  ? 'bg-accent/10 text-accent border-accent/20'
-                                  : 'bg-gray-100 text-gray-600 border-gray-200'
-                            }`}
-                          >
-                            {task.status === 'completed' ? 'Complete' : 
-                             task.status === 'in-progress' ? 'In Progress' : 'Pending'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <TaskTimeline projectId={project.id} />
               </div>
             ))
           )}
