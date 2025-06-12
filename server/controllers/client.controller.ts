@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { storage } from '@server/storage';
+import { db } from '@server/db';
 
 interface ClientDashboardResponse {
   projects: any[];
@@ -32,10 +33,28 @@ export const getClientDashboard = async (
     
     // Enhance projects with task counts and timeline data
     const enhancedProjects = await Promise.all(projects.map(async (project: any) => {
-      // Get tasks for this project
-      const tasks = await storage.tasks.getTasksForProject(project.id);
-      const completedTasks = tasks.filter((task: any) => task.status === 'completed').length;
-      const totalTasks = tasks.length;
+      // Get tasks for this project - with fallback for missing storage method
+      let tasks: any[] = [];
+      let completedTasks = 0;
+      let totalTasks = 0;
+      
+      try {
+        // Query tasks directly from database
+        const tasksResult = await db.query(`
+          SELECT id, title, description, status, priority, due_date, estimated_hours, actual_hours
+          FROM tasks 
+          WHERE project_id = $1
+          ORDER BY due_date ASC
+        `, [project.id]);
+        
+        tasks = tasksResult.rows;
+        completedTasks = tasks.filter((task: any) => task.status === 'completed').length;
+        totalTasks = tasks.length;
+      } catch (error) {
+        console.log('Error fetching tasks:', error);
+        completedTasks = 0;
+        totalTasks = 0;
+      }
       
       // Create realistic timeline based on project phases
       const timeline = [
