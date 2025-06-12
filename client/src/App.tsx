@@ -56,6 +56,7 @@ function Router() {
         <ProtectedRoute path="/client-portal" component={ClientPortalPage} />
         <ProtectedRoute path="/projects" component={Projects} adminOnly />
         <ProtectedRoute path="/projects/:id" component={AdminProjectDetails} adminOnly />
+        <ProtectedRoute path="/project-details/:id" component={ClientProjectDetails} />
         <ProtectedRoute path="/project-generation/:projectId" component={ProjectGeneration} adminOnly />
         <ProtectedRoute path="/project-management" component={ProjectManagement} adminOnly />
         <ProtectedRoute path="/documents" component={Documents} />
