@@ -63,27 +63,39 @@ export class PaymentService {
     paymentIntent: any;
   }> {
     try {
+      console.log(`[PaymentService] Starting processQuoteAcceptance for quote ${quoteId}`);
+      
       // Get quote details
+      console.log(`[PaymentService] Fetching quote details for ID ${quoteId}...`);
       const quote = await storage.quotes.getQuoteById(quoteId);
       if (!quote) {
+        console.log(`[PaymentService] ERROR: Quote ${quoteId} not found`);
         throw new HttpError(404, 'Quote not found');
       }
+      console.log(`[PaymentService] Quote found: ${quote.title} - $${quote.total}`);
 
       // Calculate payment schedule
+      console.log(`[PaymentService] Calculating payment schedule...`);
       const paymentSchedule = this.calculatePaymentSchedule(quote);
+      console.log(`[PaymentService] Down payment: $${paymentSchedule.downPayment.amount} (${paymentSchedule.downPayment.percentage}%)`);
 
       // Create project from quote
+      console.log(`[PaymentService] Creating project from quote...`);
       const project = await this.createProjectFromQuote(quote, customerInfo);
+      console.log(`[PaymentService] Project created with ID: ${project.id}`);
 
       // Create down payment invoice
+      console.log(`[PaymentService] Creating down payment invoice...`);
       const downPaymentInvoice = await this.createDownPaymentInvoice(
         quote,
         project,
         paymentSchedule.downPayment,
         customerInfo
       );
+      console.log(`[PaymentService] Invoice created: ${downPaymentInvoice.invoiceNumber} - $${downPaymentInvoice.amount}`);
 
       // Create Stripe payment intent for down payment
+      console.log(`[PaymentService] Creating Stripe payment intent...`);
       const paymentIntent = await stripeService.createPaymentIntent({
         amount: Math.round(paymentSchedule.downPayment.amount * 100), // Convert to cents
         customerEmail: customerInfo.email,
@@ -96,6 +108,7 @@ export class PaymentService {
           paymentType: 'down_payment',
         },
       });
+      console.log(`[PaymentService] Stripe payment intent created: ${paymentIntent.id}`);
 
       // Update invoice with Stripe payment intent ID
       await storage.invoices.updateInvoice(downPaymentInvoice.id, {
@@ -126,10 +139,14 @@ export class PaymentService {
     email: string;
     phone?: string;
   }): Promise<Project> {
+    console.log(`[PaymentService] createProjectFromQuote - Starting for email: ${customerInfo.email}`);
+    
     // First, find or create a client user account
+    console.log(`[PaymentService] Looking for existing user with email: ${customerInfo.email}`);
     let clientUser = await storage.users.getUserByEmail(customerInfo.email);
     
     if (!clientUser) {
+      console.log(`[PaymentService] User not found, creating new client user...`);
       // Create new client user account
       const [firstName, ...lastNameParts] = customerInfo.name.split(' ');
       const lastName = lastNameParts.join(' ') || '';
@@ -145,12 +162,18 @@ export class PaymentService {
         phone: customerInfo.phone || null,
       };
       
+      console.log(`[PaymentService] Creating user with data:`, userData);
       clientUser = await storage.users.createUser(userData);
       if (!clientUser) {
+        console.log(`[PaymentService] ERROR: Failed to create client user account`);
         throw new Error('Failed to create client user account');
       }
+      console.log(`[PaymentService] Client user created with ID: ${clientUser.id}`);
+    } else {
+      console.log(`[PaymentService] Found existing user with ID: ${clientUser.id}`);
     }
 
+    console.log(`[PaymentService] Preparing project data...`);
     const projectData = {
       name: quote.title,
       description: quote.description || `Project created from Quote #${quote.quoteNumber}`,
@@ -167,12 +190,18 @@ export class PaymentService {
       customerPhone: customerInfo.phone || null,
     };
 
+    console.log(`[PaymentService] Project data prepared:`, JSON.stringify(projectData, null, 2));
+    console.log(`[PaymentService] Calling createProjectWithClients with client ID: ${clientUser.id}`);
+    
     // Use createProjectWithClients to automatically handle portal creation
     const projectWithDetails = await storage.projects.createProjectWithClients(projectData, [clientUser.id.toString()]);
     
+    console.log(`[PaymentService] createProjectWithClients completed`);
     if (!projectWithDetails) {
+      console.log(`[PaymentService] ERROR: createProjectWithClients returned null/undefined`);
       throw new Error('Failed to create project with client portal');
     }
+    console.log(`[PaymentService] Project created successfully with ID: ${projectWithDetails.id}`);
 
     // Return the project data in the expected format
     return {

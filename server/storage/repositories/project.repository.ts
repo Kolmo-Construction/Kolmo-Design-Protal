@@ -215,15 +215,6 @@ class ProjectRepository implements IProjectRepository {
 
             console.log(`✓ Client portal access automatically created for project ${projectId} with ${clientIds.length} clients`);
 
-            // Send notification emails to clients about their new portal access
-            for (const client of clientUsers) {
-                try {
-                    await this.sendClientPortalNotification(client, projectData.name || 'Your Project');
-                } catch (error) {
-                    console.warn(`Failed to send portal notification to ${client.email}:`, error);
-                }
-            }
-
             // Use tx instance for query inside transaction
             const finalProject = await tx.query.projects.findFirst({
                 where: eq(schema.projects.id, projectId),
@@ -232,8 +223,24 @@ class ProjectRepository implements IProjectRepository {
                     clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
                 }
             });
-            // Map using 'this' which refers to the class instance
-            return finalProject ? this.mapProjectResult(finalProject) : null;
+            
+            const result = finalProject ? this.mapProjectResult(finalProject) : null;
+            
+            // Return both the project result and client users for email notifications
+            return { result, clientUsers, projectName: projectData.name || 'Your Project' };
+        }).then(async (transactionResult) => {
+            // Send notification emails AFTER transaction completes to avoid timeouts
+            if (transactionResult && transactionResult.clientUsers) {
+                for (const client of transactionResult.clientUsers) {
+                    try {
+                        await this.sendClientPortalNotification(client, transactionResult.projectName);
+                    } catch (error) {
+                        console.warn(`Failed to send portal notification to ${client.email}:`, error);
+                    }
+                }
+            }
+            
+            return transactionResult?.result || null;
         });
     }
 

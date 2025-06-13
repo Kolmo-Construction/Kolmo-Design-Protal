@@ -26,24 +26,33 @@ const router = Router();
  */
 router.post('/quotes/:id/accept-payment', async (req, res, next) => {
   try {
+    console.log('[accept-payment] Starting payment setup process...');
+    console.log('[accept-payment] Request body:', JSON.stringify(req.body, null, 2));
+    
     if (!stripe) {
+      console.log('[accept-payment] ERROR: Stripe not initialized');
       throw new HttpError(503, 'Payment processing temporarily unavailable');
     }
 
     const quoteId = parseInt(req.params.id);
     const { customerName, customerEmail, customerPhone } = req.body;
+    console.log(`[accept-payment] Processing for quote ID: ${quoteId}, customer: ${customerName} (${customerEmail})`);
 
     if (!customerName || !customerEmail) {
+      console.log('[accept-payment] ERROR: Missing customer information');
       throw new HttpError(400, 'Customer name and email are required');
     }
 
+    console.log('[accept-payment] Calling paymentService.processQuoteAcceptance...');
     // Use PaymentService to process quote acceptance
     const result = await paymentService.processQuoteAcceptance(quoteId, {
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
     });
+    console.log('[accept-payment] Payment service completed successfully');
 
+    console.log('[accept-payment] Updating quote status to accepted...');
     // Update quote status to accepted
     await storage.quotes.updateQuote(quoteId, {
       status: 'accepted',
