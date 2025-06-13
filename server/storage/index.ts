@@ -2,6 +2,8 @@
 import { db, pool } from '../db'; // Import db instance
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
+import { eq } from 'drizzle-orm';
+import * as schema from '../../shared/schema';
 
 // Import Repository INTERFACES
 import { IUserRepository, userRepository } from './repositories/user.repository';
@@ -36,6 +38,9 @@ export interface StorageAggregate {
     quotes: IQuoteRepository;
     milestones: IMilestoneRepository;
     sessionStore: session.Store;
+    // Permission helper functions
+    projectManagerHasProjectAccess: (userId: number, projectId: number) => Promise<boolean>;
+    clientHasProjectAccess: (userId: number, projectId: number) => Promise<boolean>;
 }
 
 // Create PostgreSQL session store
@@ -53,6 +58,35 @@ const punchListRepositoryInstance = new PunchListRepository(db, mediaRepository)
 const paymentRepositoryInstance = new PaymentRepository(db);
 // *** END ADDED ***
 
+// Permission helper functions
+const projectManagerHasProjectAccess = async (userId: number, projectId: number): Promise<boolean> => {
+    try {
+        const project = await db.query.projects.findFirst({
+            where: eq(schema.projects.id, projectId),
+            columns: { id: true, projectManagerId: true }
+        });
+        
+        return project?.projectManagerId === userId;
+    } catch (error) {
+        console.error(`Error checking project manager access for user ${userId} to project ${projectId}:`, error);
+        return false;
+    }
+};
+
+const clientHasProjectAccess = async (userId: number, projectId: number): Promise<boolean> => {
+    try {
+        const project = await db.query.projects.findFirst({
+            where: eq(schema.projects.id, projectId),
+            with: { clientProjects: { columns: { clientId: true } } }
+        });
+        
+        return project?.clientProjects?.some(c => c.clientId === userId) || false;
+    } catch (error) {
+        console.error(`Error checking client access for user ${userId} to project ${projectId}:`, error);
+        return false;
+    }
+};
+
 // Export the aggregated object
 export const storage: StorageAggregate = {
     users: userRepository,
@@ -69,6 +103,8 @@ export const storage: StorageAggregate = {
     quotes: quoteRepository,
     milestones: milestoneRepository,
     sessionStore,
+    projectManagerHasProjectAccess,
+    clientHasProjectAccess,
 };
 
 // Optionally re-export individual repositories if needed elsewhere
