@@ -171,6 +171,21 @@ export class PaymentService {
       console.log(`[PaymentService] Client user created with ID: ${clientUser.id}`);
     } else {
       console.log(`[PaymentService] Found existing user with ID: ${clientUser.id}`);
+      
+      // Update existing user with correct customer name to prevent name mix-ups
+      const [firstName, ...lastNameParts] = customerInfo.name.split(' ');
+      const lastName = lastNameParts.join(' ') || '';
+      
+      if (clientUser.firstName !== firstName || clientUser.lastName !== lastName) {
+        console.log(`[PaymentService] Updating user name from "${clientUser.firstName} ${clientUser.lastName}" to "${firstName} ${lastName}"`);
+        await storage.users.updateUser(clientUser.id, {
+          firstName,
+          lastName,
+          phone: customerInfo.phone || clientUser.phone,
+        });
+        // Refresh the client user data
+        clientUser = await storage.users.getUserByEmail(customerInfo.email);
+      }
     }
 
     console.log(`[PaymentService] Preparing project data...`);

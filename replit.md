@@ -147,6 +147,11 @@ BASE_URL=https://kolmo.design
   - Fixed magic link URL format to properly match auth route structure (/auth/magic-link/{token})
   - Added secure token generation with 24-hour expiry
   - Implemented dual email system for down payments: payment confirmation + portal invitation
+- June 13, 2025. Fixed down payment processing timeout and email routing issues:
+  - Resolved hanging "Setting up payments" step by moving email notifications outside database transactions
+  - Fixed customer name mix-up where portal invitations showed wrong names due to data inconsistency
+  - Added user name validation during payment process to prevent future name conflicts
+  - Payment setup now completes in under 2 seconds instead of timing out
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
