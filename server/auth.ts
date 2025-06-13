@@ -658,6 +658,50 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Admin reset user password endpoint - admin only
+  app.post("/api/admin/users/:id/reset-password", async (req, res) => {
+    try {
+      // Check if admin
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const userId = parseInt(req.params.id, 10);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+
+      // Check if user exists
+      const userToUpdate = await storage.users.getUserById(String(userId));
+      if (!userToUpdate) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Hash the new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update the user's password
+      await storage.users.updateUser(userId, {
+        password: hashedPassword,
+        // Clear any existing reset tokens
+        resetToken: null,
+        resetTokenExpiry: null
+      });
+
+      res.status(200).json({ 
+        message: `Password has been reset successfully for ${userToUpdate.email}` 
+      });
+    } catch (err) {
+      console.error("Error resetting user password:", err);
+      res.status(500).json({ message: "Failed to reset user password" });
+    }
+  });
+
   // Email configuration status endpoint - admin only
   app.get("/api/admin/email-config", async (req, res) => {
     try {
