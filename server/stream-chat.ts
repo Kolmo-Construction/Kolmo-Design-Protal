@@ -277,19 +277,36 @@ export async function createProjectChannel(
   
   try {
     const channelId = `project-${projectId}`;
-    const channel = streamServerClient.channel('messaging', channelId, {
-      members: [clientId, adminUserId],
-      created_by_id: adminUserId,
-    });
     
-    await channel.create();
+    // First check if channel already exists
+    const channel = streamServerClient.channel('messaging', channelId);
+    
+    try {
+      // Try to query the channel to see if it exists
+      await channel.query();
+      console.log(`Channel ${channelId} already exists, adding members if needed`);
+      
+      // Add members if they're not already in the channel
+      await channel.addMembers([clientId, adminUserId]);
+    } catch (channelError: any) {
+      // Channel doesn't exist, create it
+      if (channelError.code === 4 || channelError.message?.includes('does not exist')) {
+        console.log(`Creating new channel: ${channelId}`);
+        await channel.create({
+          members: [clientId, adminUserId],
+          created_by_id: adminUserId,
+        });
+      } else {
+        throw channelError;
+      }
+    }
     
     // Update channel with custom data
     await channel.update({
       name: `${projectName} - Project Chat`,
     });
     
-    console.log(`✓ Created project channel: ${channelId} for project: ${projectName}`);
+    console.log(`✓ Created/updated project channel: ${channelId} for project: ${projectName}`);
     return channelId;
   } catch (error) {
     console.error('Error creating project channel:', error);
