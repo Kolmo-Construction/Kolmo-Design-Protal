@@ -14,6 +14,53 @@ interface ClientDashboardResponse {
   };
 }
 
+export const getClientInvoices = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      res.status(401).json({ message: 'Authentication required' });
+      return;
+    }
+
+    // Get client's assigned projects
+    const projects = await storage.projects.getProjectsForUser(userId.toString());
+    const projectIds = projects.map((p: any) => p.id);
+    
+    let allInvoices: any[] = [];
+    if (projectIds.length > 0) {
+      try {
+        const invoicePromises = projectIds.map(id => 
+          storage.invoices?.getInvoicesForProject(id).catch(() => [])
+        );
+        const invoiceResults = await Promise.all(invoicePromises);
+        allInvoices = invoiceResults.flat();
+        
+        // Add project name to each invoice
+        allInvoices = allInvoices.map((invoice: any) => {
+          const project = projects.find((p: any) => p.id === invoice.projectId);
+          return {
+            ...invoice,
+            projectName: project?.name || 'Unknown Project'
+          };
+        });
+      } catch (error) {
+        console.error('Error fetching client invoices:', error);
+        allInvoices = [];
+      }
+    }
+
+    res.json(allInvoices);
+  } catch (error) {
+    console.error('Error fetching client invoices:', error);
+    next(error);
+  }
+};
+
 export const getClientDashboard = async (
   req: Request,
   res: Response,
