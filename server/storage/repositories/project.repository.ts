@@ -7,6 +7,7 @@ import { HttpError } from '../../errors';
 import { ProjectWithDetails, ClientInfo, ProjectManagerInfo } from '../types';
 import { sendEmail } from '../../email';
 import { getBaseUrl } from '../../domain.config';
+import { randomBytes } from 'crypto';
 // Import user repository if needed for complex checks, though checkUserProjectAccess fetches user directly now
 // import { userRepository, IUserRepository } from './user.repository';
 
@@ -281,10 +282,25 @@ class ProjectRepository implements IProjectRepository {
         }
     }
     
-    // Send email notification to client about new portal access
+    // Send email notification to client about new portal access with magic link
     private async sendClientPortalNotification(client: any, projectName: string): Promise<void> {
         const baseUrl = getBaseUrl();
-        const portalUrl = `${baseUrl}/client-portal`;
+        
+        // Generate a magic link token for the client
+        const token = this.generateMagicLinkToken();
+        const expiry = this.getMagicLinkExpiry();
+        
+        // Update the client user with the magic link token
+        await this.db.update(schema.users)
+            .set({ 
+                magicLinkToken: token, 
+                magicLinkExpiry: expiry,
+                updatedAt: new Date()
+            })
+            .where(eq(schema.users.id, client.id));
+        
+        // Create the magic link URL
+        const magicLinkUrl = `${baseUrl}/auth/magic-link/${token}`;
         
         const emailHtml = `
         <!DOCTYPE html>
@@ -333,12 +349,11 @@ class ProjectRepository implements IProjectRepository {
                     </div>
                     
                     <p style="text-align: center;">
-                        <a href="${portalUrl}" class="cta-button">Access Your Portal</a>
+                        <a href="${magicLinkUrl}" class="cta-button">Access Your Portal</a>
                     </p>
                     
-                    <p><strong>Your login credentials:</strong><br>
-                    Email: ${client.email}<br>
-                    You can use the magic link authentication or contact us for password assistance.</p>
+                    <p><strong>Secure Access:</strong><br>
+                    Click the button above to securely access your portal. This link will expire in 24 hours for your security.</p>
                     
                     <p>If you have any questions about using the portal or your project, please don't hesitate to reach out to your project manager.</p>
                     
@@ -362,6 +377,32 @@ class ProjectRepository implements IProjectRepository {
         });
 
         console.log(`✓ Portal notification sent to ${client.firstName} ${client.lastName} (${client.email})`);
+    }
+
+    // Generate a unique token for magic links using proper UUID v4
+    private generateMagicLinkToken(): string {
+        const bytes = randomBytes(16);
+        
+        // Set version (4) and variant bits according to RFC 4122
+        bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+        bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 10
+        
+        // Format as UUID string
+        const hex = bytes.toString('hex');
+        return [
+            hex.substring(0, 8),
+            hex.substring(8, 12),
+            hex.substring(12, 16),
+            hex.substring(16, 20),
+            hex.substring(20, 32)
+        ].join('-');
+    }
+
+    // Calculate expiry time (default: 24 hours from now)
+    private getMagicLinkExpiry(hours = 24): Date {
+        const expiryDate = new Date();
+        expiryDate.setHours(expiryDate.getHours() + hours);
+        return expiryDate;
     }
 
     // Get all projects assigned to a specific project manager
