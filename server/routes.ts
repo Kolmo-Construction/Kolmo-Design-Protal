@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   });
 
   // Get all project managers for assignment dropdowns
-  app.get("/api/project-managers", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/project-managers", isAuthenticated, isAdmin, async (req: any, res: any) => {
     try {
       const { storage } = await import("./storage");
       const projectManagers = await storage.users.getByRole("projectManager");
