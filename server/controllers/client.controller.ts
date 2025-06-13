@@ -259,7 +259,7 @@ export const getClientChatToken = async (
       id: chatUserId,
       name: `${user.firstName} ${user.lastName}`,
       email: user.email,
-      role: 'client'
+      role: 'user'
     });
 
     // Generate Stream Chat token
