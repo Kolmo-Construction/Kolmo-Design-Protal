@@ -34,6 +34,7 @@ export const getClientInvoices = async (
     // Use direct SQL query as workaround for repository schema issues
     let allInvoices: any[] = [];
     try {
+      console.log(`[getClientInvoices] Executing SQL query for user ${userId}`);
       const result = await db.execute(sql`
         SELECT i.*, p.name as project_name
         FROM invoices i 
@@ -43,8 +44,17 @@ export const getClientInvoices = async (
         ORDER BY i.issue_date DESC
       `);
       
+      console.log(`[getClientInvoices] Raw query result:`, { 
+        isArray: Array.isArray(result), 
+        hasRows: !!(result as any).rows,
+        resultType: typeof result,
+        resultKeys: Object.keys(result as any),
+        resultLength: Array.isArray(result) ? result.length : 'N/A'
+      });
+      
       // Convert QueryResult to array - result.rows contains the actual data
-      const rows = Array.isArray(result) ? result : result.rows || [];
+      const rows = Array.isArray(result) ? result : (result as any).rows || [];
+      console.log(`[getClientInvoices] Extracted rows:`, { rowsLength: rows.length, firstRow: rows[0] });
       
       allInvoices = rows.map((row: any) => ({
         id: row.id,
@@ -58,14 +68,33 @@ export const getClientInvoices = async (
         projectName: row.project_name
       }));
       
+      console.log(`[getClientInvoices] Mapped invoices:`, allInvoices);
       console.log(`[getClientInvoices] Found ${allInvoices.length} invoices for client ${userId}`);
     } catch (error) {
-      console.error('Error fetching client invoices:', error);
+      console.error('[getClientInvoices] Error fetching client invoices:', error);
       allInvoices = [];
     }
 
     console.log(`[getClientInvoices] Returning ${allInvoices.length} invoices`);
-    res.json(allInvoices);
+    
+    // Force no caching with timestamp
+    const timestamp = Date.now();
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Last-Modified', new Date().toUTCString());
+    res.removeHeader('ETag'); // Remove any ETag
+    
+    // Add timestamp to response to ensure uniqueness
+    res.json({ 
+      timestamp, 
+      invoices: allInvoices,
+      debug: { 
+        userId, 
+        queryExecuted: true,
+        serverTime: new Date().toISOString()
+      }
+    });
   } catch (error) {
     console.error('Error fetching client invoices:', error);
     next(error);

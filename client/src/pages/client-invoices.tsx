@@ -42,10 +42,12 @@ export default function ClientInvoices() {
     ? `/api/projects/${projectId}/invoices`
     : '/api/client/invoices';
 
-  const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
+  const { data: response, isLoading } = useQuery<{invoices: Invoice[], debug?: any}>({
     queryKey: [apiEndpoint],
     enabled: !!user && (user.role === 'client' || user.role === 'admin')
   });
+  
+  const invoices = response?.invoices || [];
 
   // Get project name for header when in project context
   const { data: project } = useQuery<{ id: number; name: string }>({
