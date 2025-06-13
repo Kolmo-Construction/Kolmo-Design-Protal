@@ -93,6 +93,18 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
     return getClientInvoices(req, res, next);
   });
 
+  // Get all project managers for assignment dropdowns
+  app.get("/api/project-managers", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { storage } = await import("./storage");
+      const projectManagers = await storage.users.getByRole("projectManager");
+      res.json(projectManagers);
+    } catch (error) {
+      console.error("Error fetching project managers:", error);
+      res.status(500).json({ message: "Failed to fetch project managers" });
+    }
+  });
+
 
 
   // --- Mount Project-Specific Routers ---

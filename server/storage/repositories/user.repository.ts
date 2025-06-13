@@ -27,6 +27,7 @@ export interface IUserRepository {
     updateUser(id: number, userData: Partial<schema.InsertUser>): Promise<schema.User>;
     updateUserMagicLinkToken(id: number, token: string | null, expiry: Date | null): Promise<schema.User>;
     getAllUsers(): Promise<schema.User[]>;
+    getByRole(role: string): Promise<schema.User[]>;
     deleteUser(id: number): Promise<boolean>;
 }
 
@@ -312,6 +313,18 @@ class UserRepository implements IUserRepository {
         } catch (error) {
             console.error('Error getting all users:', error);
             throw new Error('Database error while getting all users.');
+        }
+    }
+
+    async getByRole(role: string): Promise<schema.User[]> {
+        try {
+            return await this.db.query.users.findMany({
+                where: eq(schema.users.role, role),
+                orderBy: [asc(schema.users.lastName), asc(schema.users.firstName)]
+            });
+        } catch (error) {
+            console.error(`Error getting users by role (${role}):`, error);
+            throw new Error('Database error while getting users by role.');
         }
     }
 
