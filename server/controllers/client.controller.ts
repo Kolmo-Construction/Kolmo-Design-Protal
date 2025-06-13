@@ -53,7 +53,7 @@ export const getClientInvoices = async (
       });
       
       // Convert QueryResult to array - result.rows contains the actual data
-      const rows = Array.isArray(result) ? result : (result as any).rows || [];
+      const rows = (result as any).rows || [];
       console.log(`[getClientInvoices] Extracted rows:`, { rowsLength: rows.length, firstRow: rows[0] });
       
       allInvoices = rows.map((row: any) => ({
