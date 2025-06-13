@@ -56,12 +56,36 @@ class InvoiceRepository implements IInvoiceRepository {
 
     async getInvoicesForClient(clientId: number): Promise<schema.Invoice[]> {
         try {
-            // Get invoices for projects where the client is the owner
+            // Get invoices for projects where the client is associated through client_projects table
             return await this.dbOrTx
-                .select()
+                .select({
+                    id: schema.invoices.id,
+                    projectId: schema.invoices.projectId,
+                    invoiceNumber: schema.invoices.invoiceNumber,
+                    amount: schema.invoices.amount,
+                    description: schema.invoices.description,
+                    issueDate: schema.invoices.issueDate,
+                    dueDate: schema.invoices.dueDate,
+                    documentId: schema.invoices.documentId,
+                    createdAt: schema.invoices.createdAt,
+                    status: schema.invoices.status,
+                    invoiceType: schema.invoices.invoiceType,
+                    quoteId: schema.invoices.quoteId,
+                    stripePaymentIntentId: schema.invoices.stripePaymentIntentId,
+                    stripeInvoiceId: schema.invoices.stripeInvoiceId,
+                    paymentLink: schema.invoices.paymentLink,
+                    customerName: schema.invoices.customerName,
+                    customerEmail: schema.invoices.customerEmail,
+                    billingAddress: schema.invoices.billingAddress,
+                    lateFeePercentage: schema.invoices.lateFeePercentage,
+                    gracePeriodDays: schema.invoices.gracePeriodDays,
+                    updatedAt: schema.invoices.updatedAt,
+                    milestoneId: schema.invoices.milestoneId
+                })
                 .from(schema.invoices)
                 .innerJoin(schema.projects, eq(schema.invoices.projectId, schema.projects.id))
-                .where(eq(schema.projects.clientId, clientId))
+                .innerJoin(schema.clientProjects, eq(schema.projects.id, schema.clientProjects.projectId))
+                .where(eq(schema.clientProjects.clientId, clientId))
                 .orderBy(desc(schema.invoices.issueDate));
         } catch (error) {
             console.error(`Error fetching invoices for client ${clientId}:`, error);

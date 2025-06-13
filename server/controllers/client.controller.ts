@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { storage } from '@server/storage';
+import { db } from '@server/db';
+import { sql } from 'drizzle-orm';
 
 interface ClientDashboardResponse {
   projects: any[];
@@ -29,46 +31,34 @@ export const getClientInvoices = async (
 
     console.log(`[getClientInvoices] Fetching invoices for user ID: ${userId}`);
 
-    // Get client's assigned projects
-    const projects = await storage.projects.getProjectsForUser(userId.toString());
-    console.log(`[getClientInvoices] Found ${projects.length} projects for user:`, projects.map(p => ({ id: p.id, name: p.name })));
-    console.log(`[getClientInvoices] Full projects data:`, JSON.stringify(projects, null, 2));
-    
-    const projectIds = projects.map((p: any) => p.id);
-    
+    // Use direct SQL query as workaround for repository schema issues
     let allInvoices: any[] = [];
-    if (projectIds.length > 0) {
-      try {
-        console.log(`[getClientInvoices] Fetching invoices for project IDs:`, projectIds);
-        
-        const invoicePromises = projectIds.map(async id => {
-          const invoices = await storage.invoices?.getInvoicesForProject(id).catch(err => {
-            console.error(`[getClientInvoices] Error fetching invoices for project ${id}:`, err);
-            return [];
-          });
-          console.log(`[getClientInvoices] Project ${id} has ${invoices?.length || 0} invoices`);
-          return invoices || [];
-        });
-        
-        const invoiceResults = await Promise.all(invoicePromises);
-        allInvoices = invoiceResults.flat();
-        
-        console.log(`[getClientInvoices] Total invoices found: ${allInvoices.length}`);
-        
-        // Add project name to each invoice
-        allInvoices = allInvoices.map((invoice: any) => {
-          const project = projects.find((p: any) => p.id === invoice.projectId);
-          return {
-            ...invoice,
-            projectName: project?.name || 'Unknown Project'
-          };
-        });
-      } catch (error) {
-        console.error('Error fetching client invoices:', error);
-        allInvoices = [];
-      }
-    } else {
-      console.log(`[getClientInvoices] No projects found for user ${userId}`);
+    try {
+      const result = await db.execute(sql`
+        SELECT i.*, p.name as project_name
+        FROM invoices i 
+        INNER JOIN projects p ON i.project_id = p.id
+        INNER JOIN client_projects cp ON p.id = cp.project_id
+        WHERE cp.client_id = ${userId}
+        ORDER BY i.issue_date DESC
+      `);
+      
+      allInvoices = result.map((row: any) => ({
+        id: row.id,
+        projectId: row.project_id,
+        invoiceNumber: row.invoice_number,
+        amount: row.amount,
+        description: row.description,
+        issueDate: row.issue_date,
+        dueDate: row.due_date,
+        status: row.status,
+        projectName: row.project_name
+      }));
+      
+      console.log(`[getClientInvoices] Found ${allInvoices.length} invoices for client ${userId}`);
+    } catch (error) {
+      console.error('Error fetching client invoices:', error);
+      allInvoices = [];
     }
 
     console.log(`[getClientInvoices] Returning ${allInvoices.length} invoices`);
