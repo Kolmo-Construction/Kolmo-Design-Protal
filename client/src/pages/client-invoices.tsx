@@ -21,7 +21,7 @@ interface Invoice {
   id: number;
   invoiceNumber: string;
   amount: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
+  status: 'draft' | 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
   issueDate: string;
   dueDate: string;
   projectName: string;

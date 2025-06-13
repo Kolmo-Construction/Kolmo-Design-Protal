@@ -43,7 +43,10 @@ export const getClientInvoices = async (
         ORDER BY i.issue_date DESC
       `);
       
-      allInvoices = result.map((row: any) => ({
+      // Convert QueryResult to array - result.rows contains the actual data
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      
+      allInvoices = rows.map((row: any) => ({
         id: row.id,
         projectId: row.project_id,
         invoiceNumber: row.invoice_number,
