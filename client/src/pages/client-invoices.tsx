@@ -43,8 +43,9 @@ export default function ClientInvoices() {
     : '/api/client/invoices';
 
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
-    queryKey: [apiEndpoint],
-    enabled: !!user && (user.role === 'client' || user.role === 'admin')
+    queryKey: [apiEndpoint, 'v2'], // Added version to force cache invalidation
+    enabled: !!user && (user.role === 'client' || user.role === 'admin'),
+    staleTime: 0 // Disable caching temporarily for debugging
   });
 
   // Get project name for header when in project context
