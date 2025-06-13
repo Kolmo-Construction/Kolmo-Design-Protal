@@ -244,20 +244,29 @@ export function setupAuth(app: Express) {
   app.get("/api/auth/magic-link/:token", async (req, res, next) => {
     try {
       const { token } = req.params;
+      console.log(`[Magic Link] Processing token: ${token}`);
 
       if (!token) {
+        console.log(`[Magic Link] No token provided`);
         return res.status(400).json({ message: "Invalid token" });
       }
 
       // Updated to use storage.users
+      console.log(`[Magic Link] Looking up user for token: ${token}`);
       const user = await storage.users.getUserByMagicLinkToken(token);
 
       if (!user) {
+        console.log(`[Magic Link] No user found for token: ${token}`);
         return res.status(404).json({ message: "Invalid or expired link" });
       }
 
+      console.log(`[Magic Link] Found user: ${user.firstName} ${user.lastName} (ID: ${user.id})`);
+      console.log(`[Magic Link] Token expiry: ${user.magicLinkExpiry}`);
+      console.log(`[Magic Link] Current time: ${new Date()}`);
+
       // Check if the token has expired
       if (user.magicLinkExpiry && new Date(user.magicLinkExpiry) < new Date()) {
+        console.log(`[Magic Link] Token expired for user: ${user.id}`);
         return res.status(401).json({ message: "Magic link has expired" });
       }
 
