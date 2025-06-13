@@ -380,7 +380,9 @@ export async function checkEnhancedProjectAccess(
  */
 export function requireProjectPermission(permission?: keyof ProjectManagerPermissions) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const projectId = parseInt(req.params.projectId, 10);
+    // Handle both :projectId and :id parameter names
+    const projectIdParam = req.params.projectId || req.params.id;
+    const projectId = parseInt(projectIdParam, 10);
     
     if (isNaN(projectId)) {
       return res.status(400).json({ message: "Invalid project ID" });
