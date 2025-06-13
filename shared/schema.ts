@@ -877,7 +877,7 @@ export const insertSelectionSchema = createInsertSchema(selections).omit({
 });
 
 // --- MODIFIED Task Insert Schema ---
-export const insertTaskSchema = createInsertSchema(tasks).omit({
+const baseTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -920,8 +920,21 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
     progress: z.number().int().min(0).max(100).default(0).optional(), // Adding optional if you don't always provide it
 });
 
+export const insertTaskSchema = baseTaskSchema.refine((data) => {
+    // Custom validation: start date should not be after due date
+    if (data.startDate && data.dueDate) {
+        const startDate = data.startDate instanceof Date ? data.startDate : new Date(data.startDate);
+        const dueDate = data.dueDate instanceof Date ? data.dueDate : new Date(data.dueDate);
+        return startDate <= dueDate;
+    }
+    return true; // If either date is missing, skip validation
+}, {
+    message: "Start date cannot be after due date",
+    path: ["startDate"], // Show error on startDate field
+});
+
 // Update schema for tasks with completion and billing fields
-export const updateTaskSchema = insertTaskSchema.partial().extend({
+export const updateTaskSchema = baseTaskSchema.partial().extend({
   completedAt: z.date().optional(),
   billedAt: z.date().optional(),
   milestoneId: z.number().optional(),

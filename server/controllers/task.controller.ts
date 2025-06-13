@@ -6,6 +6,7 @@ import { TaskWithAssignee } from '../storage/types';
 import {
   // Import schema types from the shared location
   insertTaskSchema,
+  updateTaskSchema,
   insertTaskDependencySchema,
   User, // Keep User type for req.user casting
   InsertTask, // Type for creating tasks
@@ -19,23 +20,9 @@ import { HttpError } from '../errors';
 import { log as logger } from '@server/vite'; // Use logger from vite.ts
 
 // --- Zod Schemas ---
-// Schema for creating tasks (omitting server-set fields)
-const taskCreateSchema = insertTaskSchema.omit({
-  id: true,
-  projectId: true, // Will be added from route params
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Schema for updating tasks (making fields optional)
-const taskUpdateSchema = insertTaskSchema.partial().omit({
-  id: true,
-  projectId: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-    status: taskStatusEnum.optional(), // Allow updating status with enum validation
-});
+// Use the schemas directly from shared/schema.ts
+const taskCreateSchema = insertTaskSchema;
+const taskEditSchema = updateTaskSchema;
 
 // Schema for validating task dependency request bodies (both create and delete)
 const taskDependencySchema = z.object({
