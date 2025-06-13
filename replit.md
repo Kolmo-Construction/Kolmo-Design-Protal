@@ -142,6 +142,11 @@ BASE_URL=https://kolmo.design
 
 ## Changelog
 - June 13, 2025. Initial setup
+- June 13, 2025. Fixed client portal invitation email issues:
+  - Corrected email template to use customer name instead of project manager name
+  - Fixed magic link URL format to properly match auth route structure (/auth/magic-link/{token})
+  - Added secure token generation with 24-hour expiry
+  - Implemented dual email system for down payments: payment confirmation + portal invitation
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
