@@ -68,10 +68,11 @@ export function formatTasksForGanttReact(
 
     taskMap.set(apiTask.id, apiTask); // Add to map
 
-    // Date Parsing and Validation
+    // Date Parsing and Validation - provide defaults for missing dates
+    let hasOriginalDates = true;
     if (!apiTask.startDate || !apiTask.dueDate) {
-      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') is missing original start or due date. Filtering out.`);
-      return false;
+      console.warn(`[gantt-utils-react] Task ID ${taskIdStr} ('${apiTask.title}') is missing original start or due date. Using default dates.`);
+      hasOriginalDates = false;
     }
     let startDate: Date | null = null;
     let endDate: Date | null = null;
@@ -80,6 +81,9 @@ export function formatTasksForGanttReact(
         startDate = apiTask.startDate;
       } else if (typeof apiTask.startDate === 'string') {
         startDate = parseISO(apiTask.startDate);
+      } else if (!hasOriginalDates || !apiTask.startDate) {
+        // Provide default start date (today)
+        startDate = new Date();
       } else {
         throw new Error('Invalid startDate type');
       }
@@ -88,6 +92,10 @@ export function formatTasksForGanttReact(
         endDate = apiTask.dueDate;
       } else if (typeof apiTask.dueDate === 'string') {
         endDate = parseISO(apiTask.dueDate);
+      } else if (!hasOriginalDates || !apiTask.dueDate) {
+        // Provide default end date (tomorrow)
+        endDate = new Date();
+        endDate.setDate(endDate.getDate() + 1);
       } else {
         throw new Error('Invalid dueDate type');
       }
@@ -123,20 +131,27 @@ export function formatTasksForGanttReact(
   potentiallyValidTasks.forEach((apiTask) => {
     const taskIdStr = String(apiTask.id);
     
-    // Parse dates with proper type checking
+    // Parse dates with proper type checking and null safety
     let startDate: Date;
     let endDate: Date;
     
     if (apiTask.startDate instanceof Date) {
       startDate = apiTask.startDate;
+    } else if (typeof apiTask.startDate === 'string') {
+      startDate = parseISO(apiTask.startDate);
     } else {
-      startDate = parseISO(apiTask.startDate!);
+      // Provide default start date for tasks without dates
+      startDate = new Date();
     }
     
     if (apiTask.dueDate instanceof Date) {
       endDate = apiTask.dueDate;
+    } else if (typeof apiTask.dueDate === 'string') {
+      endDate = parseISO(apiTask.dueDate);
     } else {
-      endDate = parseISO(apiTask.dueDate!);
+      // Provide default end date for tasks without dates
+      endDate = new Date();
+      endDate.setDate(endDate.getDate() + 1);
     }
 
     // Progress Calculation & Validation based on status
