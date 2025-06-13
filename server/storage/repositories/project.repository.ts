@@ -14,9 +14,11 @@ import { getBaseUrl } from '../../domain.config';
 export interface IProjectRepository {
     getAllProjects(): Promise<ProjectWithDetails[]>;
     getProjectsForUser(userId: string): Promise<ProjectWithDetails[]>;
+    getProjectsByManager(managerId: number): Promise<ProjectWithDetails[]>; // Get projects assigned to a specific project manager
     getProjectById(projectId: number): Promise<ProjectWithDetails | null>;
     getProjectByQuoteId(quoteId: number): Promise<schema.Project | null>; // Find project by origin quote ID
     getProject(projectId: number): Promise<schema.Project | null>; // Basic project without relations
+    getProjectClients(projectId: number): Promise<ClientInfo[]>; // Get clients for a specific project
     checkUserProjectAccess(userId: string, projectId: number): Promise<boolean>;
     createProject(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }): Promise<schema.Project>; // Simple project creation for quote workflow
     createProjectWithClients(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }, clientIds: string[]): Promise<ProjectWithDetails | null>;
@@ -360,6 +362,47 @@ class ProjectRepository implements IProjectRepository {
         });
 
         console.log(`✓ Portal notification sent to ${client.firstName} ${client.lastName} (${client.email})`);
+    }
+
+    // Get all projects assigned to a specific project manager
+    async getProjectsByManager(managerId: number): Promise<ProjectWithDetails[]> {
+        try {
+            const projects = await this.db.query.projects.findMany({
+                where: eq(schema.projects.projectManagerId, managerId),
+                orderBy: [desc(schema.projects.updatedAt)],
+                with: {
+                    projectManager: { columns: { id: true, firstName: true, lastName: true, email: true } },
+                    clientProjects: { with: { client: { columns: { id: true, firstName: true, lastName: true, email: true } } } }
+                }
+            });
+            return projects.map(this.mapProjectResult);
+        } catch (error) {
+            console.error(`Error fetching projects for manager ${managerId}:`, error);
+            throw new Error('Database error while fetching projects for manager.');
+        }
+    }
+
+    // Get clients for a specific project
+    async getProjectClients(projectId: number): Promise<ClientInfo[]> {
+        try {
+            const clientProjects = await this.db.query.clientProjects.findMany({
+                where: eq(schema.clientProjects.projectId, projectId),
+                with: {
+                    client: { columns: { id: true, firstName: true, lastName: true, email: true, phone: true } }
+                }
+            });
+            
+            return clientProjects.map(cp => ({
+                id: cp.client.id,
+                firstName: cp.client.firstName,
+                lastName: cp.client.lastName,
+                email: cp.client.email,
+                phone: cp.client.phone
+            }));
+        } catch (error) {
+            console.error(`Error fetching clients for project ${projectId}:`, error);
+            throw new Error('Database error while fetching project clients.');
+        }
     }
 
     // Method for backward compatibility
