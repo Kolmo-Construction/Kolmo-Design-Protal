@@ -18,6 +18,7 @@ const taskStatusEnum = z.enum(['todo', 'in_progress', 'blocked', 'done', 'cancel
 const taskPriorityEnum = z.enum(['low', 'medium', 'high']);
 import { HttpError } from '../errors';
 import { log as logger } from '@server/vite'; // Use logger from vite.ts
+import { BillingValidator } from '../utils/billing-validation';
 
 // --- Zod Schemas ---
 // Use the schemas directly from shared/schema.ts
@@ -159,6 +160,14 @@ export const createTask = async (
       throw new HttpError(400, 'Invalid task data.', validationResult.error.flatten());
     }
     const validatedData = validationResult.data;
+
+    // Validate billing percentage if this is a billable task with percentage billing
+    if (validatedData.isBillable && validatedData.billingType === 'percentage' && validatedData.billingPercentage) {
+      await BillingValidator.validateAndThrowForTask(
+        projectIdNum, 
+        parseFloat(validatedData.billingPercentage.toString())
+      );
+    }
 
     // Prepare data for repository, ensuring Date objects if needed
     const newTaskData: InsertTask = {
