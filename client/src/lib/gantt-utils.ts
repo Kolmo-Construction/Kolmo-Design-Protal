@@ -186,8 +186,8 @@ export function formatTasksForGanttReact(
 
     // Determine Task Type & Validation
     let taskType: TaskType = 'task'; // Default for gantt-task-react
-    // Example: Identify milestones (if start and end date are the same day)
-    if (differenceInDays(endDate, startDate) === 0) {
+    // Only create milestones for tasks that have actual dates (not default generated ones)
+    if (hasOriginalDates && apiTask.startDate && apiTask.dueDate && differenceInDays(endDate, startDate) === 0) {
       taskType = 'milestone';
     }
     // Add logic for 'project' type if applicable based on your data (e.g., apiTask.isSummary)
