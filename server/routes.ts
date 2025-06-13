@@ -97,6 +97,15 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // --- Mount Project-Specific Routers ---
   // Apply common middleware like isAuthenticated and validateProjectId here
 
+  // Project Administration Routes - Enhanced permissions for project managers
+  const projectAdminRouter = await import("./routes/project-admin.routes");
+  app.use(
+    "/api/projects/:projectId/admin",
+    isAuthenticated,
+    validateProjectId,
+    projectAdminRouter.default
+  );
+
   // Documents within a project
   app.use(
     "/api/projects/:projectId/documents",

@@ -30,34 +30,39 @@ router.get('/',
 // GET /api/projects/:projectId/punch-list/:itemId - Get a specific punch list item by ID
 router.get('/:itemId',
     validateResourceId('itemId'),
+    requireProjectPermission('canViewProject'),
     punchListController.getPunchListItemById
 );
 
-// POST /api/projects/:projectId/punch-list - Create a new punch list item
+// POST /api/projects/:projectId/punch-list - Create a new punch list item (Project Manager access)
 router.post('/',
-    // isAdmin, // Uncomment if only admins/PMs can create
-    upload.single('punchPhoto'), // *** ADDED: Middleware to handle single file upload named 'punchPhoto' ***
-    // Remove validateRequestBody for POST as it now expects FormData, not JSON
-    // validateRequestBody(insertPunchListItemSchema.omit(...)), // REMOVED
-    punchListController.createPunchListItem // Controller now expects req.file and req.body
+    requireProjectPermission('canCreatePunchListItems'),
+    upload.single('punchPhoto'),
+    punchListController.createPunchListItem
 );
 
-// PUT /api/projects/:projectId/punch-list/:itemId - Update a punch list item
-// Assuming updates might also include photos, add upload middleware here too
+// PUT /api/projects/:projectId/punch-list/:itemId - Update a punch list item (Project Manager access)
 router.put('/:itemId',
     validateResourceId('itemId'),
-    // isAdmin, // Uncomment if needed
-    upload.single('punchPhoto'), // *** ADDED: Middleware for potential photo update/replacement ***
-    // validateRequestBody(insertPunchListItemSchema.partial()), // REMOVED - Expects FormData now
-    punchListController.updatePunchListItem // Controller needs to handle req.file and req.body
+    requireProjectPermission('canEditPunchListItems'),
+    upload.single('punchPhoto'),
+    punchListController.updatePunchListItem
 );
 
-// DELETE /api/projects/:projectId/punch-list/:itemId - Delete a punch list item
+// DELETE /api/projects/:projectId/punch-list/:itemId - Delete a punch list item (Project Manager access)
 router.delete('/:itemId',
     validateResourceId('itemId'),
-    // isAdmin, // Uncomment if needed
+    requireProjectPermission('canDeletePunchListItems'),
     punchListController.deletePunchListItem
 );
+
+// PATCH /api/projects/:projectId/punch-list/:itemId/complete - Complete a punch list item (Project Manager access)
+// Note: This functionality would be implemented in the controller when needed
+// router.patch('/:itemId/complete',
+//     validateResourceId('itemId'),
+//     requireProjectPermission('canCompletePunchListItems'),
+//     punchListController.completePunchListItem
+// );
 
 // --- Media Routes (If using separate endpoints, keep as is) ---
 // If creating/updating items handles media directly, these might become redundant or change.
