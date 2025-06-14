@@ -67,7 +67,17 @@ export default function QuotePaymentPage() {
   const loadQuote = async () => {
     try {
       setIsLoadingQuote(true);
-      const quoteData = await apiRequest('GET', `/api/quotes/${quoteId}`);
+      // Use public quote access since this is a customer-facing page
+      const res = await fetch(`/api/quotes/public/${quoteId}`);
+      
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Quote not found or expired');
+        }
+        throw new Error(`Failed to load quote: ${res.statusText}`);
+      }
+      
+      const quoteData = await res.json();
       setQuote(quoteData);
       
       // Pre-fill customer information from quote

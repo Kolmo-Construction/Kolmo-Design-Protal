@@ -124,6 +124,19 @@ export default function CustomerQuotePage() {
     queryKey: [`/api/quotes/public/${token}`],
     enabled: !!token,
     retry: false,
+    queryFn: async () => {
+      // Custom query function for public quote access - no credentials needed
+      const res = await fetch(`/api/quotes/public/${token}`);
+      
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Quote not found or expired');
+        }
+        throw new Error(`Failed to load quote: ${res.statusText}`);
+      }
+      
+      return await res.json();
+    },
   });
 
   // Initialize analytics when quote data is loaded - ONLY for customer quote pages
@@ -157,7 +170,21 @@ export default function CustomerQuotePage() {
       if (analyticsRef.current) {
         analyticsRef.current.trackFormSubmission('quote_response', { action: data.action });
       }
-      return await apiRequest(`/api/quotes/public/${token}/respond`, "POST", data);
+      
+      // Custom fetch for public route - no credentials needed
+      const res = await fetch(`/api/quotes/public/${token}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Failed to submit response: ${res.statusText}`);
+      }
+      
+      return await res.json();
     },
     onSuccess: (data, variables) => {
       if (variables.action === 'declined') {
