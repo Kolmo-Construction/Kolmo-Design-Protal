@@ -599,12 +599,15 @@ export function setupAuth(app: Express) {
           throw new Error(`Cannot delete user: they are the project manager for: ${projectNames}. Please reassign these projects first.`);
         }
 
+        // Instead of blocking deletion, we'll remove client-project assignments
         const clientProjectCount = await tx.select({ count: sql`count(*)` })
           .from(clientProjects)
           .where(eq(clientProjects.clientId, userId));
 
-        if (clientProjectCount[0]?.count > 0) {
-          throw new Error(`Cannot delete user: they are assigned as a client to ${clientProjectCount[0].count} project(s). Please remove these assignments first.`);
+        if (clientProjectCount[0] && Number(clientProjectCount[0].count) > 0) {
+          console.log(`Removing ${clientProjectCount[0].count} client-project assignments for user ${userId}`);
+          // Remove client-project relationships
+          await tx.delete(clientProjects).where(eq(clientProjects.clientId, userId));
         }
 
         // If no critical dependencies, proceed with safe cleanup
@@ -613,38 +616,32 @@ export function setupAuth(app: Express) {
         // Remove client-project relationships (if any remain)
         await tx.delete(clientProjects).where(eq(clientProjects.clientId, userId));
 
-        // Update references to set them to NULL where possible
+        // Update references to set them to NULL where possible (only for nullable fields)
+        // uploadedById in documents is nullable
         await tx.update(documents)
           .set({ uploadedById: null })
           .where(eq(documents.uploadedById, userId));
 
-        await tx.update(dailyLogs)
-          .set({ createdById: null })
-          .where(eq(dailyLogs.createdById, userId));
-
-        await tx.update(progressUpdates)
-          .set({ createdById: null })
-          .where(eq(progressUpdates.createdById, userId));
-
-        // Tasks and punch list items should already handle SET NULL via constraints
-        // but we can be explicit
+        // assigneeId in tasks is nullable  
         await tx.update(tasks)
           .set({ assigneeId: null })
           .where(eq(tasks.assigneeId, userId));
 
+        // assigneeId in punchListItems is nullable (has onDelete: 'set null')
         await tx.update(punchListItems)
           .set({ assigneeId: null })
           .where(eq(punchListItems.assigneeId, userId));
 
-        // For messages, we could either delete them or keep them with null references
-        // For now, we'll keep the messages but null the references
-        await tx.update(messages)
-          .set({ senderId: null })
-          .where(eq(messages.senderId, userId));
-
+        // recipientId in messages is nullable
         await tx.update(messages)
           .set({ recipientId: null })
           .where(eq(messages.recipientId, userId));
+
+        // Delete records where user is required (not nullable)
+        // createdById is NOT NULL in dailyLogs, progressUpdates, messages.senderId
+        await tx.delete(dailyLogs).where(eq(dailyLogs.createdById, userId));
+        await tx.delete(progressUpdates).where(eq(progressUpdates.createdById, userId));
+        await tx.delete(messages).where(eq(messages.senderId, userId));
 
         // Finally, delete the user
         const result = await tx.delete(users).where(eq(users.id, userId));
