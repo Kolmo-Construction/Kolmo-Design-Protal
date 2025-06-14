@@ -4,6 +4,7 @@ import { HttpError } from '../errors';
 import { sendEmail } from '../email';
 import { insertInvoiceSchema } from '@shared/schema';
 import type { Quote, Invoice, Project } from '@shared/schema';
+import { randomBytes } from 'crypto';
 
 export interface PaymentSchedule {
   downPayment: {
@@ -1027,7 +1028,6 @@ export class PaymentService {
    * Generate magic link token
    */
   private generateMagicLinkToken(): string {
-    const { randomBytes } = require('crypto');
     const bytes = randomBytes(16);
     
     // Set version (4) and variant bits according to RFC 4122

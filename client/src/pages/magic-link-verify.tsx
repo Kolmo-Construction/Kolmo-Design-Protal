@@ -30,12 +30,18 @@ export default function MagicLinkVerifyPage() {
         // Update the authentication cache
         await queryClient.invalidateQueries({ queryKey: ['/api/user'] });
         
-        // Handle redirect based on server response
+        // Handle redirect based on user role and profile status
         if (data.redirect === '/setup-profile') {
           // New user needs to set up their profile
           setTimeout(() => navigate('/setup-profile'), 2000);
+        } else if (data.user && data.user.role === 'client') {
+          // Client users go to their portal
+          setTimeout(() => navigate('/client-portal'), 2000);
+        } else if (data.user && data.user.role === 'project_manager') {
+          // Project managers go to their dashboard
+          setTimeout(() => navigate('/project-manager'), 2000);
         } else {
-          // Existing user, redirect to dashboard
+          // Admin users or fallback go to main dashboard
           setTimeout(() => navigate('/'), 2000);
         }
       } else {
