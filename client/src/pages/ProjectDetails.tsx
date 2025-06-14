@@ -75,10 +75,10 @@ export default function ProjectDetails() {
   // --- Loading State ---
   if (isLoadingProject) {
     return (
-      <div className="flex h-screen bg-slate-50">
+      <div className="h-screen bg-slate-50">
         <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
         <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        <main className="flex-1 lg:ml-64 p-4 lg:p-8 pt-24 flex items-center justify-center">
+        <main className="lg:ml-64 p-4 lg:p-8 pt-24 h-full flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
             <p className="text-slate-600">Loading project details...</p>
@@ -94,10 +94,10 @@ export default function ProjectDetails() {
       ? projectError.message
       : "The project you are looking for does not exist or you don't have access to it.";
     return (
-      <div className="flex h-screen bg-slate-50">
+      <div className="h-screen bg-slate-50">
         <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
         <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        <main className="flex-1 lg:ml-64 p-4 lg:p-8 pt-24 flex items-center justify-center">
+        <main className="lg:ml-64 p-4 lg:p-8 pt-24 h-full flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle className="text-red-600">Project Not Found</CardTitle>
@@ -119,11 +119,11 @@ export default function ProjectDetails() {
 
   // --- Success State ---
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="h-screen bg-slate-50">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="flex-1 lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto">
+      <main className="lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto h-full">
         {/* Navigation Buttons */}
         <div className="mb-4 flex justify-between">
           <Link href="/projects">

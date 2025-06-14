@@ -105,11 +105,11 @@ export default function UserManagement() {
    const selectedClient = users.find(u => u.id === selectedClientId);
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="h-screen bg-slate-50">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="flex-1 lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto">
+      <main className="lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto h-full">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>

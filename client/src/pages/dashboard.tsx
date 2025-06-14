@@ -51,11 +51,11 @@ export default function Dashboard() {
   const unreadMessages = messagesArray.filter((m: any) => !m.isRead).length;
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="flex-1 lg:ml-64 p-6 pt-24 overflow-auto">
+      <main className="lg:ml-64 p-6 pt-24 overflow-auto h-full">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#3d4552] mb-2">
