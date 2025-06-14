@@ -55,7 +55,7 @@ export default function Dashboard() {
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="flex-1 ml-0 lg:ml-64 p-6 pt-20 overflow-auto">
+      <main className="flex-1 ml-0 lg:ml-64 p-6 pt-24 overflow-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#3d4552] mb-2">

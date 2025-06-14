@@ -88,7 +88,7 @@ export default function Projects() {
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-20 overflow-auto">
+      <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-slate-800 mb-2">Projects</h1>
           <p className="text-slate-600">View and manage all your construction and remodeling projects</p>
