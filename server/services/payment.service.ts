@@ -746,9 +746,13 @@ export class PaymentService {
         
         // Send appropriate confirmation email
         if (metadata.paymentType === 'down_payment' && invoice.projectId) {
-          // Send combined welcome email with portal access (includes magic link)
-          await this.sendProjectWelcomeWithPortalAccess(invoice.projectId);
-          console.log(`[PaymentService] Combined welcome and portal invitation sent for project ${invoice.projectId}`);
+          // Send payment confirmation first, then portal access separately to prevent confusion
+          await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
+          console.log(`[PaymentService] Down payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
+          
+          // Send single portal access email to the customer email from invoice
+          await this.sendSinglePortalAccessEmail(invoice.projectId, invoice.customerEmail!, invoice.customerName!);
+          console.log(`[PaymentService] Portal access email sent for project ${invoice.projectId}`);
         } else {
           await this.sendPaymentConfirmationEmail(invoice, paymentAmount);
           console.log(`[PaymentService] Payment confirmation email sent for invoice ${invoice.invoiceNumber}`);
@@ -765,8 +769,106 @@ export class PaymentService {
   }
 
   /**
+   * Send single portal access email to specific customer after down payment
+   * This prevents duplicate magic links by sending only one email per customer
+   */
+  async sendSinglePortalAccessEmail(projectId: number, customerEmail: string, customerName: string): Promise<void> {
+    try {
+      const project = await storage.projects.getProjectById(projectId);
+      if (!project) {
+        console.error(`Project ${projectId} not found for portal access email`);
+        return;
+      }
+
+      // Find the specific user by email
+      const user = await storage.users.getUserByEmail(customerEmail);
+      if (!user) {
+        console.error(`User not found for email: ${customerEmail}`);
+        return;
+      }
+
+      // Generate single magic link token for this specific user
+      const token = this.generateMagicLinkToken();
+      const expiry = this.getMagicLinkExpiry();
+      
+      // Update user with magic link token
+      await storage.users.updateUserMagicLinkToken(user.id, token, expiry);
+      
+      // Create magic link URL
+      const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+      const magicLinkUrl = `${baseUrl}/auth/magic-link/${token}`;
+
+      const subject = `Welcome to Your ${project.name} Project Portal - Kolmo Construction`;
+      
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to Your Kolmo Project Portal</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: white; padding: 30px 20px; text-align: center; }
+                .logo { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+                .content { padding: 30px 20px; background: #ffffff; }
+                .project-info { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #db973c; }
+                .cta-button { display: inline-block; background: #db973c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+                .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="logo">KOLMO</div>
+                    <p>Your Project Portal is Ready</p>
+                </div>
+                
+                <div class="content">
+                    <h2>Hi ${customerName},</h2>
+                    
+                    <p>Your project portal is now ready! You can track your construction project progress, communicate with your team, and access all project updates in real-time.</p>
+                    
+                    <div class="project-info">
+                        <h3>📋 Project: ${project.name}</h3>
+                        <p>Monitor progress, view documents, and stay connected with your Kolmo Construction team.</p>
+                    </div>
+                    
+                    <p style="text-align: center;">
+                        <a href="${magicLinkUrl}" class="cta-button">Access Your Portal</a>
+                    </p>
+                    
+                    <p><strong>Secure Access:</strong><br>
+                    Click the button above to securely access your portal. This link expires in 24 hours for your security.</p>
+                    
+                    <p>Thank you for choosing Kolmo Construction!</p>
+                </div>
+                
+                <div class="footer">
+                    <p>Kolmo Construction - Building Excellence Together</p>
+                </div>
+            </div>
+        </body>
+        </html>`;
+
+      await sendEmail({
+        to: customerEmail,
+        subject,
+        html,
+        fromName: 'Kolmo Construction',
+      });
+
+      console.log(`Portal access email sent to ${customerName} (${customerEmail}) for project ${project.name}`);
+    } catch (error) {
+      console.error('Error sending portal access email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * @deprecated - Use sendSinglePortalAccessEmail instead to prevent duplicate magic links
    * Send combined project welcome email with portal access after successful down payment
-   * This replaces the separate welcome and portal invitation emails to prevent duplicate magic links
    */
   async sendProjectWelcomeWithPortalAccess(projectId: number): Promise<void> {
     try {
