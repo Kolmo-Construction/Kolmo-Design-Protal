@@ -617,24 +617,26 @@ export function setupAuth(app: Express) {
         await tx.delete(clientProjects).where(eq(clientProjects.clientId, userId));
 
         // Update references to set them to NULL where possible (only for nullable fields)
+        // Use SQL null for proper type handling
+        
         // uploadedById in documents is nullable
         await tx.update(documents)
-          .set({ uploadedById: null })
+          .set({ uploadedById: sql`NULL` })
           .where(eq(documents.uploadedById, userId));
 
         // assigneeId in tasks is nullable  
         await tx.update(tasks)
-          .set({ assigneeId: null })
+          .set({ assigneeId: sql`NULL` })
           .where(eq(tasks.assigneeId, userId));
 
         // assigneeId in punchListItems is nullable (has onDelete: 'set null')
         await tx.update(punchListItems)
-          .set({ assigneeId: null })
+          .set({ assigneeId: sql`NULL` })
           .where(eq(punchListItems.assigneeId, userId));
 
         // recipientId in messages is nullable
         await tx.update(messages)
-          .set({ recipientId: null })
+          .set({ recipientId: sql`NULL` })
           .where(eq(messages.recipientId, userId));
 
         // Delete records where user is required (not nullable)
@@ -655,9 +657,12 @@ export function setupAuth(app: Express) {
     } catch (err) {
       console.error("Error deleting user:", err);
       
+      // Handle known error types
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      
       // Return specific error messages for constraint violations
-      if (err.message && err.message.includes('Cannot delete user:')) {
-        return res.status(400).json({ message: err.message });
+      if (errorMessage.includes('Cannot delete user:')) {
+        return res.status(400).json({ message: errorMessage });
       }
       
       res.status(500).json({ message: "Failed to delete user" });
@@ -693,10 +698,7 @@ export function setupAuth(app: Express) {
 
       // Update the user's password
       await storage.users.updateUser(userId, {
-        password: hashedPassword,
-        // Clear any existing reset tokens
-        resetToken: null,
-        resetTokenExpiry: null
+        password: hashedPassword
       });
 
       res.status(200).json({ 
