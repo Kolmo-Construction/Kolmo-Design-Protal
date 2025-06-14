@@ -49,19 +49,15 @@ import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchLi
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
 
-
-// --- REMOVED: Helper functions getStatusLabel, getStatusBadgeVariant, getStatusColorClass (assumed moved to utils.txt previously) ---
-
-
 export default function ProjectDetails() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const params = useParams();
   const projectId = params.id ? parseInt(params.id, 10) : 0;
-  const [activeTab, setActiveTab] = useState('updates'); // Default tab
+  const [activeTab, setActiveTab] = useState('updates');
 
   const { user } = useAuth();
 
-  // Fetch ONLY project details here
+  // Fetch project details
   const {
     data: project,
     isLoading: isLoadingProject,
@@ -72,15 +68,31 @@ export default function ProjectDetails() {
     enabled: !isNaN(projectId) && projectId > 0,
   });
 
-  // --- Loading State ---
+  // Helper function to get status badge styling
+  const getStatusBadgeStyle = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'on-hold':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  // Loading State
   if (isLoadingProject) {
     return (
-      <div className="h-screen bg-white">
+      <div className="h-screen bg-kolmo-background">
         <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
         <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
         <main className="lg:ml-64 p-4 lg:p-8 pt-24 h-full flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-kolmo-primary mx-auto mb-4" />
+            <Loader2 className="h-12 w-12 animate-spin text-kolmo-accent mx-auto mb-4" />
             <p className="text-kolmo-secondary">Loading project details...</p>
           </div>
         </main>
@@ -88,7 +100,7 @@ export default function ProjectDetails() {
     );
   }
 
-  // --- Error or Not Found State ---
+  // Error or Not Found State
   if ((!isNaN(projectId) && projectId <= 0) || projectError || !project) {
     const errorMessage = projectError instanceof Error
       ? projectError.message
@@ -120,113 +132,202 @@ export default function ProjectDetails() {
     );
   }
 
-  // --- Success State ---
+  // Success State
   return (
-    <div className="h-screen bg-slate-50">
+    <div className="min-h-screen bg-kolmo-background-accent">
       <TopNavBar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      <main className="lg:ml-64 p-4 lg:p-8 pt-32 overflow-auto h-full">
-        {/* Navigation Buttons */}
-        <div className="mb-4 flex justify-between">
-          <Link href="/projects">
-            <Button variant="outline" size="sm" className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Projects
-            </Button>
-          </Link>
-          
-          <div className="flex gap-2">
-            {/* Admin-only link to view client portal */}
-            {user?.role === 'admin' && (
-              <Link href={`/project-details/${projectId}`}>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <User className="h-4 w-4" />
-                  View Client Portal
-                </Button>
-              </Link>
-            )}
+      <main className="lg:ml-64 pt-24 pb-8 px-4 lg:px-8">
+        {/* Header Section with Kolmo.io branding */}
+        <div className="mb-8">
+          {/* Navigation & Actions */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <Link href="/projects">
+              <Button variant="outline" size="sm" className="gap-2 border-kolmo-secondary text-kolmo-secondary hover:bg-kolmo-secondary hover:text-white">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Projects
+              </Button>
+            </Link>
             
-            {/* Only show task generation button for admin and project managers */}
-            {user?.role !== 'client' && (
-              <Link href={`/project-generation/${projectId}`}>
-                <Button variant="default" size="sm" className="gap-2">
-                  <ClipboardList className="h-4 w-4" />
-                  Generate Tasks
-                </Button>
-              </Link>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {user?.role === 'admin' && (
+                <Link href={`/project-details/${projectId}`}>
+                  <Button variant="outline" size="sm" className="gap-2 border-kolmo-accent text-kolmo-accent hover:bg-kolmo-accent hover:text-white">
+                    <User className="h-4 w-4" />
+                    View Client Portal
+                  </Button>
+                </Link>
+              )}
+              
+              {user?.role !== 'client' && (
+                <Link href={`/project-generation/${projectId}`}>
+                  <Button size="sm" className="gap-2 bg-kolmo-accent hover:bg-kolmo-accent/90 text-white">
+                    <ClipboardList className="h-4 w-4" />
+                    Generate Tasks
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
+
+          {/* Project Header Card */}
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-kolmo-primary to-kolmo-secondary text-white">
+            <CardContent className="p-8">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Building2 className="h-8 w-8 text-kolmo-accent" />
+                    <div>
+                      <h1 className="text-3xl font-bold">{project.name}</h1>
+                      <Badge className={cn("mt-2", getStatusBadgeStyle(project.status))}>
+                        {project.status?.charAt(0).toUpperCase() + project.status?.slice(1)}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {project.description && (
+                    <p className="text-white/90 text-lg mb-4 max-w-2xl">{project.description}</p>
+                  )}
+                  
+                  <div className="flex flex-wrap items-center gap-6 text-white/80">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>{project.address}, {project.city}, {project.state}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      <span>${project.totalBudget}</span>
+                    </div>
+                    {project.estimatedCompletionDate && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Due: {new Date(project.estimatedCompletionDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Progress Circle */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative w-24 h-24">
+                    <svg className="w-24 h-24 transform -rotate-90">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="transparent"
+                        className="text-white/20"
+                      />
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray={`${2 * Math.PI * 40}`}
+                        strokeDashoffset={`${2 * Math.PI * 40 * (1 - (project.progress || 0) / 100)}`}
+                        className="text-kolmo-accent transition-all duration-300"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold">{project.progress || 0}%</span>
+                    </div>
+                  </div>
+                  <span className="text-white/80 text-sm font-medium">Progress</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* --- MODIFIED: Render ProjectHeader component --- */}
-        <ProjectHeader project={project} setActiveTab={setActiveTab} />
-        {/* --- END MODIFIED --- */}
-
-        {/* --- REMOVED: Original Project Header JSX --- */}
-
-        {/* Project Overview Card */}
+        {/* Project Overview Stats */}
         <ProjectOverviewCard project={project} />
 
-        {/* Project Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-           {/* Make TabsList scrollable on small screens */}
-           <div className="overflow-x-auto mb-4 pb-1">
-              <TabsList className={cn(
-                  "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1",
-                  user?.role === 'client' ? 'sm:grid-cols-6' : 'sm:grid-cols-8' // 6 for client (added tasks), 8 for internal
-              )}>
-                 <TabsTrigger value="updates">Updates</TabsTrigger>
-                  {/* Make Tasks tab available to all users (including clients) */}
-                  <TabsTrigger value="tasks">Tasks</TabsTrigger>
-                  
-                  {/* Conditionally render internal-only tabs */}
-                  {user?.role !== 'client' && (
-                     <>
-                       <TabsTrigger value="dailylogs">Daily Logs</TabsTrigger>
-                       <TabsTrigger value="punchlist">Punch List</TabsTrigger>
-                    </>
-                  )}
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                  <TabsTrigger value="financials">Financials</TabsTrigger>
-                  <TabsTrigger value="messages">Messages</TabsTrigger>
-                  <TabsTrigger value="schedule">Schedule</TabsTrigger>
-               </TabsList>
-           </div>
+        {/* Project Tabs with Kolmo.io styling */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
+          <div className="overflow-x-auto mb-6">
+            <TabsList className={cn(
+              "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1 bg-white border border-kolmo-primary/10 p-1",
+              user?.role === 'client' ? 'sm:grid-cols-6' : 'sm:grid-cols-8'
+            )}>
+              <TabsTrigger value="updates" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Updates
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                <ListChecks className="h-4 w-4 mr-2" />
+                Tasks
+              </TabsTrigger>
+              
+              {user?.role !== 'client' && (
+                <>
+                  <TabsTrigger value="dailylogs" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                    <NotebookText className="h-4 w-4 mr-2" />
+                    Daily Logs
+                  </TabsTrigger>
+                  <TabsTrigger value="punchlist" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                    <Target className="h-4 w-4 mr-2" />
+                    Punch List
+                  </TabsTrigger>
+                </>
+              )}
+              <TabsTrigger value="documents" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                <FileText className="h-4 w-4 mr-2" />
+                Documents
+              </TabsTrigger>
+              <TabsTrigger value="financials" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                <DollarSign className="h-4 w-4 mr-2" />
+                Financials
+              </TabsTrigger>
+              <TabsTrigger value="messages" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Messages
+              </TabsTrigger>
+              <TabsTrigger value="schedule" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                <Clock className="h-4 w-4 mr-2" />
+                Schedule
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          {/* Render Tab Content using child components */}
-          <TabsContent value="updates" className="mt-0">
-             {activeTab === 'updates' && <ProjectUpdatesTab projectId={projectId} />}
-          </TabsContent>
-          
-          {/* Make Tasks tab content available to all users (including clients) */}
-          <TabsContent value="tasks" className="mt-0">
-            {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} user={user || undefined} project={project} />}
-          </TabsContent>
-          
-          {/* Conditionally render internal-only tab content */}
-          {user?.role !== 'client' && (
-            <>
-              <TabsContent value="dailylogs" className="mt-0">
-                {activeTab === 'dailylogs' && <ProjectDailyLogsTab projectId={projectId} />}
-              </TabsContent>
-              <TabsContent value="punchlist" className="mt-0">
-                {activeTab === 'punchlist' && <ProjectPunchListTab projectId={projectId} />}
-              </TabsContent>
-            </>
-          )}
-          <TabsContent value="documents" className="mt-0">
-             {activeTab === 'documents' && <ProjectDocumentsTab projectId={projectId} />}
-          </TabsContent>
-          <TabsContent value="financials" className="mt-0">
+          {/* Tab Content */}
+          <div className="bg-white rounded-lg shadow-sm border border-kolmo-primary/10">
+            <TabsContent value="updates" className="mt-0 p-6">
+              {activeTab === 'updates' && <ProjectUpdatesTab projectId={projectId} />}
+            </TabsContent>
+            
+            <TabsContent value="tasks" className="mt-0 p-6">
+              {activeTab === 'tasks' && <ProjectTasksTab projectId={projectId} user={user || undefined} project={project} />}
+            </TabsContent>
+            
+            {user?.role !== 'client' && (
+              <>
+                <TabsContent value="dailylogs" className="mt-0 p-6">
+                  {activeTab === 'dailylogs' && <ProjectDailyLogsTab projectId={projectId} />}
+                </TabsContent>
+                <TabsContent value="punchlist" className="mt-0 p-6">
+                  {activeTab === 'punchlist' && <ProjectPunchListTab projectId={projectId} />}
+                </TabsContent>
+              </>
+            )}
+            <TabsContent value="documents" className="mt-0 p-6">
+              {activeTab === 'documents' && <ProjectDocumentsTab projectId={projectId} />}
+            </TabsContent>
+            <TabsContent value="financials" className="mt-0 p-6">
               {activeTab === 'financials' && <ProjectFinanceTab projectId={projectId} />}
-          </TabsContent>
-          <TabsContent value="messages" className="mt-0">
-             {activeTab === 'messages' && <ProjectMessagesTab projectId={projectId} />}
-          </TabsContent>
-          <TabsContent value="schedule" className="mt-0">
-             {activeTab === 'schedule' && <ProjectScheduleTab projectId={projectId} />}
-          </TabsContent>
+            </TabsContent>
+            <TabsContent value="messages" className="mt-0 p-6">
+              {activeTab === 'messages' && <ProjectMessagesTab projectId={projectId} />}
+            </TabsContent>
+            <TabsContent value="schedule" className="mt-0 p-6">
+              {activeTab === 'schedule' && <ProjectScheduleTab projectId={projectId} />}
+            </TabsContent>
+          </div>
         </Tabs>
       </main>
     </div>
