@@ -8,6 +8,7 @@ interface ClientLayoutProps {
 
 export function ClientLayout({ children }: ClientLayoutProps) {
   const [location] = useLocation();
+  const { user } = useAuth(); // Always call hooks at the top level
   
   // Check if this is a public route that doesn't need authentication
   const isPublicRoute = location.startsWith('/quote/') || 
@@ -20,8 +21,6 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   if (isPublicRoute) {
     return <>{children}</>;
   }
-
-  const { user } = useAuth();
 
   // Only render client layout for client users
   if (!user || user.role !== 'client') {
