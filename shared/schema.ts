@@ -1154,4 +1154,3 @@ export type QuoteWithDetails = Quote & {
 export type QuoteLineItemWithDetails = QuoteLineItem & {
     quote?: Pick<Quote, 'id' | 'quoteNumber' | 'title'> | null;
 };
-

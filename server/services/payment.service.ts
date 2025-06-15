@@ -186,14 +186,7 @@ export class PaymentService {
         });
         // Refresh the client user data
         clientUser = await storage.users.getUserByEmail(customerInfo.email);
-        if (!clientUser) {
-          throw new Error('Failed to refresh client user data after update');
-        }
       }
-    }
-
-    if (!clientUser) {
-      throw new Error('Client user not found after creation/update');
     }
 
     console.log(`[PaymentService] Preparing project data...`);
@@ -214,7 +207,6 @@ export class PaymentService {
     };
 
     console.log(`[PaymentService] Project data prepared:`, JSON.stringify(projectData, null, 2));
-    
     console.log(`[PaymentService] Calling createProjectWithClients with client ID: ${clientUser.id}`);
     
     // Use createProjectWithClients to automatically handle portal creation
@@ -240,16 +232,13 @@ export class PaymentService {
       status: projectWithDetails.status,
       progress: projectWithDetails.progress,
       estimatedCompletionDate: projectWithDetails.estimatedCompletionDate,
-      actualCompletionDate: projectWithDetails.actualCompletionDate,
       createdAt: projectWithDetails.createdAt,
       updatedAt: projectWithDetails.updatedAt,
       originQuoteId: projectWithDetails.originQuoteId,
       customerName: projectWithDetails.customerName,
       customerEmail: projectWithDetails.customerEmail,
       customerPhone: projectWithDetails.customerPhone,
-      startDate: projectWithDetails.startDate,
-      imageUrl: projectWithDetails.imageUrl,
-      projectManagerId: projectWithDetails.projectManagerId
+      startDate: projectWithDetails.startDate
     };
   }
 

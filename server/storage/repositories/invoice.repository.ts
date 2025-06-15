@@ -10,7 +10,6 @@ import { InvoiceWithPayments } from '../types'; // Import shared types
 // Interface for Invoice Repository
 export interface IInvoiceRepository {
     getInvoicesForProject(projectId: number): Promise<schema.Invoice[]>; // Keep simple for list view?
-    getByProjectId(projectId: number): Promise<schema.Invoice[]>; // Alias for dashboard compatibility
     getAllInvoices(): Promise<any[]>; // Get all invoices across all projects with project info
     getInvoicesForClient(clientId: number): Promise<schema.Invoice[]>; // Get invoices for a specific client
     getInvoiceById(invoiceId: number): Promise<InvoiceWithPayments | null>; // Fetch with payments
@@ -41,11 +40,6 @@ class InvoiceRepository implements IInvoiceRepository {
             console.error(`Error fetching invoices for project ${projectId}:`, error);
             throw new Error('Database error while fetching invoices.');
         }
-    }
-
-    // Alias method for dashboard compatibility
-    async getByProjectId(projectId: number): Promise<schema.Invoice[]> {
-        return this.getInvoicesForProject(projectId);
     }
 
     async getAllInvoices(): Promise<any[]> {

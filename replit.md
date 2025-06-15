@@ -209,14 +209,6 @@ BASE_URL=https://kolmo.design
   - Implemented UniversalLayout system that automatically shows appropriate navigation based on user role
   - Fixed apiRequest parameter order bug in logout functionality
   - Project managers now have full access to their dashboard and assigned projects with proper navigation
-- June 15, 2025. Fixed project manager dashboard functionality and database schema issues:
-  - Resolved database schema relation conflicts that were preventing dashboard data queries
-  - Replaced complex repository method calls with direct database queries to bypass schema issues
-  - Fixed invoice field name mismatches (totalAmount vs amount) in dashboard calculations
-  - Corrected milestone field references (dueDate vs plannedDate) for proper date filtering
-  - Created comprehensive ProjectManagerNavigation component with role-based menu items
-  - Dashboard now properly displays project statistics, task counts, invoice totals, and project overviews
-  - Project managers can access dashboard at /project-manager/dashboard with full project data and metrics
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

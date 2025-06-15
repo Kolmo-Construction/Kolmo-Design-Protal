@@ -23,7 +23,6 @@ import { log as logger } from '../../vite'; // Import logger
 // Interface for PunchList Repository - Updated return types to use PunchListItemWithDetails where applicable
 export interface IPunchListRepository {
     getPunchListItemsForProject(projectId: number): Promise<PunchListItemWithDetails[]>;
-    getByProjectId(projectId: number): Promise<PunchListItemWithDetails[]>; // Alias for dashboard compatibility
     getPunchListItemById(itemId: number): Promise<PunchListItemWithDetails | null>;
     // Return type updated to match the fetched type which includes creator and media
     createPunchListItem(itemData: schema.InsertPunchListItem): Promise<PunchListItemWithDetails | null>;
@@ -115,11 +114,6 @@ export class PunchListRepository implements IPunchListRepository {
             logger(`Error fetching punch list items for project ${projectId}: ${error instanceof Error ? error.message : error}`, 'PunchListRepo');
             throw new Error('Database error while fetching punch list items.');
         }
-    }
-
-    // Alias method for dashboard compatibility
-    async getByProjectId(projectId: number): Promise<PunchListItemWithDetails[]> {
-        return this.getPunchListItemsForProject(projectId);
     }
 
     async getPunchListItemById(itemId: number): Promise<PunchListItemWithDetails | null> {

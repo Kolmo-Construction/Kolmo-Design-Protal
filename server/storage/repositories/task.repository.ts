@@ -9,7 +9,6 @@ import { TaskWithAssignee } from '../types'; // Import shared types
 
 export interface ITaskRepository {
     getTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
-    getByProjectId(projectId: number): Promise<TaskWithAssignee[]>; // Alias for dashboard compatibility
     getPublishedTasksForProject(projectId: number): Promise<TaskWithAssignee[]>;
     createTask(taskData: schema.InsertTask): Promise<TaskWithAssignee | null>;
     updateTask(taskId: number, taskData: Partial<Omit<schema.InsertTask, 'id' | 'projectId' | 'createdBy'>>): Promise<TaskWithAssignee | null>;
@@ -65,11 +64,6 @@ class TaskRepository implements ITaskRepository {
             console.error(`Error fetching tasks for project ${projectId}:`, error);
             throw new Error('Database error while fetching tasks.');
         }
-    }
-
-    // Alias method for dashboard compatibility
-    async getByProjectId(projectId: number): Promise<TaskWithAssignee[]> {
-        return this.getTasksForProject(projectId);
     }
 
     async getPublishedTasksForProject(projectId: number): Promise<TaskWithAssignee[]> {

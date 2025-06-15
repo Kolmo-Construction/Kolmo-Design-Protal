@@ -161,20 +161,8 @@ class ProjectRepository implements IProjectRepository {
 
     async createProject(projectData: Omit<schema.InsertProject, 'totalBudget'> & { totalBudget: string }): Promise<schema.Project> {
         try {
-            // Convert string dates to Date objects for proper database handling
-            const processedData: any = { ...projectData };
-            if (processedData.startDate && typeof processedData.startDate === 'string') {
-                processedData.startDate = new Date(processedData.startDate);
-            }
-            if (processedData.estimatedCompletionDate && typeof processedData.estimatedCompletionDate === 'string') {
-                processedData.estimatedCompletionDate = new Date(processedData.estimatedCompletionDate);
-            }
-            if (processedData.actualCompletionDate && typeof processedData.actualCompletionDate === 'string') {
-                processedData.actualCompletionDate = new Date(processedData.actualCompletionDate);
-            }
-            
             const result = await this.db.insert(schema.projects)
-                .values([processedData])
+                .values([projectData])
                 .returning();
             
             if (!result || result.length === 0) {
@@ -194,19 +182,7 @@ class ProjectRepository implements IProjectRepository {
          }
          // Use the db instance passed to the constructor for transaction
          return this.db.transaction(async (tx) => {
-            // Convert string dates to Date objects for proper database handling
-            const processedData: any = { ...projectData };
-            if (processedData.startDate && typeof processedData.startDate === 'string') {
-                processedData.startDate = new Date(processedData.startDate);
-            }
-            if (processedData.estimatedCompletionDate && typeof processedData.estimatedCompletionDate === 'string') {
-                processedData.estimatedCompletionDate = new Date(processedData.estimatedCompletionDate);
-            }
-            if (processedData.actualCompletionDate && typeof processedData.actualCompletionDate === 'string') {
-                processedData.actualCompletionDate = new Date(processedData.actualCompletionDate);
-            }
-            
-            const projectResult = await tx.insert(schema.projects).values(processedData as any).returning({ id: schema.projects.id });
+            const projectResult = await tx.insert(schema.projects).values(projectData).returning({ id: schema.projects.id });
             if (!projectResult || projectResult.length === 0) throw new Error("Failed to insert project.");
             const projectId = projectResult[0].id;
 
@@ -269,19 +245,7 @@ class ProjectRepository implements IProjectRepository {
          // Use the db instance passed to the constructor for transaction
          return this.db.transaction(async (tx) => {
             if (Object.keys(projectData).length > 0) {
-                // Convert string dates to Date objects for proper database handling
-                const processedData: any = { ...projectData };
-                if (processedData.startDate && typeof processedData.startDate === 'string') {
-                    processedData.startDate = new Date(processedData.startDate);
-                }
-                if (processedData.estimatedCompletionDate && typeof processedData.estimatedCompletionDate === 'string') {
-                    processedData.estimatedCompletionDate = new Date(processedData.estimatedCompletionDate);
-                }
-                if (processedData.actualCompletionDate && typeof processedData.actualCompletionDate === 'string') {
-                    processedData.actualCompletionDate = new Date(processedData.actualCompletionDate);
-                }
-                
-                await tx.update(schema.projects).set({ ...processedData, updatedAt: new Date() } as any).where(eq(schema.projects.id, projectId));
+                await tx.update(schema.projects).set({ ...projectData, updatedAt: new Date() }).where(eq(schema.projects.id, projectId));
             }
             if (clientIds !== undefined) {
                 if (clientIds.length === 0) throw new Error("Cannot update project to have zero clients.");
