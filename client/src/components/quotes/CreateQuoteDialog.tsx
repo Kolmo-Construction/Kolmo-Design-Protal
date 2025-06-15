@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -126,6 +126,9 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
   const watchedValues = form.watch();
   const lineItems = form.watch("lineItems");
   const isManualTax = form.watch("isManualTax");
+  const downPaymentPercentage = form.watch("downPaymentPercentage");
+  const milestonePaymentPercentage = form.watch("milestonePaymentPercentage");
+  const finalPaymentPercentage = form.watch("finalPaymentPercentage");
   
   // Calculate totals
   const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
@@ -139,6 +142,18 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
     : (afterDiscount * (watchedValues.taxRate || 0)) / 100;
     
   const total = afterDiscount + taxAmount;
+
+  // Validate payment percentages add up to 100%
+  const totalPaymentPercentage = (downPaymentPercentage || 0) + (milestonePaymentPercentage || 0) + (finalPaymentPercentage || 0);
+  const paymentPercentageError = totalPaymentPercentage !== 100 ? `Payment percentages must add up to 100% (currently ${totalPaymentPercentage}%)` : null;
+
+  // Update form values when calculations change
+  useEffect(() => {
+    form.setValue("subtotal", subtotal);
+    form.setValue("discountAmount", discountAmount);
+    form.setValue("taxAmount", taxAmount);
+    form.setValue("total", total);
+  }, [subtotal, discountAmount, taxAmount, total, form]);
 
   // Line item management functions
   const addLineItem = () => {
@@ -165,6 +180,16 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
 
   const createQuoteMutation = useMutation({
     mutationFn: async (data: CreateQuoteForm) => {
+      // Validate payment percentages
+      if (totalPaymentPercentage !== 100) {
+        throw new Error(`Payment percentages must add up to 100% (currently ${totalPaymentPercentage}%)`);
+      }
+
+      // Filter out invalid line items
+      const validLineItems = data.lineItems.filter(item => 
+        item.description && item.description.trim() && item.quantity > 0 && item.unitPrice >= 0
+      );
+
       // Create the quote first
       const quoteData = {
         ...data,
@@ -186,16 +211,14 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
       const response = await apiRequest("POST", "/api/quotes", quoteData);
       const quote = await response.json();
       
-      // Create line items if any exist
-      if (data.lineItems.length > 0) {
-        for (const lineItem of data.lineItems) {
-          if (lineItem.description && lineItem.quantity > 0) {
-            await apiRequest("POST", `/api/quotes/${quote.id}/line-items`, {
-              ...lineItem,
-              category: lineItem.category || "Materials",
-              totalPrice: lineItem.quantity * lineItem.unitPrice,
-            });
-          }
+      // Create line items if any valid ones exist
+      if (validLineItems.length > 0) {
+        for (const lineItem of validLineItems) {
+          await apiRequest("POST", `/api/quotes/${quote.id}/line-items`, {
+            ...lineItem,
+            category: lineItem.category || "Materials",
+            totalPrice: lineItem.quantity * lineItem.unitPrice,
+          });
         }
       }
       
@@ -748,6 +771,23 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                           </FormItem>
                         )}
                       />
+
+                      {/* Payment percentage validation */}
+                      {paymentPercentageError && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                          <p className="text-sm text-red-600">
+                            {paymentPercentageError}
+                          </p>
+                        </div>
+                      )}
+
+                      {totalPaymentPercentage === 100 && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                          <p className="text-sm text-green-600">
+                            ✓ Payment schedule totals 100%
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
