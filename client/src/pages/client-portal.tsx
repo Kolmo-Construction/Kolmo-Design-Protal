@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { DialCircle } from '@/components/ui/dial-circle';
 import { 
   Building, 
   MessageSquare, 
@@ -100,7 +101,7 @@ function TaskTimeline({ projectId }: { projectId: number }) {
                   </h4>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="outline" className="text-xs">
-                      {task.category || 'General'}
+                      {task.priority || 'General'}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       {taskDate}
@@ -234,46 +235,55 @@ export default function ClientPortal() {
               Track your project progress and stay connected with your construction team.
             </p>
             
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <Building className="h-8 w-8 text-accent" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.totalProjects}</div>
-                    <div className="text-sm opacity-80">Active Projects</div>
-                  </div>
-                </div>
+            {/* Progress Dial Circles */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-8">
+              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
+                <DialCircle
+                  value={stats.totalProjects}
+                  maxValue={10}
+                  size="md"
+                  color="accent"
+                  showPercentage={false}
+                  label="Active Projects"
+                  className="text-primary-foreground"
+                />
               </div>
               
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-8 w-8 text-accent" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.completedTasks}</div>
-                    <div className="text-sm opacity-80">Tasks Completed</div>
-                  </div>
-                </div>
+              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
+                <DialCircle
+                  value={stats.completedTasks}
+                  maxValue={stats.totalTasks || 1}
+                  size="md"
+                  color="success"
+                  label="Tasks Completed"
+                  sublabel={`${stats.completedTasks}/${stats.totalTasks}`}
+                  className="text-primary-foreground"
+                />
               </div>
               
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <Target className="h-8 w-8 text-accent" />
-                  <div>
-                    <div className="text-2xl font-bold">{stats.totalTasks}</div>
-                    <div className="text-sm opacity-80">Total Tasks</div>
-                  </div>
-                </div>
+              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
+                <DialCircle
+                  value={progressPercentage}
+                  maxValue={100}
+                  size="md"
+                  color="primary"
+                  showPercentage={true}
+                  label="Overall Progress"
+                  className="text-primary-foreground"
+                />
               </div>
               
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="h-8 w-8 text-accent" />
-                  <div>
-                    <div className="text-2xl font-bold">{Math.round(progressPercentage)}%</div>
-                    <div className="text-sm opacity-80">Overall Progress</div>
-                  </div>
-                </div>
+              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-6 flex flex-col items-center">
+                <DialCircle
+                  value={stats.totalTasks - stats.completedTasks}
+                  maxValue={stats.totalTasks || 1}
+                  size="md"
+                  color="warning"
+                  showPercentage={false}
+                  label="Tasks Remaining"
+                  sublabel={`${stats.totalTasks - stats.completedTasks} left`}
+                  className="text-primary-foreground"
+                />
               </div>
             </div>
           </div>
@@ -362,19 +372,21 @@ export default function ClientPortal() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="border-accent/20 hover:border-accent/40 transition-colors">
+          <Card className="border-primary/20 hover:border-primary/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background to-muted/20">
             <CardContent className="pt-6">
               <div className="text-center">
-                <MessageSquare className="h-12 w-12 text-accent mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Team Messages</h3>
+                <div className="bg-primary/10 rounded-full p-4 w-fit mx-auto mb-4">
+                  <MessageSquare className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-primary">Team Messages</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Stay connected with your project team
                 </p>
                 <Link to="/messages">
-                  <Button className="w-full bg-accent hover:bg-accent/90">
+                  <Button className="w-full bg-primary hover:bg-primary/90 shadow-md">
                     View Messages
                     {dashboardData?.unreadMessages.length ? (
-                      <Badge className="ml-2 bg-destructive">{dashboardData.unreadMessages.length}</Badge>
+                      <Badge className="ml-2 bg-destructive text-destructive-foreground">{dashboardData.unreadMessages.length}</Badge>
                     ) : null}
                   </Button>
                 </Link>
@@ -382,16 +394,18 @@ export default function ClientPortal() {
             </CardContent>
           </Card>
 
-          <Card className="border-accent/20 hover:border-accent/40 transition-colors">
+          <Card className="border-accent/20 hover:border-accent/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background to-muted/20">
             <CardContent className="pt-6">
               <div className="text-center">
-                <FileText className="h-12 w-12 text-accent mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Project Documents</h3>
+                <div className="bg-accent/10 rounded-full p-4 w-fit mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-accent" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-accent">Project Documents</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Access contracts, plans, and reports
                 </p>
                 <Link to="/documents">
-                  <Button className="w-full bg-accent hover:bg-accent/90">
+                  <Button className="w-full bg-accent hover:bg-accent/90 shadow-md">
                     View Documents
                   </Button>
                 </Link>
@@ -399,19 +413,21 @@ export default function ClientPortal() {
             </CardContent>
           </Card>
 
-          <Card className="border-accent/20 hover:border-accent/40 transition-colors">
+          <Card className="border-green-500/20 hover:border-green-500/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background to-muted/20">
             <CardContent className="pt-6">
               <div className="text-center">
-                <DollarSign className="h-12 w-12 text-accent mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Invoices & Payments</h3>
+                <div className="bg-green-500/10 rounded-full p-4 w-fit mx-auto mb-4">
+                  <DollarSign className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-green-700">Invoices & Payments</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Review billing and payment status
                 </p>
                 <Link to="/invoices">
-                  <Button className="w-full bg-accent hover:bg-accent/90">
+                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white shadow-md">
                     View Invoices
                     {dashboardData?.pendingInvoices.length ? (
-                      <Badge className="ml-2 bg-destructive">{dashboardData.pendingInvoices.length}</Badge>
+                      <Badge className="ml-2 bg-destructive text-destructive-foreground">{dashboardData.pendingInvoices.length}</Badge>
                     ) : null}
                   </Button>
                 </Link>

@@ -4,8 +4,7 @@
 import React, { useState } from "react"; // Import React
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth-unified";
-import TopNavBar from "@/components/TopNavBar"; // [cite: 6188]
-import Sidebar from "@/components/Sidebar"; // [cite: 6188]
+import { ClientNavigation } from "@/components/ClientNavigation";
 import { Document, Project } from "@shared/schema"; // [cite: 6188]
 import {
   Card,
@@ -52,7 +51,6 @@ import {
 import { UploadDocumentForm } from '@/components/UploadDocumentForm'; // Import the Upload Form
 
 export default function Documents() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<string>("all"); // [cite: 6194]
   const [categoryFilter, setCategoryFilter] = useState<string>("all"); // [cite: 6194]
   const [searchQuery, setSearchQuery] = useState<string>(""); // [cite: 6194]
