@@ -185,7 +185,29 @@ export class QuoteRepository {
 
   async deleteQuote(id: number) {
     try {
+      // Delete all related data first to avoid foreign key constraint violations
+      
+      // Delete quote line items
+      await db.delete(quoteLineItems).where(eq(quoteLineItems.quoteId, id));
+      
+      // Delete quote responses
+      await db.delete(quoteResponses).where(eq(quoteResponses.quoteId, id));
+      
+      // Delete quote media
+      await db.delete(quoteMedia).where(eq(quoteMedia.quoteId, id));
+      
+      // Delete quote access tokens
+      await db.delete(quoteAccessTokens).where(eq(quoteAccessTokens.quoteId, id));
+      
+      // Delete quote analytics
+      await db.delete(quoteAnalytics).where(eq(quoteAnalytics.quoteId, id));
+      
+      // Delete quote view sessions
+      await db.delete(quoteViewSessions).where(eq(quoteViewSessions.quoteId, id));
+      
+      // Finally delete the quote itself
       await db.delete(quotes).where(eq(quotes.id, id));
+      
       return true;
     } catch (error) {
       console.error("Error deleting quote:", error);
