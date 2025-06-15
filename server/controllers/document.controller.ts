@@ -106,7 +106,7 @@ export const uploadDocument = async (
       name: req.file.originalname,
       fileSize: req.file.size,
       fileType: req.file.mimetype,
-      fileUrl: r2Result.key, // Store R2 key
+      fileUrl: r2Result.url, // Store the full proxy URL, not just the key
       description: description,
       category: 'GENERAL', // Default category or derive from input
     };

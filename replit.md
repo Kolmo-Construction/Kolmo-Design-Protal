@@ -197,6 +197,11 @@ BASE_URL=https://kolmo.design
   - Implemented comprehensive client account management with profile editing and password reset
   - Added Account section to client navigation for secure profile management
   - Extended backend API with client profile and password management endpoints
+- June 15, 2025. Fixed client file download 404 errors:
+  - Resolved issue where clients received 404 errors when downloading files from their portal
+  - Fixed document upload controller to store complete proxy URLs instead of just storage keys
+  - Updated existing documents in database to use proper URL format for R2 storage access
+  - File downloads now work correctly through /api/storage/proxy/ endpoint without authentication issues
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
