@@ -49,15 +49,15 @@ import { apiRequest } from "@/lib/queryClient";
 import { cn, formatCurrency } from "@/lib/utils";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
-// Line item schema for the form
+// Line item schema for the form (matching backend expectations)
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required"),
   quantity: z.number().min(0.01, "Quantity must be greater than 0"),
   unitPrice: z.number().min(0, "Unit price must be positive"),
-  category: z.string().optional(),
-  unit: z.string().optional(),
-  discountPercentage: z.number().optional(),
-  discountAmount: z.number().optional(),
+  category: z.string().min(1, "Category is required"),
+  unit: z.string().min(1, "Unit is required"),
+  discountPercentage: z.number().optional().default(0),
+  discountAmount: z.number().optional().default(0),
   totalPrice: z.number().optional(),
   sortOrder: z.number().optional(),
 });
@@ -162,7 +162,10 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
       description: "",
       quantity: 1,
       unitPrice: 0,
-      category: "",
+      category: "Materials",
+      unit: "each",
+      discountPercentage: 0,
+      discountAmount: 0,
     }]);
   };
 
@@ -416,6 +419,7 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                               <TableHead>Description</TableHead>
                               <TableHead>Category</TableHead>
                               <TableHead className="w-24">Qty</TableHead>
+                              <TableHead className="w-24">Unit</TableHead>
                               <TableHead className="w-32">Unit Price</TableHead>
                               <TableHead className="w-32">Total</TableHead>
                               <TableHead className="w-12"></TableHead>
@@ -432,11 +436,28 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                                   />
                                 </TableCell>
                                 <TableCell>
-                                  <Input
-                                    placeholder="Category"
-                                    value={item.category || ''}
+                                  <select
+                                    className="w-full p-2 border rounded"
+                                    value={item.category || 'Materials'}
                                     onChange={(e) => updateLineItem(index, 'category', e.target.value)}
-                                  />
+                                  >
+                                    <option value="Materials">Materials</option>
+                                    <option value="Labor">Labor</option>
+                                    <option value="Equipment">Equipment</option>
+                                    <option value="Permits">Permits</option>
+                                    <option value="Demolition">Demolition</option>
+                                    <option value="Electrical">Electrical</option>
+                                    <option value="Plumbing">Plumbing</option>
+                                    <option value="Flooring">Flooring</option>
+                                    <option value="Painting">Painting</option>
+                                    <option value="Cabinetry">Cabinetry</option>
+                                    <option value="Countertops">Countertops</option>
+                                    <option value="Appliances">Appliances</option>
+                                    <option value="Fixtures">Fixtures</option>
+                                    <option value="Hardware">Hardware</option>
+                                    <option value="Cleanup">Cleanup</option>
+                                    <option value="Other">Other</option>
+                                  </select>
                                 </TableCell>
                                 <TableCell>
                                   <Input
@@ -446,6 +467,30 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
                                     value={item.quantity || 0}
                                     onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                                   />
+                                </TableCell>
+                                <TableCell>
+                                  <select
+                                    className="w-full p-2 border rounded"
+                                    value={item.unit || 'each'}
+                                    onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
+                                  >
+                                    <option value="each">each</option>
+                                    <option value="sq ft">sq ft</option>
+                                    <option value="linear ft">linear ft</option>
+                                    <option value="sq yard">sq yard</option>
+                                    <option value="cubic ft">cubic ft</option>
+                                    <option value="hour">hour</option>
+                                    <option value="day">day</option>
+                                    <option value="week">week</option>
+                                    <option value="month">month</option>
+                                    <option value="pound">pound</option>
+                                    <option value="gallon">gallon</option>
+                                    <option value="box">box</option>
+                                    <option value="roll">roll</option>
+                                    <option value="sheet">sheet</option>
+                                    <option value="bundle">bundle</option>
+                                    <option value="lot">lot</option>
+                                  </select>
                                 </TableCell>
                                 <TableCell>
                                   <Input
