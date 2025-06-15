@@ -97,13 +97,15 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
         // Update the authentication cache with the user data
         await queryClient.invalidateQueries({ queryKey: ['/api/user'] });
         
-        // Handle redirect based on server response
+        // Handle redirect based on server response and user role
         if (data.redirect === '/setup-profile') {
           // New user needs to set up their profile
           setTimeout(() => navigate('/setup-profile'), 2000);
         } else {
-          // Existing user, redirect to dashboard
-          setTimeout(() => navigate('/'), 2000);
+          // Determine appropriate landing page based on user role
+          const redirectPath = data.user?.role === 'project_manager' ? '/project-manager' : 
+                              data.user?.role === 'client' ? '/client-portal' : '/';
+          setTimeout(() => navigate(redirectPath), 2000);
         }
       } else {
         const error = await response.text();
@@ -121,14 +123,18 @@ export default function AuthPage({ isMagicLink = false, isPasswordReset = false 
     try {
       await login(data.username, data.password);
       
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      // Get user data after login to determine redirect path
+      const userData = await queryClient.fetchQuery({ queryKey: ['/api/user'] }) as any;
       
       toast({
         title: "Login Successful",
         description: `Welcome back!`,
       });
       
-      setTimeout(() => navigate('/'), 100);
+      // Determine appropriate landing page based on user role
+      const redirectPath = userData?.role === 'project_manager' ? '/project-manager' : 
+                          userData?.role === 'client' ? '/client-portal' : '/';
+      setTimeout(() => navigate(redirectPath), 100);
     } catch (error: any) {
       loginForm.setError("root", {
         type: "manual",

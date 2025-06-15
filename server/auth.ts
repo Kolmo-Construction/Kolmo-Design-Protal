@@ -323,7 +323,10 @@ export function setupAuth(app: Express) {
 
         // Regular login for users who have already set up their account
         const { password, magicLinkToken, magicLinkExpiry, ...userWithoutSensitiveData } = user;
-        return res.status(200).json({ user: userWithoutSensitiveData });
+        return res.status(200).json({ 
+          message: "Magic link verified successfully",
+          user: userWithoutSensitiveData 
+        });
       });
     } catch (err) {
       next(err);
