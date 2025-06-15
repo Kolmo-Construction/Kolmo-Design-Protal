@@ -211,8 +211,7 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
         lineItems: undefined,
       };
       
-      const response = await apiRequest("POST", "/api/quotes", quoteData);
-      const quote = await response.json();
+      const quote = await apiRequest("POST", "/api/quotes", quoteData);
       
       // Create line items if any valid ones exist
       if (validLineItems.length > 0) {
