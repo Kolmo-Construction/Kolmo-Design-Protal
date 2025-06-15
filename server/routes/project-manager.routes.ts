@@ -234,7 +234,7 @@ router.get('/projects/:projectId/overview', async (req, res) => {
           id: i.id,
           invoiceNumber: i.invoiceNumber,
           status: i.status,
-          totalAmount: i.totalAmount,
+          totalAmount: i.amount,
           updatedAt: i.updatedAt
         }))
       }
