@@ -187,7 +187,7 @@ export class QuoteRepository {
     try {
       // Delete all related data first to avoid foreign key constraint violations
       
-      // Delete quote line items
+      // Delete quote line items (main constraint issue)
       await db.delete(quoteLineItems).where(eq(quoteLineItems.quoteId, id));
       
       // Delete quote responses
@@ -198,12 +198,6 @@ export class QuoteRepository {
       
       // Delete quote access tokens
       await db.delete(quoteAccessTokens).where(eq(quoteAccessTokens.quoteId, id));
-      
-      // Delete quote analytics
-      await db.delete(quoteAnalytics).where(eq(quoteAnalytics.quoteId, id));
-      
-      // Delete quote view sessions
-      await db.delete(quoteViewSessions).where(eq(quoteViewSessions.quoteId, id));
       
       // Finally delete the quote itself
       await db.delete(quotes).where(eq(quotes.id, id));
