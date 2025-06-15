@@ -2,6 +2,9 @@
 import { Router } from "express";
 import { isAuthenticated } from "../middleware/auth.middleware";
 import { storage } from "../storage";
+import { db } from "../db";
+import { eq, and } from "drizzle-orm";
+import * as schema from "../../shared/schema";
 
 const router = Router();
 
@@ -34,9 +37,9 @@ router.get('/dashboard', async (req, res) => {
     const projectsWithStats = await Promise.all(
       assignedProjects.map(async (project) => {
         const [tasks, invoices, punchListItems] = await Promise.all([
-          storage.tasks.getByProjectId(project.id),
-          storage.invoices.getByProjectId(project.id),
-          storage.punchList.getByProjectId(project.id)
+          storage.tasks.getTasksForProject(project.id),
+          storage.invoices.getInvoicesForProject(project.id),
+          storage.punchLists.getPunchListItemsForProject(project.id)
         ]);
         
         const completedTasks = tasks.filter(task => task.status === 'done' || task.status === 'completed');
