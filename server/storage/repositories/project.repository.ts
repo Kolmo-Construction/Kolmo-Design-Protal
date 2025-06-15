@@ -194,7 +194,19 @@ class ProjectRepository implements IProjectRepository {
          }
          // Use the db instance passed to the constructor for transaction
          return this.db.transaction(async (tx) => {
-            const projectResult = await tx.insert(schema.projects).values(projectData).returning({ id: schema.projects.id });
+            // Convert string dates to Date objects for proper database handling
+            const processedData: any = { ...projectData };
+            if (processedData.startDate && typeof processedData.startDate === 'string') {
+                processedData.startDate = new Date(processedData.startDate);
+            }
+            if (processedData.estimatedCompletionDate && typeof processedData.estimatedCompletionDate === 'string') {
+                processedData.estimatedCompletionDate = new Date(processedData.estimatedCompletionDate);
+            }
+            if (processedData.actualCompletionDate && typeof processedData.actualCompletionDate === 'string') {
+                processedData.actualCompletionDate = new Date(processedData.actualCompletionDate);
+            }
+            
+            const projectResult = await tx.insert(schema.projects).values(processedData as any).returning({ id: schema.projects.id });
             if (!projectResult || projectResult.length === 0) throw new Error("Failed to insert project.");
             const projectId = projectResult[0].id;
 
