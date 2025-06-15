@@ -246,10 +246,10 @@ export function CreateQuoteDialog({ open, onOpenChange }: CreateQuoteDialogProps
         lineItems: [],
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to create quote",
+        description: error.message || "Failed to create quote",
         variant: "destructive",
       });
     },
