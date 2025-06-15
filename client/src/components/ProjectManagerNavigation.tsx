@@ -108,4 +108,4 @@ const ProjectManagerNavigation = () => {
   );
 };
 
-export default ProjectManagerNavigation;
+export { ProjectManagerNavigation };
