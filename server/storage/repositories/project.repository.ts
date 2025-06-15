@@ -310,10 +310,10 @@ class ProjectRepository implements IProjectRepository {
         ].join('-');
     }
 
-    // Calculate expiry time (default: 24 hours from now)
-    private getMagicLinkExpiry(hours = 24): Date {
+    // Calculate expiry time (default: 5 months from now)
+    private getMagicLinkExpiry(months = 5): Date {
         const expiryDate = new Date();
-        expiryDate.setHours(expiryDate.getHours() + hours);
+        expiryDate.setMonth(expiryDate.getMonth() + months);
         return expiryDate;
     }
 

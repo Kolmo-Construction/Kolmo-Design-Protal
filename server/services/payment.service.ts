@@ -1054,9 +1054,9 @@ export class PaymentService {
   /**
    * Calculate magic link expiry time
    */
-  private getMagicLinkExpiry(hours = 24): Date {
+  private getMagicLinkExpiry(months = 5): Date {
     const expiryDate = new Date();
-    expiryDate.setHours(expiryDate.getHours() + hours);
+    expiryDate.setMonth(expiryDate.getMonth() + months);
     return expiryDate;
   }
 

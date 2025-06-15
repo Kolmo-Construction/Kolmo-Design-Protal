@@ -52,10 +52,10 @@ function generateMagicLinkToken(): string {
   ].join('-');
 }
 
-// Calculate expiry time (default: 24 hours from now)
-function getMagicLinkExpiry(hours = 24): Date {
+// Calculate expiry time (default: 5 months from now)
+function getMagicLinkExpiry(months = 5): Date {
   const expiryDate = new Date();
-  expiryDate.setHours(expiryDate.getHours() + hours);
+  expiryDate.setMonth(expiryDate.getMonth() + months);
   return expiryDate;
 }
 

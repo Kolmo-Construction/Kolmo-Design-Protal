@@ -191,6 +191,12 @@ BASE_URL=https://kolmo.design
   - Magic links now handle multiple clicks gracefully by returning existing session data instead of failing
   - Customers experience smooth authentication flow without confusing "Access Denied" messages
   - Fix addresses React component lifecycle and query invalidation causing duplicate API requests
+- June 14, 2025. Enhanced magic link system and client account management:
+  - Extended magic link expiry from 24 hours to 5 months for better user experience
+  - Clients can now bookmark and reuse their project access links for convenient portal access
+  - Implemented comprehensive client account management with profile editing and password reset
+  - Added Account section to client navigation for secure profile management
+  - Extended backend API with client profile and password management endpoints
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
