@@ -108,7 +108,7 @@ export default function Financials() {
   const { 
     data: expensifyConfig,
     isLoading: isLoadingExpensifyConfig 
-  } = useQuery({
+  } = useQuery<{ configured: boolean; message: string }>({
     queryKey: ["/api/expensify/config"],
   });
 
@@ -232,7 +232,7 @@ export default function Financials() {
             </div>
           </CardHeader>
           <CardContent>
-            {expensifyConnected ? (
+            {expensifyConfig?.configured ? (
               <div className="space-y-4">
                 {/* Budget Overview Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -380,9 +380,9 @@ export default function Financials() {
                 <p className="text-slate-600 mb-4">
                   Link your Expensify account to automatically track project expenses against budgets
                 </p>
-                <Button onClick={() => setExpensifyConnected(true)} className="gap-2">
+                <Button onClick={() => refetchBudgetData()} className="gap-2">
                   <ExternalLink className="h-4 w-4" />
-                  Connect Expensify Account
+                  Setup Expensify Integration
                 </Button>
               </div>
             )}

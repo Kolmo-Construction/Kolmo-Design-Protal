@@ -239,6 +239,9 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Global Finance routes (admin only)
   app.use("/api", globalFinanceRoutes);
 
+  // Mount Expensify integration routes
+  app.use("/api/expensify", isAuthenticated, expensifyRouter);
+
   // Mount Client Portal routes
   app.use("/api/client", isAuthenticated, clientRouter);
 
