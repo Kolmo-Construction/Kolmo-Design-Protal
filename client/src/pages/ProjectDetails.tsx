@@ -46,6 +46,7 @@ import { ProjectScheduleTab } from "@/components/project-details/ProjectSchedule
 import { ProjectTasksTab } from "@/components/project-details/ProjectTasksTab";
 import { ProjectDailyLogsTab } from "@/components/project-details/ProjectDailyLogsTab";
 import { ProjectPunchListTab } from "@/components/project-details/ProjectPunchListTab";
+import { ProjectExpensifyTab } from "@/components/project-details/ProjectExpensifyTab";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth-unified";
 
@@ -253,7 +254,7 @@ export default function ProjectDetails() {
           <div className="overflow-x-auto mb-6">
             <TabsList className={cn(
               "grid grid-flow-col auto-cols-max w-max sm:w-full gap-1 bg-white border border-kolmo-primary/10 p-1",
-              user?.role === 'client' ? 'sm:grid-cols-6' : 'sm:grid-cols-8'
+              user?.role === 'client' ? 'sm:grid-cols-6' : 'sm:grid-cols-9'
             )}>
               <TabsTrigger value="updates" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
                 <TrendingUp className="h-4 w-4 mr-2" />
@@ -292,6 +293,12 @@ export default function ProjectDetails() {
                 <Clock className="h-4 w-4 mr-2" />
                 Schedule
               </TabsTrigger>
+              {user?.role === 'admin' && (
+                <TabsTrigger value="expensify" className="data-[state=active]:bg-kolmo-accent data-[state=active]:text-white">
+                  <Tag className="h-4 w-4 mr-2" />
+                  Expensify
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -327,6 +334,11 @@ export default function ProjectDetails() {
             <TabsContent value="schedule" className="mt-0 p-6">
               {activeTab === 'schedule' && <ProjectScheduleTab projectId={projectId} />}
             </TabsContent>
+            {user?.role === 'admin' && (
+              <TabsContent value="expensify" className="mt-0 p-6">
+                {activeTab === 'expensify' && <ProjectExpensifyTab project={project} />}
+              </TabsContent>
+            )}
           </div>
         </Tabs>
       </main>
