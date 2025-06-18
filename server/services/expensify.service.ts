@@ -50,22 +50,20 @@ export interface ProcessedExpense {
 }
 
 export class ExpensifyService {
-  private apiKey: string;
-  private userID: string;
-  private userSecret: string;
+  private partnerUserID: string;
+  private partnerUserSecret: string;
   private baseURL = 'https://integrations.expensify.com/Integration-Server/ExpensifyIntegrations';
 
   constructor() {
-    this.apiKey = process.env.EXPENSIFY_API_KEY || '';
-    this.userID = process.env.EXPENSIFY_USER_ID || '';
-    this.userSecret = process.env.EXPENSIFY_USER_SECRET || '';
+    this.partnerUserID = process.env.EXPENSIFY_PARTNER_USER_ID || '';
+    this.partnerUserSecret = process.env.EXPENSIFY_PARTNER_USER_SECRET || '';
   }
 
   /**
    * Check if Expensify credentials are configured
    */
   isConfigured(): boolean {
-    return !!(this.apiKey && this.userID && this.userSecret);
+    return !!(this.partnerUserID && this.partnerUserSecret);
   }
 
   /**
@@ -85,8 +83,8 @@ export class ExpensifyService {
       requestJobDescription: JSON.stringify({
         type: 'file',
         credentials: {
-          partnerUserID: this.userID,
-          partnerUserSecret: this.userSecret,
+          partnerUserID: this.partnerUserID,
+          partnerUserSecret: this.partnerUserSecret,
         },
         onReceive: {
           immediateResponse: ['returnRandomFileName'],
