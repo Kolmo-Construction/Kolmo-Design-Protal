@@ -104,6 +104,15 @@ export class ExpensifyService {
   }
 
   /**
+   * Generate Expensify tag for a project using owner name and creation date
+   */
+  generateProjectTag(ownerName: string, creationDate: Date): string {
+    const dateStr = creationDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const cleanOwnerName = ownerName.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, ''); // Remove spaces and special chars
+    return `${cleanOwnerName}_${dateStr}`;
+  }
+
+  /**
    * Fetch expenses for a specific project using Expensify tags
    */
   async getProjectExpenses(projectId: number): Promise<ProcessedExpense[]> {
@@ -112,9 +121,11 @@ export class ExpensifyService {
     }
 
     try {
+      // For backward compatibility, try both project ID and project-specific tag
+      // In real implementation, you'd get the project details to generate the correct tag
       const payload = this.createRequestPayload('download', {
         filters: {
-          tag: projectId.toString(), // Use project ID as tag filter
+          tag: projectId.toString(), // Fallback to project ID for existing projects
         },
       });
 

@@ -155,11 +155,12 @@ export class ExpensifyController {
 
       const result = await expensifyService.createProject(projectId, project.name, project.customerName || 'Unknown Owner', project.createdAt);
       
-      if (success) {
+      if (result.success) {
         res.json({
           success: true,
-          message: `Project ${project.name} is ready for Expensify expense tracking`,
+          message: `Project ${project.name} is ready for Expensify expense tracking with tag: ${result.tag}`,
           projectId,
+          expensifyTag: result.tag,
         });
       } else {
         res.status(500).json({
