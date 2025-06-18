@@ -1,6 +1,4 @@
 import { z } from 'zod';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Expensify API schemas
 const ExpensifyExpenseSchema = z.object({
@@ -79,10 +77,50 @@ export class ExpensifyService {
   }
 
   /**
+   * Get the FreeMarker template for extracting expense data as JSON
+   */
+  private getExpenseDataTemplate(): string {
+    // FreeMarker template that extracts expense data in JSON format
+    // Build it piece by piece to avoid TypeScript parsing issues
+    const templateParts = [
+      '<#compress>',
+      '[<#list reports as report>',
+      '{',
+      '"reportID":"' + '${(report.reportID!\'\')?js_string}' + '",',
+      '"reportName":"' + '${(report.reportName!\'\')?js_string}' + '",',
+      '"status":"' + '${(report.status!\'\')?js_string}' + '",',
+      '"total":' + '${(report.total!0)?c}' + ',',
+      '"currency":"' + '${(report.currency!\'USD\')?js_string}' + '",',
+      '"expenses":[<#list report.transactionList as expense>',
+      '{',
+      '"transactionID":"' + '${(expense.transactionID!\'\')?js_string}' + '",',
+      '"amount":' + '${(expense.amount!0)?c}' + ',',
+      '"category":"' + '${(expense.category!\'\')?js_string}' + '",',
+      '"tag":"' + '${(expense.tag!\'\')?js_string}' + '",',
+      '"merchant":"' + '${(expense.merchant!\'\')?js_string}' + '",',
+      '"comment":"' + '${(expense.comment!\'\')?js_string}' + '",',
+      '"created":"' + '${(expense.created!\'\')?js_string}' + '",',
+      '"modified":"' + '${(expense.modified!\'\')?js_string}' + '"',
+      '<#if expense.receipt??>',
+      ',"receipt":{',
+      '"receiptID":"' + '${(expense.receipt.receiptID!\'\')?js_string}' + '",',
+      '"filename":"' + '${(expense.receipt.filename!\'\')?js_string}' + '"',
+      '}',
+      '</#if>',
+      '}<#if expense_has_next>,</#if>',
+      '</#list>]',
+      '}<#if report_has_next>,</#if>',
+      '</#list>]',
+      '</#compress>'
+    ];
+    
+    return templateParts.join('');
+  }
+
+  /**
    * Create request payload for Expensify API using URL-encoded form data
    */
   private createFormPayload(command: string, additionalParams: Record<string, any> = {}): string {
-    // Use the working approach without template to avoid authentication issues
     const jobDescription = {
       type: 'file',
       credentials: {
@@ -106,8 +144,10 @@ export class ExpensifyService {
       },
     };
 
+    // Create form parameters with template as separate parameter
     const params = new URLSearchParams();
     params.append('requestJobDescription', JSON.stringify(jobDescription));
+    params.append('template', this.getExpenseDataTemplate());
 
     return params.toString();
   }
@@ -162,7 +202,7 @@ export class ExpensifyService {
 
     try {
       const payload = this.createFormPayload('download');
-      console.log('[Expensify] Making API request with URL-encoded form data');
+      console.log('[Expensify] Making API request with URL-encoded form data and template');
       console.log('[Expensify] Payload preview:', payload.substring(0, 200) + '...');
 
       const response = await fetch(this.baseURL, {
@@ -199,10 +239,10 @@ export class ExpensifyService {
         throw new Error(`Expensify API error: ${data.responseMessage || 'Authentication error'} (Code: ${data.responseCode})`);
       }
       
-      // Handle 410 "No Template Submitted" - authentication works but template required for data
+      // Handle 410 "No Template Submitted" - this should now be resolved with the template
       if (data.responseCode && data.responseCode === 410) {
-        console.log('[Expensify] Authentication successful but template required for expense data extraction');
-        return [];
+        console.log('[Expensify] Template issue: API returned 410 even with template included');
+        throw new Error(`Expensify API error: ${data.responseMessage || 'Template required'} (Code: ${data.responseCode})`);
       }
       
       // Handle other error codes
@@ -370,7 +410,7 @@ export class ExpensifyService {
         },
       });
 
-      console.log('[Expensify] Testing connection with payload preview:', payload.substring(0, 200) + '...');
+      console.log('[Expensify] Testing connection with template-enabled payload preview:', payload.substring(0, 200) + '...');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
@@ -391,13 +431,20 @@ export class ExpensifyService {
               message: `Authentication failed: ${data.responseMessage || 'Invalid credentials'}. Please verify EXPENSIFY_PARTNER_USER_ID and EXPENSIFY_PARTNER_USER_SECRET are correct.`,
             };
           }
+          
+          if (data.responseCode && data.responseCode === 410) {
+            return {
+              connected: false,
+              message: `Template issue: ${data.responseMessage || 'Template not accepted by API'}. Template may need adjustment for your Expensify account.`,
+            };
+          }
         } catch (parseError) {
           // Response might not be JSON, continue with success
         }
 
         return {
           connected: true,
-          message: 'Successfully connected to Expensify API',
+          message: 'Successfully connected to Expensify API with template support',
         };
       } else {
         return {
