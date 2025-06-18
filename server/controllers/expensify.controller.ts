@@ -141,7 +141,7 @@ export class ExpensifyController {
         return res.status(400).json({ error: 'Invalid project ID' });
       }
 
-      const project = await getProjectById(projectId);
+      const project = await storage.projects.getProjectById(projectId);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }

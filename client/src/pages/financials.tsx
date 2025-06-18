@@ -77,51 +77,6 @@ import {
 export default function Financials() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [expensifyConnected, setExpensifyConnected] = useState(false);
-
-  // Mock Expensify data for demonstration
-  const mockExpensifyExpenses: ExpensifyExpense[] = [
-    {
-      id: "exp_001",
-      projectId: 62,
-      amount: 2450.75,
-      category: "Materials",
-      description: "Concrete and aggregate materials",
-      date: "2025-06-15",
-      merchant: "Home Depot",
-      status: "approved"
-    },
-    {
-      id: "exp_002", 
-      projectId: 62,
-      amount: 1875.00,
-      category: "Equipment Rental",
-      description: "Excavator rental - 3 days",
-      date: "2025-06-14",
-      merchant: "United Rentals",
-      status: "approved"
-    },
-    {
-      id: "exp_003",
-      projectId: 62,
-      amount: 350.25,
-      category: "Fuel",
-      description: "Fuel for equipment and vehicles",
-      date: "2025-06-13",
-      merchant: "Shell",
-      status: "pending"
-    },
-    {
-      id: "exp_004",
-      projectId: 62,
-      amount: 125.50,
-      category: "Permits",
-      description: "Building permit fees",
-      date: "2025-06-10",
-      merchant: "City Planning Office",
-      status: "reimbursed"
-    }
-  ];
 
   // Fetch projects
   const { 
@@ -149,32 +104,32 @@ export default function Financials() {
     enabled: allInvoices.length > 0,
   });
 
+  // Fetch Expensify configuration status
+  const { 
+    data: expensifyConfig,
+    isLoading: isLoadingExpensifyConfig 
+  } = useQuery({
+    queryKey: ["/api/expensify/config"],
+  });
+
+  // Fetch budget tracking data from Expensify
+  const { 
+    data: budgetTrackingData = [],
+    isLoading: isLoadingBudgetData,
+    refetch: refetchBudgetData
+  } = useQuery<ProjectBudgetTracking[]>({
+    queryKey: ["/api/expensify/budget-tracking"],
+  });
+
   // Filter projects based on the selected filter
   const filteredProjects = projects.filter(project =>
     projectFilter === "all" || project.id.toString() === projectFilter
   );
 
-  // Calculate budget tracking data
-  const getBudgetTrackingData = (): ProjectBudgetTracking[] => {
-    return filteredProjects.map(project => {
-      const projectExpenses = mockExpensifyExpenses.filter(expense => expense.projectId === project.id);
-      const totalExpenses = projectExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const remainingBudget = Number(project.totalBudget) - totalExpenses;
-      const budgetUtilization = (totalExpenses / Number(project.totalBudget)) * 100;
-
-      return {
-        projectId: project.id,
-        projectName: project.name,
-        totalBudget: Number(project.totalBudget),
-        totalExpenses,
-        remainingBudget,
-        budgetUtilization,
-        expenses: projectExpenses
-      };
-    });
-  };
-
-  const budgetTrackingData = getBudgetTrackingData();
+  // Filter budget tracking data based on selected project
+  const filteredBudgetData = budgetTrackingData.filter(project =>
+    projectFilter === "all" || project.projectId.toString() === projectFilter
+  );
   
   // Calculate total budget from the *filtered* projects
   const totalBudget = filteredProjects.reduce((sum, project) => {
@@ -182,7 +137,7 @@ export default function Financials() {
   }, 0);
 
   // Calculate total expenses across filtered projects
-  const totalExpenses = budgetTrackingData.reduce((sum, project) => sum + project.totalExpenses, 0);
+  const totalExpenses = filteredBudgetData.reduce((sum, project) => sum + project.totalExpenses, 0);
 
   // Filter invoices based on project
   const filteredInvoices = allInvoices.filter(inv => 
@@ -261,17 +216,17 @@ export default function Financials() {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={expensifyConnected ? "default" : "secondary"}>
-                  {expensifyConnected ? "Connected" : "Not Connected"}
+                <Badge variant={expensifyConfig?.configured ? "default" : "secondary"}>
+                  {expensifyConfig?.configured ? "Connected" : "Not Connected"}
                 </Badge>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setExpensifyConnected(!expensifyConnected)}
+                  onClick={() => refetchBudgetData()}
                   className="flex items-center gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  {expensifyConnected ? "Sync" : "Connect"}
+                  Refresh Data
                 </Button>
               </div>
             </div>
