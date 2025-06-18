@@ -19,7 +19,9 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  ArrowLeft,
+  Home
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'wouter';

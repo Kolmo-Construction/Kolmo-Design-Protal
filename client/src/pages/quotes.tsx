@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, FileText, Send, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, FileText, Send, Edit, Trash2, Eye, ArrowLeft, Home } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -104,6 +105,24 @@ export default function QuotesPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Navigation */}
+      <div className="flex items-center gap-4 mb-4">
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+        </Link>
+        <div className="text-sm text-slate-500">
+          <Link href="/" className="hover:text-slate-700">
+            <Home className="h-4 w-4 inline mr-1" />
+            Dashboard
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-slate-900">Quotes</span>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Quotes</h1>
