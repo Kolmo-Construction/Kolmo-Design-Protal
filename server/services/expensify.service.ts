@@ -198,10 +198,9 @@ export class ExpensifyService {
         throw new Error(`Expensify API error: ${data.responseMessage || 'Authentication error'} (Code: ${data.responseCode})`);
       }
       
-      // Handle 410 "No Template Submitted" - this means authentication worked but no template was provided
-      // For now, return empty data since we can't process without a template
+      // Handle 410 "No Template Submitted" - authentication works but template required for data
       if (data.responseCode && data.responseCode === 410) {
-        console.log('[Expensify] No template submitted - returning empty expense data');
+        console.log('[Expensify] Authentication successful but template required for expense data extraction');
         return [];
       }
       
