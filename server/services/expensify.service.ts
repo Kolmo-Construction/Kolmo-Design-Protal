@@ -77,44 +77,34 @@ export class ExpensifyService {
   }
 
   /**
-   * Get the FreeMarker template for extracting expense data as JSON
+   * Parse CSV response from Expensify API
+   */
+  private parseCSVResponse(csvText: string): any[] {
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) return []; // No data rows
+    
+    const headers = lines[0].split(',');
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',');
+      const row: any = {};
+      headers.forEach((header, index) => {
+        row[header.trim()] = values[index]?.replace(/"/g, '').trim() || '';
+      });
+      data.push(row);
+    }
+    
+    return data;
+  }
+
+  /**
+   * Get the FreeMarker template for extracting expense data as CSV format (simpler and more reliable)
    */
   private getExpenseDataTemplate(): string {
-    // FreeMarker template that extracts expense data in JSON format
-    // Build it piece by piece to avoid TypeScript parsing issues
-    const templateParts = [
-      '<#compress>',
-      '[<#list reports as report>',
-      '{',
-      '"reportID":"' + '${(report.reportID!\'\')?js_string}' + '",',
-      '"reportName":"' + '${(report.reportName!\'\')?js_string}' + '",',
-      '"status":"' + '${(report.status!\'\')?js_string}' + '",',
-      '"total":' + '${(report.total!0)?c}' + ',',
-      '"currency":"' + '${(report.currency!\'USD\')?js_string}' + '",',
-      '"expenses":[<#list report.transactionList as expense>',
-      '{',
-      '"transactionID":"' + '${(expense.transactionID!\'\')?js_string}' + '",',
-      '"amount":' + '${(expense.amount!0)?c}' + ',',
-      '"category":"' + '${(expense.category!\'\')?js_string}' + '",',
-      '"tag":"' + '${(expense.tag!\'\')?js_string}' + '",',
-      '"merchant":"' + '${(expense.merchant!\'\')?js_string}' + '",',
-      '"comment":"' + '${(expense.comment!\'\')?js_string}' + '",',
-      '"created":"' + '${(expense.created!\'\')?js_string}' + '",',
-      '"modified":"' + '${(expense.modified!\'\')?js_string}' + '"',
-      '<#if expense.receipt??>',
-      ',"receipt":{',
-      '"receiptID":"' + '${(expense.receipt.receiptID!\'\')?js_string}' + '",',
-      '"filename":"' + '${(expense.receipt.filename!\'\')?js_string}' + '"',
-      '}',
-      '</#if>',
-      '}<#if expense_has_next>,</#if>',
-      '</#list>]',
-      '}<#if report_has_next>,</#if>',
-      '</#list>]',
-      '</#compress>'
-    ];
-    
-    return templateParts.join('');
+    // Start with a simpler CSV template that's more likely to be accepted
+    // Based on the pattern from your attached file example
+    return 'transactionID,amount,tag,category,merchant,comment,created\n<#list reports as report><#list report.transactionList as expense>${expense.transactionID},${expense.amount?c},"${(expense.tag!"")?csv}","${(expense.category!"")?csv}","${(expense.merchant!"")?csv}","${(expense.comment!"")?csv}","${(expense.created!"")?csv}"\n</#list></#list>';
   }
 
   /**
@@ -140,11 +130,11 @@ export class ExpensifyService {
         },
       },
       outputSettings: {
-        fileExtension: 'json',
+        fileExtension: 'csv',
       },
     };
 
-    // Create form parameters with template as separate parameter
+    // Create form parameters with template as separate parameter (per API specification)
     const params = new URLSearchParams();
     params.append('requestJobDescription', JSON.stringify(jobDescription));
     params.append('template', this.getExpenseDataTemplate());
@@ -221,13 +211,16 @@ export class ExpensifyService {
         throw new Error(`Expensify API error: ${response.status} ${response.statusText} - ${responseText}`);
       }
 
-      // Try to parse as JSON
+      // Try to parse response - could be CSV or JSON depending on success/error
       let data;
       try {
         data = JSON.parse(responseText);
+        // If we get JSON, it's likely an error response
+        console.log('[Expensify] Received JSON response (likely error):', data);
       } catch (parseError) {
-        console.log('[Expensify] Response is not JSON, treating as error');
-        throw new Error(`Expensify API returned non-JSON response: ${responseText}`);
+        // If JSON parsing fails, treat as CSV data (success case)
+        console.log('[Expensify] Received CSV response (likely success)');
+        data = this.parseCSVResponse(responseText);
       }
 
       console.log('[Expensify] API response data type:', typeof data);
