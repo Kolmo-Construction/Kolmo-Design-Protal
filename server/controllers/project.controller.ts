@@ -12,16 +12,17 @@ import {
 import { HttpError } from '../errors';
 
 // Define a Zod schema for project creation/update
-const projectInputSchema = insertProjectSchema
-  .omit({
-    id: true, createdAt: true, updatedAt: true, pmId: true,
-  })
-  .extend({
-    clientIds: z.array(z.string().uuid()).min(1, 'At least one client must be assigned.'),
-  });
+const projectInputSchema = insertProjectSchema.extend({
+  clientIds: z.array(z.number()).min(1, 'At least one client must be assigned.'),
+});
 
-// Refine schema for updates
-const projectUpdateSchema = projectInputSchema.partial();
+// Refine schema for updates with proper date handling
+const projectUpdateSchema = insertProjectSchema.partial().extend({
+  clientIds: z.array(z.number()).optional(),
+  startDate: z.union([z.string().datetime(), z.date(), z.null()]).optional(),
+  estimatedCompletionDate: z.union([z.string().datetime(), z.date(), z.null()]).optional(),
+  actualCompletionDate: z.union([z.string().datetime(), z.date(), z.null()]).optional(),
+});
 
 
 // Get all projects (Admin) or projects assigned to the user (Client/PM)
@@ -90,11 +91,11 @@ export const createProject = async (
     const user = req.user as User;
 
     // Prepare data, converting dates if necessary
-     const insertData = {
+    const insertData = {
         ...projectData,
-        pmId: user.id, // Assign creating admin as PM initially? Adjust as needed.
+        projectManagerId: user.id, // Assign creating admin as PM initially
         ...(projectData.startDate && { startDate: new Date(projectData.startDate) }),
-        ...(projectData.endDate && { endDate: new Date(projectData.endDate) }),
+        ...(projectData.estimatedCompletionDate && { estimatedCompletionDate: new Date(projectData.estimatedCompletionDate) }),
     };
 
     // Use the nested repository: storage.projects
@@ -134,11 +135,18 @@ export const updateProject = async (
 
     const { clientIds, ...projectData } = validationResult.data;
 
-    // Prepare data, converting dates if necessary
-     const updateData = {
+    // Prepare data, converting dates if necessary and handling nulls properly
+    const updateData = {
         ...projectData,
-        ...(projectData.startDate && { startDate: new Date(projectData.startDate) }),
-        ...(projectData.endDate && { endDate: new Date(projectData.endDate) }),
+        ...(projectData.startDate !== undefined && {
+            startDate: projectData.startDate ? new Date(projectData.startDate) : null
+        }),
+        ...(projectData.estimatedCompletionDate !== undefined && {
+            estimatedCompletionDate: projectData.estimatedCompletionDate ? new Date(projectData.estimatedCompletionDate) : null
+        }),
+        ...(projectData.actualCompletionDate !== undefined && {
+            actualCompletionDate: projectData.actualCompletionDate ? new Date(projectData.actualCompletionDate) : null
+        }),
     };
 
     // Use the nested repository: storage.projects
