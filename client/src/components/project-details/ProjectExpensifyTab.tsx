@@ -66,12 +66,9 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
   // Update project tag mutation
   const updateTagMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/expensify/projects/${project.id}/sync`, {
-        method: 'POST',
-        body: JSON.stringify({
-          customerName: editedOwnerName,
-          creationDate: editedDate
-        }),
+      const response = await apiRequest(`/api/expensify/projects/${project.id}/sync`, 'POST', {
+        customerName: editedOwnerName,
+        creationDate: editedDate
       });
       return response;
     },

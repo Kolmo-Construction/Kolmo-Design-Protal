@@ -16,7 +16,10 @@ router.get('/budget-tracking', isAuthenticated, ExpensifyController.getBudgetTra
 // Get budget tracking data for a specific project
 router.get('/budget-tracking/:projectId', isAuthenticated, ExpensifyController.getProjectBudgetTracking);
 
-// Sync project to Expensify
+// Sync project to Expensify (create/update tag)
+router.post('/projects/:projectId/sync', isAuthenticated, isAdmin, ExpensifyController.syncProject);
+
+// Legacy sync endpoint (kept for compatibility)
 router.post('/sync/:projectId', isAuthenticated, isAdmin, ExpensifyController.syncProject);
 
 // Force refresh expenses from Expensify

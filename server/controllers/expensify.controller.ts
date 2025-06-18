@@ -153,7 +153,14 @@ export class ExpensifyController {
         });
       }
 
-      const result = await expensifyService.createProject(projectId, project.name, project.customerName || 'Unknown Owner', project.createdAt);
+      // Check if custom owner name and date are provided in request body
+      const { customerName, creationDate } = req.body || {};
+      
+      // Use provided values or fall back to project defaults
+      const ownerName = customerName || project.customerName || 'Unknown Owner';
+      const tagDate = creationDate ? new Date(creationDate) : project.createdAt;
+
+      const result = await expensifyService.createProject(projectId, project.name, ownerName, tagDate);
       
       if (result.success) {
         res.json({
@@ -161,6 +168,8 @@ export class ExpensifyController {
           message: `Project ${project.name} is ready for Expensify expense tracking with tag: ${result.tag}`,
           projectId,
           expensifyTag: result.tag,
+          ownerName,
+          creationDate: tagDate.toISOString().split('T')[0],
         });
       } else {
         res.status(500).json({

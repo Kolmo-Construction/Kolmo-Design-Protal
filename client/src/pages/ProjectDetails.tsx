@@ -35,7 +35,8 @@ import {
   FileText,
   MessageSquare,
   Clock,
-  Target
+  Target,
+  Tag
 } from "lucide-react";
 import { ProjectOverviewCard } from "@/components/project-details/ProjectOverviewCard";
 import { ProjectUpdatesTab } from "@/components/project-details/ProjectUpdatesTab";
