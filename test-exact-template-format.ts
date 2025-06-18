@@ -9,10 +9,18 @@ async function testExactTemplateFormat() {
   const partnerUserSecret = process.env.EXPENSIFY_PARTNER_USER_SECRET || '';
   const baseURL = 'https://integrations.expensify.com/Integration-Server/ExpensifyIntegrations';
   
-  // The exact template from the attached file
-  const exportTemplate = '<#compress>[<#list reports as report>{"reportID":"${(report.reportID!\'\')?js_string}","reportName":"${(report.reportName!\'\')?js_string}","status":"${(report.status!\'\')?js_string}","total":${(report.total!0)?c},"currency":"${(report.currency!\'USD\')?js_string}","expenses":[<#list report.transactionList as expense>{"transactionID":"${(expense.transactionID!\'\')?js_string}","amount":${(expense.amount!0)?c},"category":"${(expense.category!\'\')?js_string}","tag":"${(expense.tag!\'\')?js_string}","merchant":"${(expense.merchant!\'\')?js_string}","comment":"${(expense.comment!\'\')?js_string}","created":"${(expense.created!\'\')?js_string}","modified":"${(expense.modified!\'\')?js_string}"<#if expense.receipt??,"receipt":{"receiptID":"${(expense.receipt.receiptID!\'\')?js_string}","filename":"${(expense.receipt.filename!\'\')?js_string}"}</#if>}<#if expense_has_next>,</#if></#list>]}<#if report_has_next>,</#if></#list>]</#compress>';
+  if (!partnerUserID || !partnerUserSecret) {
+    console.log('❌ Missing credentials');
+    return;
+  }
 
-  // The exact requestJobDescription structure from the attached file
+  // Simple template to test format
+  const simpleTemplate = 'reportID,amount,tag\n' +
+    '<#list reports as report>' +
+    '<#list report.transactionList as expense>' +
+    '${expense.transactionID},${expense.amount?c},"${expense.tag!""}"' +
+    '\n</#list></#list>';
+
   const requestJobDescription = {
     type: "file",
     credentials: {
@@ -25,22 +33,20 @@ async function testExactTemplateFormat() {
     inputSettings: {
       type: "combinedReportData",
       filters: {
-        reportState: "APPROVED",
-        startDate: "2024-01-01",
-        endDate: "2025-06-18"
+        startDate: "2025-05-01",
+        endDate: "2025-05-31"
       }
     },
     outputSettings: {
-      fileExtension: "json"
-    },
-    // Include template within the jobDescription as shown in the attached file
-    template: exportTemplate
+      fileExtension: "csv"
+    }
   };
 
-  console.log('1. Testing with template inside requestJobDescription...');
+  console.log('1. Testing without template (baseline)...');
   
-  const formData = new URLSearchParams();
-  formData.append('requestJobDescription', JSON.stringify(requestJobDescription));
+  // Test without template first
+  const basicFormData = new URLSearchParams();
+  basicFormData.append('requestJobDescription', JSON.stringify(requestJobDescription));
 
   try {
     const response = await fetch(baseURL, {
@@ -48,53 +54,33 @@ async function testExactTemplateFormat() {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: formData.toString()
+      body: basicFormData.toString()
     });
     
     const responseText = await response.text();
     console.log(`   Status: ${response.status}`);
-    console.log(`   Response: ${responseText.substring(0, 200)}...`);
+    console.log(`   Response: ${responseText}`);
     
     if (responseText.includes('Authentication error')) {
-      console.log('   Authentication issue with template inside jobDescription');
-    } else if (responseText.includes('No Template Submitted')) {
-      console.log('   Template not recognized inside jobDescription');
-    } else {
-      console.log('   Success! Template working correctly');
+      console.log('   ❌ Basic authentication failing');
       return;
+    } else {
+      console.log('   ✅ Basic authentication working');
     }
   } catch (error) {
-    console.log(`   Request failed: ${error}`);
+    console.log(`   ❌ Request failed: ${error}`);
+    return;
   }
 
-  console.log('\n2. Testing with template as separate parameter...');
+  console.log('\n2. Testing with simple template...');
   
-  // Remove template from jobDescription
-  const jobDescriptionWithoutTemplate = {
-    type: "file",
-    credentials: {
-      partnerUserID: partnerUserID,
-      partnerUserSecret: partnerUserSecret
-    },
-    onReceive: {
-      immediateResponse: ["returnRandomFileName"]
-    },
-    inputSettings: {
-      type: "combinedReportData",
-      filters: {
-        reportState: "APPROVED",
-        startDate: "2024-01-01",
-        endDate: "2025-06-18"
-      }
-    },
-    outputSettings: {
-      fileExtension: "json"
-    }
-  };
+  // Test with template
+  const templateFormData = new URLSearchParams();
+  templateFormData.append('requestJobDescription', JSON.stringify(requestJobDescription));
+  templateFormData.append('template', simpleTemplate);
 
-  const formData2 = new URLSearchParams();
-  formData2.append('requestJobDescription', JSON.stringify(jobDescriptionWithoutTemplate));
-  formData2.append('template', exportTemplate);
+  console.log('   Template:', simpleTemplate.replace(/\n/g, '\\n'));
+  console.log('   Payload preview:', templateFormData.toString().substring(0, 200) + '...');
 
   try {
     const response = await fetch(baseURL, {
@@ -102,25 +88,25 @@ async function testExactTemplateFormat() {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: formData2.toString()
+      body: templateFormData.toString()
     });
     
     const responseText = await response.text();
     console.log(`   Status: ${response.status}`);
-    console.log(`   Response: ${responseText.substring(0, 200)}...`);
+    console.log(`   Response: ${responseText}`);
     
     if (responseText.includes('Authentication error')) {
-      console.log('   Authentication issue with separate template parameter');
+      console.log('   ❌ Template causing authentication issues');
     } else if (responseText.includes('No Template Submitted')) {
-      console.log('   Template not recognized as separate parameter');
+      console.log('   ⚠️  Template parameter not being recognized');
     } else {
-      console.log('   Success! Template working correctly');
+      console.log('   ✅ Template working correctly!');
     }
   } catch (error) {
-    console.log(`   Request failed: ${error}`);
+    console.log(`   ❌ Request failed: ${error}`);
   }
 
-  console.log('\n=== Template Format Test Complete ===');
+  console.log('\n=== Test Complete ===');
 }
 
 testExactTemplateFormat().catch(console.error);

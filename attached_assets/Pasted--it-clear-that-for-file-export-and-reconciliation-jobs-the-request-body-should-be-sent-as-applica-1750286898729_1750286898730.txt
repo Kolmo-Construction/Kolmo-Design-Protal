@@ -1,0 +1,75 @@
+ it clear that for file (export) and reconciliation jobs, the request body should be sent as application/x-www-form-urlencoded with two distinct parameters:
+
+requestJobDescription: A JSON string containing the job configuration.
+template: The raw FreeMarker template string.
+The curl examples confirm this structure:
+
+Bash
+
+curl -X POST 'https://integrations.expensify.com/Integration-Server/ExpensifyIntegrations' \
+    -d 'requestJobDescription={...}' \
+    --data-urlencode 'template@expensify_template.ftl'
+The -d flag adds the requestJobDescription to the form data.
+The --data-urlencode flag adds the template parameter, URL-encoding the contents of the specified file.
+Revised Code Example
+Here is a corrected conceptual TypeScript example that reflects the proper request format based on the documentation.
+
+TypeScript
+
+import { URLSearchParams } from 'url';
+import fetch from 'node-fetch'; // Or your preferred HTTP client
+
+// The robust template we created earlier
+const exportTemplate = `<#compress>[<#list reports as report>{"reportID":"${(report.reportID!'')?js_string}","reportName":"${(report.reportName!'')?js_string}","status":"${(report.status!'')?js_string}","total":${(report.total!0)?c},"currency":"${(report.currency!'USD')?js_string}","expenses":[<#list report.transactionList as expense>{"transactionID":"${(expense.transactionID!'')?js_string}","amount":${(expense.amount!0)?c},"category":"${(expense.category!'')?js_string}","tag":"${(expense.tag!'')?js_string}","merchant":"${(expense.merchant!'')?js_string}","comment":"${(expense.comment!'')?js_string}","created":"${(expense.created!'')?js_string}","modified":"${(expense.modified!'')?js_string}","receipt":{"filename":"${(expense.receiptFilename!'')?js_string}","url":"${(expense.receiptUrl!'')?js_string}"}}<#if expense_has_next>,</#if></#list>]}<#if report_has_next>,</#if></#list>]</#compress>`;
+
+// 1. Construct the requestJobDescription JSON object
+const requestJobDescription = {
+  type: "file",
+  credentials: {
+    partnerUserID: "your_partner_user_id",
+    partnerUserSecret: "your_partner_user_secret"
+  },
+  onReceive: {
+    immediateResponse: ["returnRandomFileName"]
+  },
+  inputSettings: {
+    type: "combinedReportData",
+    filters: {
+      // Example: filter by date range
+      startDate: "2025-05-01",
+      endDate: "2025-05-31"
+    }
+  },
+  outputSettings: {
+    fileExtension: "json"
+  }
+};
+
+// 2. Create the URL-encoded form data payload
+const formData = new URLSearchParams();
+formData.append('requestJobDescription', JSON.stringify(requestJobDescription));
+formData.append('template', exportTemplate);
+
+
+// 3. Make the API call
+async function exportExpenses() {
+  const response = await fetch('https://integrations.expensify.com/Integration-Server/ExpensifyIntegrations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: formData
+  });
+
+  const responseData = await response.json();
+  
+  if (response.ok) {
+    console.log("Export job created successfully. Filename:", responseData.fileName);
+    // You would then use the 'download' job to fetch this file.
+  } else {
+    console.error("API Error:", responseData);
+  }
+}
+
+exportExpenses();
+This corrected approach directly addresses the {"responseMessage":"No Template Submitted"} error you were receiving. Your API call was authenticating successfully but was missing the second required template form parameter.
