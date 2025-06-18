@@ -82,6 +82,7 @@ export class ExpensifyService {
    * Create request payload for Expensify API using URL-encoded form data
    */
   private createFormPayload(command: string, additionalParams: Record<string, any> = {}): string {
+    // Use the working approach without template to avoid authentication issues
     const jobDescription = {
       type: 'file',
       credentials: {
@@ -94,7 +95,7 @@ export class ExpensifyService {
       inputSettings: {
         type: 'combinedReportData',
         filters: {
-          reportState: 'APPROVED,REIMBURSED,OPEN',
+          reportState: 'APPROVED,REIMBURSED',
           startDate: '2024-01-01',
           endDate: new Date().toISOString().split('T')[0],
           ...additionalParams.filters,
