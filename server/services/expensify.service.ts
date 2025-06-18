@@ -82,7 +82,6 @@ export class ExpensifyService {
    * Create request payload for Expensify API using URL-encoded form data
    */
   private createFormPayload(command: string, additionalParams: Record<string, any> = {}): string {
-    // Use the working approach without template to avoid authentication issues
     const jobDescription = {
       type: 'file',
       credentials: {
@@ -95,7 +94,7 @@ export class ExpensifyService {
       inputSettings: {
         type: 'combinedReportData',
         filters: {
-          reportState: 'APPROVED,REIMBURSED',
+          reportState: 'APPROVED,REIMBURSED,OPEN',
           startDate: '2024-01-01',
           endDate: new Date().toISOString().split('T')[0],
           ...additionalParams.filters,
@@ -199,9 +198,10 @@ export class ExpensifyService {
         throw new Error(`Expensify API error: ${data.responseMessage || 'Authentication error'} (Code: ${data.responseCode})`);
       }
       
-      // Handle 410 "No Template Submitted" - authentication works but template required for data
+      // Handle 410 "No Template Submitted" - this means authentication worked but no template was provided
+      // For now, return empty data since we can't process without a template
       if (data.responseCode && data.responseCode === 410) {
-        console.log('[Expensify] Authentication successful but template required for expense data extraction');
+        console.log('[Expensify] No template submitted - returning empty expense data');
         return [];
       }
       
