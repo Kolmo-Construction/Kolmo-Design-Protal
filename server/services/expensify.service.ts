@@ -139,8 +139,8 @@ export class ExpensifyService {
   }
 
   /**
-   * Create request payload for Expensify API using the correct format from documentation
-   * Two separate form parameters: requestJobDescription (JSON) and template (raw string)
+   * Create request payload for Expensify API
+   * Using basic approach without templates due to Partner API account limitations
    */
   private createFormPayload(command: string, additionalParams: Record<string, any> = {}): string {
     const requestJobDescription = {
@@ -166,10 +166,9 @@ export class ExpensifyService {
       },
     };
 
-    // Create form data with two separate parameters as per documentation
+    // Use basic form data without template due to account limitations
     const formData = new URLSearchParams();
     formData.append('requestJobDescription', JSON.stringify(requestJobDescription));
-    formData.append('template', this.getExpenseDataTemplate());
 
     return formData.toString();
   }
@@ -434,7 +433,7 @@ export class ExpensifyService {
         },
       });
 
-      console.log('[Expensify] Testing connection with template-enabled payload preview:', payload.substring(0, 200) + '...');
+      console.log('[Expensify] Testing basic API connection without templates');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
