@@ -168,17 +168,23 @@ export class ExpensifyService {
   /**
    * Create a new project in Expensify (creates a tag for expense tracking)
    */
-  async createProject(projectId: number, projectName: string): Promise<boolean> {
+  async createProject(projectId: number, projectName: string, ownerName: string, creationDate: Date): Promise<{ success: boolean; tag: string }> {
     if (!this.isConfigured()) {
       throw new Error('Expensify API credentials not configured');
     }
 
     try {
+      // Create tag format: OwnerName_YYYY-MM-DD
+      const dateStr = creationDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const cleanOwnerName = ownerName.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, ''); // Remove spaces and special chars
+      const expensifyTag = `${cleanOwnerName}_${dateStr}`;
+
       // Expensify doesn't have a direct "create tag" API
       // Tags are created automatically when expenses are submitted with them
       // We'll document this project for future expense submissions
-      console.log(`Project ${projectId} (${projectName}) ready for Expensify expense tracking`);
-      return true;
+      console.log(`Project ${projectId} (${projectName}) ready for Expensify expense tracking with tag: ${expensifyTag}`);
+      
+      return { success: true, tag: expensifyTag };
     } catch (error) {
       console.error('Error creating Expensify project:', error);
       throw error;

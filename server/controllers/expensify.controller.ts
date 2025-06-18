@@ -153,7 +153,7 @@ export class ExpensifyController {
         });
       }
 
-      const success = await expensifyService.createProject(projectId, project.name);
+      const result = await expensifyService.createProject(projectId, project.name, project.customerName || 'Unknown Owner', project.createdAt);
       
       if (success) {
         res.json({

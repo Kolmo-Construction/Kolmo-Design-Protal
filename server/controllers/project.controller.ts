@@ -10,6 +10,7 @@ import {
   User, // Keep User type for req.user casting
 } from '../../shared/schema';
 import { HttpError } from '../errors';
+import { expensifyService } from '../services/expensify.service';
 
 // Define a Zod schema for project creation/update
 const projectInputSchema = insertProjectSchema.extend({
@@ -106,6 +107,26 @@ export const createProject = async (
         insertData,
         clientIds.map(id => id.toString())
     );
+
+    // Automatically create Expensify tag using project owner's name and creation date
+    try {
+      if (expensifyService.isConfigured() && insertData.customerName) {
+        const creationDate = new Date();
+        const result = await expensifyService.createProject(
+          newProject.id,
+          newProject.name,
+          insertData.customerName,
+          creationDate
+        );
+        
+        if (result.success) {
+          console.log(`[ProjectController] Expensify tag created: ${result.tag} for project ${newProject.id}`);
+        }
+      }
+    } catch (error) {
+      console.warn('[ProjectController] Failed to create Expensify tag:', error);
+      // Don't fail project creation if Expensify tag creation fails
+    }
 
     res.status(201).json(newProject);
 
