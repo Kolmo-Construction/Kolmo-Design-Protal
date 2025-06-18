@@ -155,6 +155,24 @@ export default function AdminInvoices() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
       <div className="container mx-auto px-6 py-8">
+        {/* Navigation */}
+        <div className="flex items-center gap-4 mb-6">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </Link>
+          <div className="text-sm text-slate-500">
+            <Link href="/" className="hover:text-slate-700">
+              <Home className="h-4 w-4 inline mr-1" />
+              Dashboard
+            </Link>
+            <span className="mx-2">/</span>
+            <span className="text-slate-900">Invoices</span>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Invoice Management</h1>

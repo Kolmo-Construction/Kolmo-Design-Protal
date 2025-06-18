@@ -209,6 +209,14 @@ BASE_URL=https://kolmo.design
   - Implemented UniversalLayout system that automatically shows appropriate navigation based on user role
   - Fixed apiRequest parameter order bug in logout functionality
   - Project managers now have full access to their dashboard and assigned projects with proper navigation
+- June 18, 2025. Fixed project status update database errors and improved page navigation:
+  - Resolved "value.toISOString is not a function" error in project status updates by fixing date field validation
+  - Added proper null value handling for timestamp fields in project controller
+  - Fixed TypeScript errors and type conversions in project update schema
+  - Enhanced navigation across application with consistent back buttons and breadcrumbs
+  - Added "Back to Dashboard" navigation to quotes page and admin invoices page
+  - Implemented consistent breadcrumb navigation pattern with Home icon and page hierarchy
+  - Improved user experience with clear navigation paths throughout the application
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
