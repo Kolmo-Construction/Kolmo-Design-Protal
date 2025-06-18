@@ -100,6 +100,12 @@ export class ExpensifyService {
       outputSettings: {
         fileExtension: 'csv',
       },
+      onFinish: [
+        {
+          actionName: 'email',
+          recipients: 'test@example.com',
+        }
+      ],
     };
 
     const params = new URLSearchParams();
