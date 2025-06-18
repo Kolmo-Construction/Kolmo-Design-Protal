@@ -90,10 +90,13 @@ export const createProject = async (
     const { clientIds, ...projectData } = validationResult.data;
     const user = req.user as User;
 
-    // Prepare data, converting dates if necessary
-    const insertData = {
+    // Prepare data, converting dates and handling type conversions properly
+    const insertData: any = {
         ...projectData,
         projectManagerId: user.id, // Assign creating admin as PM initially
+        totalBudget: typeof projectData.totalBudget === 'number' 
+            ? projectData.totalBudget.toString() 
+            : projectData.totalBudget,
         ...(projectData.startDate && { startDate: new Date(projectData.startDate) }),
         ...(projectData.estimatedCompletionDate && { estimatedCompletionDate: new Date(projectData.estimatedCompletionDate) }),
     };
@@ -101,7 +104,7 @@ export const createProject = async (
     // Use the nested repository: storage.projects
     const newProject = await storage.projects.createProjectWithClients(
         insertData,
-        clientIds
+        clientIds.map(id => id.toString())
     );
 
     res.status(201).json(newProject);
@@ -135,26 +138,40 @@ export const updateProject = async (
 
     const { clientIds, ...projectData } = validationResult.data;
 
-    // Prepare data, converting dates if necessary and handling nulls properly
-    const updateData = {
-        ...projectData,
-        ...(projectData.startDate !== undefined && {
-            startDate: projectData.startDate ? new Date(projectData.startDate) : null
-        }),
-        ...(projectData.estimatedCompletionDate !== undefined && {
-            estimatedCompletionDate: projectData.estimatedCompletionDate ? new Date(projectData.estimatedCompletionDate) : null
-        }),
-        ...(projectData.actualCompletionDate !== undefined && {
-            actualCompletionDate: projectData.actualCompletionDate ? new Date(projectData.actualCompletionDate) : null
-        }),
-    };
+    // Prepare data, converting dates and handling type conversions properly
+    const updateData: any = {};
+    
+    // Copy all non-date fields
+    Object.keys(projectData).forEach(key => {
+        if (!['startDate', 'estimatedCompletionDate', 'actualCompletionDate', 'totalBudget'].includes(key)) {
+            updateData[key] = projectData[key as keyof typeof projectData];
+        }
+    });
+    
+    // Handle date fields properly
+    if (projectData.startDate !== undefined) {
+        updateData.startDate = projectData.startDate ? new Date(projectData.startDate) : null;
+    }
+    if (projectData.estimatedCompletionDate !== undefined) {
+        updateData.estimatedCompletionDate = projectData.estimatedCompletionDate ? new Date(projectData.estimatedCompletionDate) : null;
+    }
+    if (projectData.actualCompletionDate !== undefined) {
+        updateData.actualCompletionDate = projectData.actualCompletionDate ? new Date(projectData.actualCompletionDate) : null;
+    }
+    
+    // Handle totalBudget conversion if present
+    if (projectData.totalBudget !== undefined) {
+        updateData.totalBudget = typeof projectData.totalBudget === 'number' 
+            ? projectData.totalBudget.toString() 
+            : projectData.totalBudget;
+    }
 
     // Use the nested repository: storage.projects
     // Pass clientIds only if they were included in the request body (clientIds !== undefined)
     const updatedProject = await storage.projects.updateProjectDetailsAndClients(
         id,
         updateData,
-        clientIds // Pass the array or undefined
+        clientIds ? clientIds.map((id: number) => id.toString()) : undefined // Convert to string array
     );
 
     if (!updatedProject) {
