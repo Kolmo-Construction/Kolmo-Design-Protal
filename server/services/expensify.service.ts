@@ -80,27 +80,32 @@ export class ExpensifyService {
    * Create request payload for Expensify API
    */
   private createRequestPayload(command: string, additionalParams: Record<string, any> = {}) {
+    const jobDescription = {
+      type: 'file',
+      credentials: {
+        partnerUserID: this.partnerUserID,
+        partnerUserSecret: this.partnerUserSecret,
+      },
+      onReceive: {
+        immediateResponse: ['returnRandomFileName'],
+      },
+      inputSettings: {
+        type: 'combinedReportData',
+        filters: {
+          reportState: 'APPROVED,REIMBURSED',
+          startDate: '2025-01-01',
+          endDate: new Date().toISOString().split('T')[0],
+          ...additionalParams.filters,
+        },
+      },
+      outputSettings: {
+        fileExtension: 'json',
+      },
+    };
+
     return new URLSearchParams({
-      requestJobDescription: JSON.stringify({
-        type: 'file',
-        credentials: {
-          partnerUserID: this.partnerUserID,
-          partnerUserSecret: this.partnerUserSecret,
-        },
-        onReceive: {
-          immediateResponse: ['returnRandomFileName'],
-        },
-        inputSettings: {
-          type: 'combinedReportData',
-          filters: {
-            reportState: 'APPROVED,REIMBURSED',
-            ...additionalParams.filters,
-          },
-        },
-        outputSettings: {
-          fileExtension: 'json',
-        },
-      }),
+      requestJobDescription: JSON.stringify(jobDescription),
+      template: 'expense_report', // Add template parameter
     }).toString();
   }
 
@@ -154,6 +159,7 @@ export class ExpensifyService {
 
     try {
       const payload = this.createRequestPayload('download');
+      console.log('[Expensify] Making API request with payload:', payload);
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
@@ -161,12 +167,22 @@ export class ExpensifyService {
         body: payload,
       });
 
+      console.log('[Expensify] API response status:', response.status, response.statusText);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log('[Expensify] API error response:', errorText);
         throw new Error(`Expensify API error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      return this.processAllExpenseData(data);
+      console.log('[Expensify] API response data type:', typeof data);
+      console.log('[Expensify] API response data length:', Array.isArray(data) ? data.length : 'not array');
+      console.log('[Expensify] First 500 chars of response:', JSON.stringify(data).substring(0, 500));
+      
+      const processedExpenses = this.processAllExpenseData(data);
+      console.log('[Expensify] Processed expenses count:', processedExpenses.length);
+      return processedExpenses;
     } catch (error) {
       console.error('Error fetching all Expensify expenses:', error);
       throw error;
@@ -278,6 +294,7 @@ export class ExpensifyService {
               merchant: expense.merchant || 'Unknown',
               receipt: expense.receipt?.filename,
               status: this.mapExpensifyStatus(report.status),
+              tag: expense.tag, // Preserve original tag for mapping
             });
           }
         }
