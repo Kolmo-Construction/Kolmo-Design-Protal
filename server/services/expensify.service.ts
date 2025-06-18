@@ -94,8 +94,8 @@ export class ExpensifyService {
       inputSettings: {
         type: 'combinedReportData',
         filters: {
-          reportState: 'APPROVED,REIMBURSED',
-          startDate: '2025-01-01',
+          reportState: 'OPEN,PROCESSING,APPROVED,REIMBURSED',
+          startDate: '2024-01-01',
           endDate: new Date().toISOString().split('T')[0],
           ...additionalParams.filters,
         },
@@ -172,6 +172,7 @@ export class ExpensifyService {
     try {
       const payload = this.createFormPayload('download');
       console.log('[Expensify] Making API request with URL-encoded form data');
+      console.log('[Expensify] Payload preview:', payload.substring(0, 200) + '...');
 
       const response = await fetch(this.baseURL, {
         method: 'POST',
@@ -181,16 +182,31 @@ export class ExpensifyService {
 
       console.log('[Expensify] API response status:', response.status, response.statusText);
 
+      const responseText = await response.text();
+      console.log('[Expensify] Raw response text:', responseText.substring(0, 500));
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.log('[Expensify] API error response:', errorText);
-        throw new Error(`Expensify API error: ${response.status} ${response.statusText}`);
+        console.log('[Expensify] API error response:', responseText);
+        throw new Error(`Expensify API error: ${response.status} ${response.statusText} - ${responseText}`);
       }
 
-      const data = await response.json();
+      // Try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.log('[Expensify] Response is not JSON, treating as error');
+        throw new Error(`Expensify API returned non-JSON response: ${responseText}`);
+      }
+
       console.log('[Expensify] API response data type:', typeof data);
       console.log('[Expensify] API response data length:', Array.isArray(data) ? data.length : 'not array');
       console.log('[Expensify] First 500 chars of response:', JSON.stringify(data).substring(0, 500));
+      
+      // Check if response contains an error
+      if (data.responseCode && data.responseCode !== 200) {
+        throw new Error(`Expensify API error: ${data.responseMessage || 'Unknown error'} (Code: ${data.responseCode})`);
+      }
       
       const processedExpenses = this.processAllExpenseData(data);
       console.log('[Expensify] Processed expenses count:', processedExpenses.length);
@@ -352,22 +368,39 @@ export class ExpensifyService {
         },
       });
 
+      console.log('[Expensify] Testing connection with payload preview:', payload.substring(0, 200) + '...');
+
       const response = await fetch(this.baseURL, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: payload,
       });
 
+      const responseText = await response.text();
+      console.log('[Expensify] Test connection response:', responseText.substring(0, 500));
+
       if (response.ok) {
+        // Try to parse response to check for authentication errors
+        try {
+          const data = JSON.parse(responseText);
+          if (data.responseCode && data.responseCode === 401) {
+            return {
+              connected: false,
+              message: `Authentication failed: ${data.responseMessage || 'Invalid credentials'}. Please verify EXPENSIFY_PARTNER_USER_ID and EXPENSIFY_PARTNER_USER_SECRET are correct.`,
+            };
+          }
+        } catch (parseError) {
+          // Response might not be JSON, continue with success
+        }
+
         return {
           connected: true,
           message: 'Successfully connected to Expensify API',
         };
       } else {
-        const errorText = await response.text();
         return {
           connected: false,
-          message: `Expensify API connection failed: ${response.status} ${response.statusText} - ${errorText}`,
+          message: `Expensify API connection failed: ${response.status} ${response.statusText} - ${responseText}`,
         };
       }
     } catch (error) {
