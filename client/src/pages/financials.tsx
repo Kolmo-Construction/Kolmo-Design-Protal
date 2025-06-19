@@ -28,6 +28,7 @@ interface ProjectBudgetTracking {
   budgetUtilization: number;
   expenses: ZohoExpense[];
 }
+
 import {
   Card,
   CardContent,
@@ -314,95 +315,63 @@ export default function Financials() {
                   </Card>
                 </div>
 
-                {/* Project Budget Breakdown */}
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-slate-800">Project Budget Breakdown</h3>
-                  {budgetTrackingData.map((project) => (
-                    <Card key={project.projectId} className="border border-slate-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium text-slate-800">{project.projectName}</h4>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={project.budgetUtilization > 90 ? "destructive" : 
-                                      project.budgetUtilization > 75 ? "secondary" : "default"}
-                            >
-                              {project.budgetUtilization.toFixed(1)}% Used
-                            </Badge>
-                            {project.budgetUtilization > 90 && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" />
-                            )}
-                          </div>
+                {/* Project Budget Details */}
+                <div className="space-y-4">
+                  {filteredBudgetData.map((project) => (
+                    <Card key={project.projectId} className="border">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{project.projectName}</CardTitle>
+                          <Badge variant={project.budgetUtilization > 90 ? "destructive" : project.budgetUtilization > 75 ? "default" : "secondary"}>
+                            {project.budgetUtilization.toFixed(1)}% Used
+                          </Badge>
                         </div>
-                        
-                        <div className="grid grid-cols-3 gap-4 text-sm">
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {/* Budget Progress Bar */}
                           <div>
-                            <p className="text-slate-600">Budget</p>
-                            <p className="font-semibold">${project.totalBudget.toLocaleString()}</p>
+                            <div className="flex justify-between text-sm mb-2">
+                              <span>Budget Usage</span>
+                              <span>${project.totalExpenses.toLocaleString()} / ${project.totalBudget.toLocaleString()}</span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  project.budgetUtilization > 90 ? 'bg-red-500' : 
+                                  project.budgetUtilization > 75 ? 'bg-yellow-500' : 'bg-green-500'
+                                }`}
+                                style={{ width: `${Math.min(project.budgetUtilization, 100)}%` }}
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-slate-600">Expenses</p>
-                            <p className="font-semibold">${project.totalExpenses.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-slate-600">Remaining</p>
-                            <p className={`font-semibold ${project.remainingBudget < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              ${project.remainingBudget.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Progress Bar */}
-                        <div className="mt-3">
-                          <div className="flex justify-between text-xs text-slate-600 mb-1">
-                            <span>Budget Utilization</span>
-                            <span>{project.budgetUtilization.toFixed(1)}%</span>
-                          </div>
-                          <div className="w-full bg-slate-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                project.budgetUtilization > 90 ? 'bg-red-500' :
-                                project.budgetUtilization > 75 ? 'bg-yellow-500' : 'bg-green-500'
-                              }`}
-                              style={{ width: `${Math.min(project.budgetUtilization, 100)}%` }}
-                            />
-                          </div>
-                        </div>
 
-                        {/* Recent Expenses */}
-                        {project.expenses.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-slate-100">
-                            <p className="text-sm font-medium text-slate-700 mb-2">Recent Expenses</p>
-                            <div className="space-y-2">
-                              {project.expenses.slice(0, 3).map((expense) => (
-                                <div key={expense.id} className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs">
-                                      {expense.category}
-                                    </Badge>
-                                    <span className="text-slate-600">{expense.description}</span>
+                          {/* Recent Expenses */}
+                          {project.expenses && project.expenses.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-slate-800 mb-2">Recent Expenses</h4>
+                              <div className="space-y-2">
+                                {project.expenses.slice(0, 3).map((expense) => (
+                                  <div key={expense.id} className="flex justify-between items-center p-2 bg-slate-50 rounded">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">{expense.description}</p>
+                                      <p className="text-xs text-slate-500">{expense.merchant} • {expense.category}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-medium">${expense.amount.toLocaleString()}</p>
+                                      <p className="text-xs text-slate-500">{formatDate(expense.date)}</p>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">${expense.amount.toLocaleString()}</span>
-                                    <Badge 
-                                      variant={expense.status === 'approved' ? 'default' : 
-                                              expense.status === 'pending' ? 'secondary' : 'outline'}
-                                      className="text-xs"
-                                    >
-                                      {expense.status}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                               {project.expenses.length > 3 && (
-                                <Button variant="ghost" size="sm" className="w-full mt-2">
-                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                <Button variant="link" size="sm" className="p-0 h-auto text-blue-600">
                                   View All in Zoho
                                 </Button>
                               )}
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -412,351 +381,177 @@ export default function Financials() {
           </CardContent>
         </Card>
 
-        {/* Traditional Financial Data when Zoho is not connected */}
-        {!zohoConfig?.connected && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Traditional Financial Overview
-              </CardTitle>
-              <CardDescription>
-                View invoices and payments while setting up expense tracking
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-4">
-                <p className="text-slate-600">
-                  Continue viewing your invoices and payments below while setting up Zoho Expense integration for comprehensive budget tracking.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Financial Summary */}
         <div className="mb-6">
           <FinancialSummary 
             totalBudget={totalBudget}
             invoices={filteredInvoices}
-            isLoading={isLoadingProjects || isLoadingInvoices}
+            payments={filteredPayments}
+            projects={filteredProjects}
           />
         </div>
 
-        {/* Financial Data Tabs */}
-        <Tabs defaultValue="invoices" className="mb-6">
-          <TabsList className="grid grid-cols-2 w-full">
+        {/* Tabs for detailed financial data */}
+        <Tabs defaultValue="invoices" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="invoices">Invoices</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
           
-          {/* Invoices Tab */}
-          <TabsContent value="invoices">
+          <TabsContent value="invoices" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Invoice History</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Invoice Management
+                </CardTitle>
                 <CardDescription>
-                  {filteredInvoices.length} invoice{filteredInvoices.length !== 1 ? 's' : ''} found
+                  View and manage all project invoices
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {(isLoadingProjects || isLoadingInvoices) ? (
-                  <div className="animate-pulse">
-                    <div className="h-10 bg-slate-200 rounded mb-4"></div>
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="h-16 bg-slate-200 rounded mb-2"></div>
-                    ))}
-                  </div>
-                ) : filteredInvoices.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="rounded-full bg-primary-50 p-3 mb-4">
-                      <FileText className="h-6 w-6 text-primary-600" />
-                    </div>
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">No Invoices Found</h3>
-                    <p className="text-center text-slate-500 mb-6 max-w-md">
-                      {allInvoices.length === 0 
-                        ? "No invoices have been issued for any of your projects yet."
-                        : "No invoices match your current filter. Try selecting a different project."}
-                    </p>
+                {isLoadingInvoices ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
                 ) : (
-                  <>
-                    <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm text-slate-500">Invoice Status</CardTitle>
-                        </CardHeader>
-                        <CardContent className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={pieChartData}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                fill="#8884d8"
-                                label
-                              >
-                                {pieChartData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm text-slate-500">Invoice Summary</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4 pt-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-600">Total Invoices:</span>
-                            <span className="font-medium">{filteredInvoices.length}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-600">Total Amount:</span>
-                            <span className="font-medium">
-                              ${filteredInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-600">Draft:</span>
-                            <span className="font-medium text-blue-600">
-                              ${filteredInvoices.filter(i => i.status === "draft")
-                                .reduce((sum, inv) => sum + Number(inv.amount), 0)
-                                .toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-600">Pending:</span>
-                            <span className="font-medium text-yellow-600">
-                              ${filteredInvoices.filter(i => i.status === "pending")
-                                .reduce((sum, inv) => sum + Number(inv.amount), 0)
-                                .toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-600">Paid:</span>
-                            <span className="font-medium text-green-600">
-                              ${filteredInvoices.filter(i => i.status === "paid")
-                                .reduce((sum, inv) => sum + Number(inv.amount), 0)
-                                .toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-600">Overdue:</span>
-                            <span className="font-medium text-red-600">
-                              ${filteredInvoices.filter(i => i.status === "overdue")
-                                .reduce((sum, inv) => sum + Number(inv.amount), 0)
-                                .toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Invoice #
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Project
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Issue Date
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Due Date
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Amount
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                          {filteredInvoices.map((invoice) => {
-                            // Find project for this invoice
-                            const project = projects.find(p => p.id === invoice.projectId);
-                            
-                            return (
-                              <tr key={invoice.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">
-                                  {invoice.invoiceNumber}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                  {project?.name || `Project ID: ${invoice.projectId}`}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                  {formatDate(invoice.issueDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                  {formatDate(invoice.dueDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  ${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <Badge
-                                    className={
-                                      invoice.status === "paid" ? "bg-green-600" :
-                                      invoice.status === "overdue" ? "bg-red-600" :
-                                      "bg-yellow-500"
-                                    }
-                                  >
-                                    {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                                  </Badge>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                  <div className="flex justify-end gap-2">
-                                    <Button variant="outline" size="sm" className="text-primary-600 gap-1">
-                                      <FileText className="h-4 w-4" />
-                                      View
-                                    </Button>
-                                    <Button variant="outline" size="sm" className="text-primary-600 gap-1">
-                                      <Download className="h-4 w-4" />
-                                      Download
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
+                  <div className="space-y-4">
+                    {filteredInvoices.map((invoice) => (
+                      <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h3 className="font-medium">{invoice.invoiceNumber}</h3>
+                          <p className="text-sm text-slate-600">
+                            Amount: ${Number(invoice.amount).toLocaleString()}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            Created: {formatDate(invoice.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge variant={
+                            invoice.status === "paid" ? "default" :
+                            invoice.status === "pending" ? "secondary" :
+                            invoice.status === "overdue" ? "destructive" : "outline"
+                          }>
+                            {invoice.status}
+                          </Badge>
+                          <Button variant="outline" size="sm">
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
-          
-          {/* Payments Tab */}
-          <TabsContent value="payments">
+
+          <TabsContent value="payments" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Payment History</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Payment History
+                </CardTitle>
                 <CardDescription>
-                  {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''} found
+                  Track all payments received
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {(isLoadingProjects || isLoadingInvoices || isLoadingPayments) ? (
-                  <div className="animate-pulse">
-                    <div className="h-10 bg-slate-200 rounded mb-4"></div>
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="h-16 bg-slate-200 rounded mb-2"></div>
-                    ))}
-                  </div>
-                ) : filteredPayments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="rounded-full bg-primary-50 p-3 mb-4">
-                      <CircleDollarSign className="h-6 w-6 text-primary-600" />
-                    </div>
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">No Payments Found</h3>
-                    <p className="text-center text-slate-500 mb-6 max-w-md">
-                      {allPayments.length === 0 
-                        ? "No payments have been recorded for any of your invoices yet."
-                        : "No payments match your current filter. Try selecting a different project."}
-                    </p>
+                {isLoadingPayments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
                 ) : (
-                  <>
-                    <div className="mb-6">
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm text-slate-500">Payment Timeline</CardTitle>
-                        </CardHeader>
-                        <CardContent className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={filteredPayments.map(payment => ({
-                                date: format(new Date(payment.paymentDate), "MMM d"),
-                                amount: Number(payment.amount)
-                              }))}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="date" />
-                              <YAxis tickFormatter={(value) => `$${value}`} />
-                              <Tooltip formatter={(value) => [`$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'Amount']} />
-                              <Bar dataKey="amount" fill="#3b82f6" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
+                  <div className="space-y-4">
+                    {filteredPayments.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h3 className="font-medium">Payment #{payment.id}</h3>
+                          <p className="text-sm text-slate-600">
+                            Amount: ${Number(payment.amount).toLocaleString()}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            Date: {formatDate(payment.paymentDate)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge variant="default">
+                            {payment.paymentMethod}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Financial Analytics
+                </CardTitle>
+                <CardDescription>
+                  Visual insights into your financial data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pieChartData.length > 0 ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Invoice Status Distribution</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={pieChartData}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            label={({ name, value }) => `${name}: ${value}`}
+                          >
+                            {pieChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
-                  
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Invoice #
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Project
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Payment Date
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Amount
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Method
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                              Reference
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                          {filteredPayments.map((payment) => {
-                            // Find invoice for this payment
-                            const invoice = allInvoices.find(i => i.id === payment.invoiceId);
-                            // Find project for this invoice
-                            const project = invoice ? projects.find(p => p.id === invoice.projectId) : undefined;
-                            
-                            return (
-                              <tr key={payment.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">
-                                  {invoice?.invoiceNumber || `Invoice ID: ${payment.invoiceId}`}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                  {project?.name || 'Unknown Project'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                  {formatDate(payment.paymentDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                                  ${Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                  {payment.paymentMethod}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                  {payment.reference || '-'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Summary Statistics</h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between">
+                          <span>Total Invoices:</span>
+                          <span className="font-medium">{filteredInvoices.length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total Revenue:</span>
+                          <span className="font-medium">
+                            ${filteredInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Payments Received:</span>
+                          <span className="font-medium">
+                            ${filteredPayments.reduce((sum, pay) => sum + Number(pay.amount), 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-500">
+                    No financial data available for the selected filter
+                  </div>
                 )}
               </CardContent>
             </Card>
