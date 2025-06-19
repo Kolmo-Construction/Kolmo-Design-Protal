@@ -30,7 +30,7 @@ interface ProjectExpensifyTabProps {
   project: Project;
 }
 
-interface ExpensifyConfig {
+interface ZohoExpenseConfig {
   configured: boolean;
   connected: boolean;
   message: string;
@@ -49,9 +49,9 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch Expensify configuration
-  const { data: expensifyConfig } = useQuery<ExpensifyConfig>({
-    queryKey: ['/api/expensify/config'],
+  // Fetch Zoho Expense configuration
+  const { data: zohoConfig } = useQuery<ZohoExpenseConfig>({
+    queryKey: ['/api/zoho-expense/status'],
   });
 
   // Generate current tag
@@ -124,16 +124,16 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
     setIsEditing(false);
   };
 
-  if (!expensifyConfig?.configured) {
+  if (!zohoConfig?.configured) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Tag className="h-5 w-5" />
-            Expensify Integration
+            Zoho Expense Integration
           </CardTitle>
           <CardDescription>
-            Expensify is not configured. Contact your administrator to set up expense tracking.
+            Zoho Expense is not configured. Contact your administrator to set up expense tracking.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -298,11 +298,11 @@ export function ProjectExpensifyTab({ project }: ProjectExpensifyTabProps) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2">
-            <Badge variant={expensifyConfig?.connected ? "default" : "destructive"}>
-              {expensifyConfig?.connected ? "Connected" : "Disconnected"}
+            <Badge variant={zohoConfig?.connected ? "default" : "destructive"}>
+              {zohoConfig?.connected ? "Connected" : "Disconnected"}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              {expensifyConfig?.message}
+              {zohoConfig?.message}
             </span>
           </div>
         </CardContent>

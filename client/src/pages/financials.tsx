@@ -104,21 +104,21 @@ export default function Financials() {
     enabled: allInvoices.length > 0,
   });
 
-  // Fetch Expensify configuration status
+  // Fetch Zoho Expense configuration status
   const { 
-    data: expensifyConfig,
-    isLoading: isLoadingExpensifyConfig 
+    data: zohoConfig,
+    isLoading: isLoadingZohoConfig 
   } = useQuery<{ configured: boolean; message: string }>({
-    queryKey: ["/api/expensify/config"],
+    queryKey: ["/api/zoho-expense/status"],
   });
 
-  // Fetch budget tracking data from Expensify
+  // Fetch budget tracking data from Zoho Expense
   const { 
     data: budgetTrackingData = [],
     isLoading: isLoadingBudgetData,
     refetch: refetchBudgetData
   } = useQuery<ProjectBudgetTracking[]>({
-    queryKey: ["/api/expensify/budget-tracking"],
+    queryKey: ["/api/zoho-expense/budget-tracking"],
   });
 
   // Filter projects based on the selected filter
@@ -202,22 +202,22 @@ export default function Financials() {
           </CardContent>
         </Card>
 
-        {/* Expensify Integration Section */}
+        {/* Zoho Expense Integration Section */}
         <Card className="mb-6">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-green-600" />
-                  Expensify Budget Tracking
+                  Zoho Expense Budget Tracking
                 </CardTitle>
                 <CardDescription>
-                  Connect with Expensify to track project expenses against budgets in real-time
+                  Connect with Zoho Expense to track project expenses against budgets in real-time
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={expensifyConfig?.configured ? "default" : "secondary"}>
-                  {expensifyConfig?.configured ? "Connected" : "Not Connected"}
+                <Badge variant={zohoConfig?.configured ? "default" : "secondary"}>
+                  {zohoConfig?.configured ? "Connected" : "Not Connected"}
                 </Badge>
                 <Button 
                   variant="outline" 
@@ -232,7 +232,7 @@ export default function Financials() {
             </div>
           </CardHeader>
           <CardContent>
-            {expensifyConfig?.configured ? (
+            {zohoConfig?.configured ? (
               <div className="space-y-4">
                 {/* Budget Overview Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -362,7 +362,7 @@ export default function Financials() {
                               {project.expenses.length > 3 && (
                                 <Button variant="ghost" size="sm" className="w-full mt-2">
                                   <ExternalLink className="h-4 w-4 mr-2" />
-                                  View All in Expensify
+                                  View All in Zoho
                                 </Button>
                               )}
                             </div>
@@ -376,13 +376,13 @@ export default function Financials() {
             ) : (
               <div className="text-center py-8">
                 <DollarSign className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-800 mb-2">Connect to Expensify</h3>
+                <h3 className="text-lg font-medium text-slate-800 mb-2">Connect to Zoho Expense</h3>
                 <p className="text-slate-600 mb-4">
-                  Link your Expensify account to automatically track project expenses against budgets
+                  Link your Zoho Expense account to automatically track project expenses against budgets
                 </p>
                 <Button onClick={() => refetchBudgetData()} className="gap-2">
                   <ExternalLink className="h-4 w-4" />
-                  Setup Expensify Integration
+                  Setup Zoho Integration
                 </Button>
               </div>
             )}

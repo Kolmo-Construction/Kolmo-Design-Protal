@@ -217,28 +217,15 @@ BASE_URL=https://kolmo.design
   - Added "Back to Dashboard" navigation to quotes page and admin invoices page
   - Implemented consistent breadcrumb navigation pattern with Home icon and page hierarchy
   - Improved user experience with clear navigation paths throughout the application
-- June 18, 2025. Implemented Expensify integration with real API credentials and owner-based tag system:
-  - Fixed Expensify integration to use proper Partner API credentials (EXPENSIFY_PARTNER_USER_ID and EXPENSIFY_PARTNER_USER_SECRET)
-  - Eliminated mock data completely - now uses real Expensify API responses
-  - Implemented automatic tag creation using project owner name and creation date format (OwnerName_YYYY-MM-DD)
-  - Added automatic Expensify tag generation when projects are created
-  - Enhanced expense tracking with meaningful tags instead of numeric project IDs
-  - Verified API connection and authentication working with real Partner credentials
-  - System ready for real-time budget monitoring against actual Expensify expenses
-- June 18, 2025. Fixed project tag editing functionality in Expensify integration:
-  - Resolved API parameter order issue in tag update mutation that was preventing successful tag modifications
-  - Fixed apiRequest method call format to use proper parameter ordering (method, url, data)
-  - Added error logging and success confirmation for tag update operations
-  - Implemented real-time tag display updates - tags now change immediately when edited instead of showing stale values
-  - Tag editing interface now properly updates Expensify tags when users modify project owner names or creation dates
-- June 18, 2025. Resolved Expensify API integration challenges and established stable connection:
-  - Fixed authentication issues by implementing correct Partner API credential format and payload structure
-  - Tested multiple template approaches from documentation: separate form parameters vs embedded JSON templates
-  - Identified that Partner API account requires additional template privileges enabled by Expensify support
-  - Established stable authentication connection with 410 "No Template Submitted" response confirming credentials work
-  - Project tag generation system fully operational using owner-based format (OwnerName_YYYY-MM-DD)
-  - System ready for expense data extraction once Expensify enables template-based data extraction privileges
-  - Integration gracefully handles current limitations with clear status reporting for users
+- June 19, 2025. Replaced Expensify integration with Zoho Expense for comprehensive budget tracking:
+  - Completely replaced Expensify service with new ZohoExpenseService using OAuth 2.0 authentication
+  - Implemented secure token management with automatic refresh handling
+  - Created comprehensive Zoho Expense API integration supporting organization management and project expense tracking
+  - Updated all frontend components to use new Zoho Expense endpoints instead of Expensify
+  - Maintained existing project tag format (OwnerName_YYYY-MM-DD) for consistency
+  - Added OAuth authorization flow for secure Zoho account connection
+  - Enhanced expense categorization and status mapping for Zoho's expense workflow
+  - System ready for real-time budget monitoring with proper Zoho API credentials
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
