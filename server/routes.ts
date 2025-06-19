@@ -242,6 +242,13 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   // Mount Zoho Expense integration routes
   app.use("/api/zoho-expense", zohoExpenseRouter);
 
+  // Add redirect route for Zoho callback (compatibility with Zoho app configuration)
+  app.get("/api/auth/zoho/callback", async (req: any, res: any) => {
+    // Redirect to the actual callback handler
+    const queryString = new URLSearchParams(req.query).toString();
+    res.redirect(`/api/zoho-expense/auth/callback?${queryString}`);
+  });
+
   // Mount Client Portal routes
   app.use("/api/client", isAuthenticated, clientRouter);
 

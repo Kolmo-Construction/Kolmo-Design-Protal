@@ -230,6 +230,7 @@ BASE_URL=https://kolmo.design
   - Updated project details navigation from "Expensify" tab to "Zoho Expense" tab
   - Renamed ProjectExpensifyTab to ProjectZohoExpenseTab with proper functionality
   - Fixed FinancialSummary component props to handle projects parameter correctly
+  - Added redirect route for Zoho OAuth callback URL compatibility
   - System ready for real-time budget monitoring with proper Zoho API credentials
 
 ## User Preferences
