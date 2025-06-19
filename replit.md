@@ -217,7 +217,7 @@ BASE_URL=https://kolmo.design
   - Added "Back to Dashboard" navigation to quotes page and admin invoices page
   - Implemented consistent breadcrumb navigation pattern with Home icon and page hierarchy
   - Improved user experience with clear navigation paths throughout the application
-- June 19, 2025. Replaced Expensify integration with Zoho Expense for comprehensive budget tracking:
+- June 19, 2025. Completed Zoho Expense integration replacing Expensify for comprehensive budget tracking:
   - Completely replaced Expensify service with new ZohoExpenseService using OAuth 2.0 authentication
   - Implemented secure token management with automatic refresh handling
   - Created comprehensive Zoho Expense API integration supporting organization management and project expense tracking
@@ -225,6 +225,11 @@ BASE_URL=https://kolmo.design
   - Maintained existing project tag format (OwnerName_YYYY-MM-DD) for consistency
   - Added OAuth authorization flow for secure Zoho account connection
   - Enhanced expense categorization and status mapping for Zoho's expense workflow
+  - Fixed route mounting issues causing 404 errors during Zoho connection attempts
+  - Made Zoho connection interface less prominent per user feedback in Financial page
+  - Updated project details navigation from "Expensify" tab to "Zoho Expense" tab
+  - Renamed ProjectExpensifyTab to ProjectZohoExpenseTab with proper functionality
+  - Fixed FinancialSummary component props to handle projects parameter correctly
   - System ready for real-time budget monitoring with proper Zoho API credentials
 
 ## User Preferences
