@@ -234,38 +234,51 @@ export default function Financials() {
           </CardHeader>
           <CardContent>
             {!zohoConfig?.connected ? (
-              <div className="text-center py-8 bg-amber-50 rounded-lg border border-amber-200">
-                <div className="max-w-md mx-auto">
-                  <div className="mb-4">
-                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <DollarSign className="h-8 w-8 text-amber-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-amber-800 mb-2">
-                      Connect Zoho Expense
-                    </h3>
-                    <p className="text-amber-700 text-sm mb-6">
-                      To view budget tracking and expense data, you need to authorize access to your Zoho Expense account.
+              <div className="py-4 px-6 bg-slate-50 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-600 mb-1">
+                      Budget tracking is available when connected to Zoho Expense
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {zohoConfig?.message || "Authorization required to view expense data"}
                     </p>
                   </div>
                   <Button 
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       // Get authorization URL and open in new window
-                      fetch('/api/zoho-expense/auth/url')
-                        .then(res => res.json())
+                      fetch('/api/zoho-expense/auth/url', {
+                        method: 'GET',
+                        credentials: 'include',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        }
+                      })
+                        .then(res => {
+                          if (!res.ok) {
+                            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                          }
+                          return res.json();
+                        })
                         .then(data => {
                           if (data.authUrl) {
                             window.open(data.authUrl, '_blank');
+                          } else {
+                            console.error('No authorization URL received');
                           }
                         })
-                        .catch(console.error);
+                        .catch(error => {
+                          console.error('Error fetching auth URL:', error);
+                          alert('Failed to get authorization URL. Please check the logs.');
+                        });
                     }}
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    className="text-blue-600 border-blue-600 hover:bg-blue-50"
                   >
-                    Connect to Zoho Expense
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Connect
                   </Button>
-                  <p className="text-xs text-amber-600 mt-3">
-                    You'll be redirected to Zoho to authorize access. After authorization, return here and refresh the page.
-                  </p>
                 </div>
               </div>
             ) : (
@@ -386,7 +399,6 @@ export default function Financials() {
           <FinancialSummary 
             totalBudget={totalBudget}
             invoices={filteredInvoices}
-            payments={filteredPayments}
             projects={filteredProjects}
           />
         </div>

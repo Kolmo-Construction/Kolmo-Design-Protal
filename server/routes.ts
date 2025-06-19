@@ -240,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<void> { // Changed r
   app.use("/api", globalFinanceRoutes);
 
   // Mount Zoho Expense integration routes
-  app.use("/api/zoho-expense", isAuthenticated, zohoExpenseRouter);
+  app.use("/api/zoho-expense", zohoExpenseRouter);
 
   // Mount Client Portal routes
   app.use("/api/client", isAuthenticated, clientRouter);

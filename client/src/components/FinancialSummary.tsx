@@ -5,10 +5,11 @@ import { Progress } from "@/components/ui/progress";
 interface FinancialSummaryProps {
   totalBudget: number;
   invoices: Invoice[];
+  projects: any[];
   isLoading?: boolean;
 }
 
-export default function FinancialSummary({ totalBudget, invoices, isLoading = false }: FinancialSummaryProps) {
+export default function FinancialSummary({ totalBudget, invoices, projects, isLoading = false }: FinancialSummaryProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
