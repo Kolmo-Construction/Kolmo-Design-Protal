@@ -93,7 +93,8 @@ export class ZohoExpenseController {
           });
         }
       } else {
-        // Fetch real expense data from Zoho
+        // Initialize and fetch real expense data from Zoho
+        await zohoExpenseService.initialize();
         const allExpenses = await zohoExpenseService.getAllExpenses();
 
         for (const project of projects) {
@@ -158,6 +159,7 @@ export class ZohoExpenseController {
 
       let projectExpenses: ProcessedExpense[] = [];
       if (zohoExpenseService.isConfigured()) {
+        await zohoExpenseService.initialize();
         const expectedTag = zohoExpenseService.generateProjectTag(
           project.customerName || 'Unknown', 
           new Date(project.createdAt)

@@ -77,15 +77,32 @@ export class ZohoExpenseService {
   private baseURL = 'https://www.zohoapis.com/books/v1';
   private authURL = 'https://accounts.zoho.com/oauth/v2';
   private tokens: ZohoTokens | null = null;
+  private initialized = false;
 
   constructor() {
     this.clientId = process.env.ZOHO_CLIENT_ID || '';
     this.clientSecret = process.env.ZOHO_CLIENT_SECRET || '';
     this.organizationId = process.env.ZOHO_ORGANIZATION_ID || '';
     this.redirectUri = process.env.ZOHO_REDIRECT_URI || '';
-    
-    // Load tokens from database on startup
-    this.loadTokensFromDatabase();
+  }
+
+  /**
+   * Initialize the service by loading tokens from database
+   */
+  async initialize(): Promise<void> {
+    if (!this.initialized) {
+      await this.loadTokensFromDatabase();
+      this.initialized = true;
+    }
+  }
+
+  /**
+   * Ensure service is initialized before API calls
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
   }
 
   /**
@@ -315,6 +332,7 @@ export class ZohoExpenseService {
    */
   async getOrganizations(): Promise<ZohoOrganization[]> {
     try {
+      await this.ensureInitialized();
       const data = await this.makeZohoRequest('/organizations');
       return data.organizations || [];
     } catch (error) {
@@ -367,6 +385,7 @@ export class ZohoExpenseService {
     }
 
     try {
+      await this.ensureInitialized();
       await this.setOrganizationId();
       
       // Get expenses with pagination
@@ -408,6 +427,7 @@ export class ZohoExpenseService {
     }
 
     try {
+      await this.ensureInitialized();
       const allExpenses = await this.getAllExpenses();
       
       // Filter expenses by project
