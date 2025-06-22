@@ -1022,6 +1022,90 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
     }
   }
 
+  async getQuoteMedia(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      const media = await this.quoteRepository.getQuoteMedia(quoteId);
+      res.status(200).json(media);
+    } catch (error) {
+      console.error("Error fetching quote media:", error);
+      res.status(500).json({ error: "Failed to fetch quote media" });
+    }
+  }
+
+  async updateQuoteMedia(req: Request, res: Response) {
+    try {
+      const mediaId = parseInt(req.params.mediaId);
+      const { caption, category, sortOrder } = req.body;
+      
+      if (isNaN(mediaId)) {
+        return res.status(400).json({ error: "Invalid media ID" });
+      }
+
+      const updatedMedia = await this.quoteRepository.updateQuoteMedia(mediaId, {
+        caption,
+        category,
+        sortOrder
+      });
+      
+      if (!updatedMedia) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+
+      res.status(200).json(updatedMedia);
+    } catch (error) {
+      console.error("Error updating quote media:", error);
+      res.status(500).json({ error: "Failed to update quote media" });
+    }
+  }
+
+  async uploadQuotePhoto(req: Request, res: Response) {
+    try {
+      const quoteId = parseInt(req.params.id);
+      if (isNaN(quoteId)) {
+        return res.status(400).json({ error: "Invalid quote ID" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const { caption, category } = req.body;
+      
+      // Upload file to R2 storage
+      const uploadResult = await uploadToR2({
+        buffer: req.file.buffer,
+        fileName: req.file.originalname,
+        mimetype: req.file.mimetype,
+        path: `quotes/${quoteId}/photos`,
+      });
+      
+      // Create media record
+      const mediaData = {
+        quoteId,
+        mediaUrl: uploadResult.url,
+        mediaType: 'image',
+        caption: caption || '',
+        category: category || 'gallery',
+        uploadedById: (req as any).user?.id || 1,
+      };
+
+      const media = await this.quoteRepository.uploadQuoteImage(quoteId, mediaData);
+      
+      res.status(201).json({
+        message: "Photo uploaded successfully",
+        media
+      });
+    } catch (error) {
+      console.error("Error uploading quote photo:", error);
+      res.status(500).json({ error: "Failed to upload photo" });
+    }
+  }
+
   async uploadBeforeAfterImage(req: Request, res: Response) {
     try {
       const quoteId = parseInt(req.params.id);

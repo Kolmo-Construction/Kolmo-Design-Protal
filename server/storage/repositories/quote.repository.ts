@@ -426,6 +426,52 @@ export class QuoteRepository {
     }
   }
 
+  async getQuoteMedia(quoteId: number) {
+    try {
+      const media = await db
+        .select()
+        .from(quoteMedia)
+        .where(eq(quoteMedia.quoteId, quoteId))
+        .orderBy(quoteMedia.sortOrder, quoteMedia.createdAt);
+
+      return media;
+    } catch (error) {
+      console.error("Error fetching quote media:", error);
+      throw error;
+    }
+  }
+
+  async updateQuoteMedia(mediaId: number, data: {
+    caption?: string;
+    category?: string;
+    sortOrder?: number;
+  }) {
+    try {
+      const updateData: any = {};
+      
+      if (data.caption !== undefined) {
+        updateData.caption = data.caption;
+      }
+      if (data.category !== undefined) {
+        updateData.category = data.category;
+      }
+      if (data.sortOrder !== undefined) {
+        updateData.sortOrder = data.sortOrder;
+      }
+
+      const [updatedMedia] = await db
+        .update(quoteMedia)
+        .set(updateData)
+        .where(eq(quoteMedia.id, mediaId))
+        .returning();
+
+      return updatedMedia;
+    } catch (error) {
+      console.error("Error updating quote media:", error);
+      throw error;
+    }
+  }
+
   async updateQuoteFinancials(quoteId: number, data: {
     discountPercentage?: string;
     discountAmount?: string;

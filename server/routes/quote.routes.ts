@@ -40,6 +40,12 @@ router.delete("/line-items/:lineItemId", isAuthenticated, quoteController.delete
 router.post("/:id/images", isAuthenticated, quoteController.uploadQuoteImage.bind(quoteController));
 router.delete("/images/:imageId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
 
+// Photo management routes
+router.get("/:id/media", isAuthenticated, quoteController.getQuoteMedia.bind(quoteController));
+router.post("/:id/photos", isAuthenticated, upload.single('photo'), quoteController.uploadQuotePhoto.bind(quoteController));
+router.patch("/media/:mediaId", isAuthenticated, quoteController.updateQuoteMedia.bind(quoteController));
+router.delete("/media/:mediaId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
+
 // Before/After image specific routes
 router.post("/:id/images/:type", isAuthenticated, upload.single('image'), quoteController.uploadBeforeAfterImage.bind(quoteController));
 router.patch("/:id/images/:type/caption", isAuthenticated, quoteController.updateImageCaption.bind(quoteController));

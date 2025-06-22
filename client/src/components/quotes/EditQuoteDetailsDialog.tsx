@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails } from "@shared/schema";
 import { QuoteImageManager } from "./QuoteImageManager";
+import { QuotePhotoGallery } from "./QuotePhotoGallery";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 interface EditQuoteDetailsDialogProps {
