@@ -108,10 +108,11 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
   // Handle manual tax toggle change
   const handleManualTaxToggle = async (checked: boolean) => {
     setIsManualTax(checked);
+    form.setValue('isManualTax', checked);
     
     // Create a separate mutation for real-time updates that doesn't close the dialog
     try {
-      const updatedQuote = await apiRequest("PATCH", `/api/quotes/${quote.id}/financials`, {
+      const updatedQuote = await apiRequest(`/api/quotes/${quote.id}/financials`, 'PATCH', {
         ...form.getValues(),
         isManualTax: checked,
       });
@@ -120,12 +121,24 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
       queryClient.setQueryData([`/api/quotes/${quote.id}`], updatedQuote);
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       
+      // Reset form with updated values
+      form.reset({
+        discountPercentage: updatedQuote.discountPercentage?.toString() || "0",
+        discountAmount: updatedQuote.discountAmount?.toString() || "0",
+        taxRate: updatedQuote.taxRate?.toString() || "10.60",
+        taxAmount: updatedQuote.taxAmount?.toString() || "0",
+        isManualTax: checked,
+      });
+      
       // Show updated totals without closing dialog
       toast({
         title: "Tax Mode Updated",
-        description: "Tax calculations have been refreshed",
+        description: checked ? "Switched to manual tax entry" : "Switched to automatic tax calculation",
       });
     } catch (error) {
+      console.error("Tax toggle error:", error);
+      setIsManualTax(!checked); // Revert state on error
+      form.setValue('isManualTax', !checked);
       toast({
         title: "Error",
         description: "Failed to update tax settings",
@@ -265,9 +278,14 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
                             min="0"
                             placeholder="0.00"
                             {...field}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value);
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
+                        <p className="text-xs text-gray-500">Enter the exact tax amount in dollars</p>
                       </FormItem>
                     )}
                   />
@@ -286,9 +304,14 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
                             max="100"
                             placeholder="10.60"
                             {...field}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value);
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
+                        <p className="text-xs text-gray-500">Tax will be calculated automatically based on this rate</p>
                       </FormItem>
                     )}
                   />
