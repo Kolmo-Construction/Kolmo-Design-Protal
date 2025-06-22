@@ -274,6 +274,10 @@ export class QuoteController {
         });
       };
 
+      // Fetch quote media (photo gallery)
+      const quoteMedia = await this.quoteRepository.getQuoteMedia(quote.id);
+      console.log(`[sendQuoteEmail] Found ${quoteMedia.length} photos for quote ${quote.id}`);
+
       const emailHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -674,6 +678,68 @@ export class QuoteController {
             .company-name { font-size: 24px; }
             .included-list { grid-template-columns: 1fr; }
         }
+        
+        /* Photo Gallery Styles */
+        .photo-gallery-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .photo-gallery-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #3d4552;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .photo-item {
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .photo-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .photo-caption {
+            padding: 12px;
+            font-size: 14px;
+            color: #4b5563;
+            text-align: center;
+            font-style: italic;
+        }
+        
+        .photo-category {
+            padding: 8px 12px;
+            background: #db973c;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        @media (max-width: 600px) {
+            .photo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -726,6 +792,22 @@ export class QuoteController {
                     ` : ''}
                 </div>
             </div>
+
+                <!-- Photo Gallery Section -->
+                ${quoteMedia.length > 0 ? `
+                <div class="photo-gallery-section">
+                    <h3 class="photo-gallery-title">Project Gallery</h3>
+                    <div class="photo-grid">
+                        ${quoteMedia.map(photo => `
+                            <div class="photo-item">
+                                <div class="photo-category">${photo.category || 'Gallery'}</div>
+                                <img src="${photo.mediaUrl}" alt="${photo.caption || 'Project Photo'}" />
+                                ${photo.caption ? `<div class="photo-caption">${photo.caption}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
 
                 <div class="total-section">
                     <div class="total-label">Total Investment</div>
