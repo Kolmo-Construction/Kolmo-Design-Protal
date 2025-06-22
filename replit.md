@@ -250,6 +250,15 @@ BASE_URL=https://kolmo.design
   - Added clearer helper text to distinguish between manual tax amounts vs automatic percentage rates
   - Quote emails now include all uploaded photos from the photo gallery with their custom captions
   - Verified photo URL storage and retrieval works correctly through database and email system
+- June 22, 2025. Fixed Zoho Expense integration initialization and photo deletion issues:
+  - Resolved 500 server errors in Zoho budget tracking by implementing proper service initialization
+  - Added explicit initialize() method to ZohoExpenseService with database token loading
+  - Updated all API methods to call ensureInitialized() before making requests
+  - Fixed photo deletion functionality by correcting parameter mismatch (mediaId vs imageId)
+  - Implemented comprehensive debug endpoint for Zoho API troubleshooting
+  - Verified Zoho integration working correctly with 45 real expenses retrieved from API
+  - Budget tracking now properly initializes service before attempting API calls
+  - Photo deletion now works correctly for uploaded images in quote galleries
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
