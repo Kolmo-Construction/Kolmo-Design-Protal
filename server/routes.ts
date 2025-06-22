@@ -34,6 +34,7 @@ import { milestoneRoutes } from "./routes/milestone.routes"; // Milestone manage
 import clientRouter from "./routes/client.routes"; // Client portal router
 import billingValidationRouter from "./routes/billing-validation.routes"; // Billing validation router
 import zohoExpenseRouter from "./routes/zoho-expense.routes"; // Zoho Expense integration router
+import { adminImagesRoutes } from "./routes/admin-images.routes"; // Admin image gallery router
 
 import { storageRoutes } from "./routes/storage-routes"; // Storage/R2 router
 import chatRouter from "./routes/chat.routes"; // Stream Chat router

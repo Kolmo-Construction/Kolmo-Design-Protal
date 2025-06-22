@@ -273,6 +273,31 @@ export const updateMedia = pgTable("update_media", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Admin image gallery for project photos with tagging
+export const adminImages = pgTable("admin_images", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id), // Optional project association
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  fileSize: integer("file_size").notNull(), // in bytes
+  mimeType: text("mime_type").notNull(),
+  width: integer("width"),
+  height: integer("height"),
+  
+  // Image metadata preservation
+  metadata: jsonb("metadata"), // EXIF data, camera info, GPS, etc.
+  
+  // Tagging system
+  tags: text("tags").array(), // Array of tag strings
+  category: text("category").default("general"), // general, progress, materials, before_after, etc.
+  
+  uploadedById: integer("uploaded_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Milestones for project timeline with billing support
 export const milestones = pgTable("milestones", {
   id: serial("id").primaryKey(),
@@ -972,6 +997,20 @@ export const insertDailyLogSchema = createInsertSchema(dailyLogs).omit({
         }).transform(val => val === "" || val === null ? null : parseFloat(val)).optional().nullable()
     ]),
 });
+
+// Admin images schemas
+export const insertAdminImageSchema = createInsertSchema(adminImages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateAdminImageSchema = insertAdminImageSchema.partial();
+
+// Types for admin images
+export type AdminImage = typeof adminImages.$inferSelect;
+export type InsertAdminImage = z.infer<typeof insertAdminImageSchema>;
+export type UpdateAdminImage = z.infer<typeof updateAdminImageSchema>;
 
 export const insertDailyLogPhotoSchema = createInsertSchema(dailyLogPhotos).omit({
   id: true,
