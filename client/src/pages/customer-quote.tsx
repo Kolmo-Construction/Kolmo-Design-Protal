@@ -712,13 +712,13 @@ export default function CustomerQuotePage() {
         {/* Before/After Images with Interactive Slider */}
         {(quoteData.beforeImageUrl || quoteData.afterImageUrl) && (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Eye className="h-6 w-6" style={{color: '#db973c'}} />
+                  <Eye className="h-5 w-5 sm:h-6 sm:w-6" style={{color: '#db973c'}} />
                   <div>
-                    <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Transformation</h3>
-                    <p style={{color: '#4a6670'}}>Interactive before & after comparison</p>
+                    <h3 className="text-lg sm:text-xl font-bold" style={{color: '#1a1a1a'}}>Project Transformation</h3>
+                    <p className="text-sm sm:text-base" style={{color: '#4a6670'}}>Interactive before & after comparison</p>
                   </div>
                 </div>
                 <Button
@@ -728,28 +728,41 @@ export default function CustomerQuotePage() {
                   className="flex items-center gap-2"
                 >
                   {showBeforeAfter ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  {showBeforeAfter ? "Hide" : "Show"} Images
+                  <span className="hidden sm:inline">{showBeforeAfter ? "Hide" : "Show"} Images</span>
+                  <span className="sm:hidden">{showBeforeAfter ? "Hide" : "Show"}</span>
                 </Button>
               </div>
             </div>
             {showBeforeAfter && (
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 {quoteData.beforeImageUrl && quoteData.afterImageUrl ? (
                   <div className="space-y-4">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg">
+                    <div className="relative rounded-xl overflow-hidden shadow-lg bg-gray-50">
                       <ReactCompareSlider
                         itemOne={
                           <ReactCompareSliderImage 
                             src={quoteData.beforeImageUrl} 
                             alt="Before" 
-                            style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: '600px' }}
+                            style={{ 
+                              objectFit: 'contain', 
+                              width: '100%', 
+                              height: '100%',
+                              maxHeight: 'none',
+                              display: 'block'
+                            }}
                           />
                         }
                         itemTwo={
                           <ReactCompareSliderImage 
                             src={quoteData.afterImageUrl} 
                             alt="After" 
-                            style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: '600px' }}
+                            style={{ 
+                              objectFit: 'contain', 
+                              width: '100%', 
+                              height: '100%',
+                              maxHeight: 'none',
+                              display: 'block'
+                            }}
                           />
                         }
                         position={50}
@@ -761,8 +774,8 @@ export default function CustomerQuotePage() {
                               border: '2px solid white',
                               color: 'white',
                               borderRadius: '50%',
-                              width: '44px',
-                              height: '44px',
+                              width: '40px',
+                              height: '40px',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -777,29 +790,31 @@ export default function CustomerQuotePage() {
                         style={{
                           width: '100%',
                           height: 'auto',
-                          minHeight: '300px',
-                          maxHeight: '600px',
+                          minHeight: '200px',
+                          maxHeight: '60vh',
                           borderRadius: '12px',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          aspectRatio: 'auto',
+                          touchAction: 'pan-x'
                         }}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
-                        <p className="font-semibold mb-1" style={{color: '#1a1a1a'}}>Before</p>
-                        <p className="text-sm" style={{color: '#4a6670'}}>
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 text-center">
+                      <div className="p-2 sm:p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
+                        <p className="font-semibold mb-1 text-sm sm:text-base" style={{color: '#1a1a1a'}}>Before</p>
+                        <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
                           {quoteData.beforeImageCaption || "Current state"}
                         </p>
                       </div>
-                      <div className="p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
-                        <p className="font-semibold mb-1" style={{color: '#1a1a1a'}}>After</p>
-                        <p className="text-sm" style={{color: '#4a6670'}}>
+                      <div className="p-2 sm:p-3 rounded-lg" style={{backgroundColor: '#f5f5f5'}}>
+                        <p className="font-semibold mb-1 text-sm sm:text-base" style={{color: '#1a1a1a'}}>After</p>
+                        <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
                           {quoteData.afterImageCaption || "Transformed result"}
                         </p>
                       </div>
                     </div>
-                    <div className="text-center p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
-                      <p className="text-sm" style={{color: '#4a6670'}}>
+                    <div className="text-center p-3 sm:p-4 rounded-xl" style={{backgroundColor: '#f5f5f5'}}>
+                      <p className="text-xs sm:text-sm" style={{color: '#4a6670'}}>
                         <strong>Interactive Comparison:</strong> Drag the slider to see the transformation. 
                         This represents the level of quality and craftsmanship you can expect for your project.
                       </p>
