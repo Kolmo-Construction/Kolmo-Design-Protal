@@ -10,7 +10,7 @@ async function hashPassword(password: string) {
 }
 
 async function main() {
-  const hash = await hashPassword('admin123');
+  const hash = await hashPassword('Forest@2000');
   console.log('Password hash:', hash);
 }
 
