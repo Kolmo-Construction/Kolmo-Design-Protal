@@ -29,7 +29,7 @@ export function ViewProposalDialog({
 }: ViewProposalDialogProps) {
   const { data: fullProposal, isLoading } =
     useQuery<DesignProposalWithComparisons>({
-      queryKey: ["/api/design-proposals", proposal.id],
+      queryKey: [`/api/design-proposals/${proposal.id}`],
       enabled: open,
     });
 
