@@ -1,6 +1,6 @@
 export async function uploadToR2(file: File): Promise<string> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('image', file);
   formData.append('title', file.name);
   formData.append('category', 'design_proposal');
 
