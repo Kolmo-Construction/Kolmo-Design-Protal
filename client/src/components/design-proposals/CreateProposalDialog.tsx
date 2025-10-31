@@ -131,13 +131,7 @@ export function CreateProposalDialog({
     setIsSubmitting(true);
 
     try {
-      const proposal = await apiRequest("/api/design-proposals", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const proposal = await apiRequest("POST", "/api/design-proposals", data);
 
       for (let i = 0; i < comparisons.length; i++) {
         const comp = comparisons[i];
@@ -145,19 +139,13 @@ export function CreateProposalDialog({
         const beforeImageUrl = await handleImageUpload(comp.beforeImage!);
         const afterImageUrl = await handleImageUpload(comp.afterImage!);
 
-        await apiRequest("/api/design-proposals/comparisons", {
-          method: "POST",
-          body: JSON.stringify({
-            proposalId: proposal.id,
-            title: comp.title,
-            description: comp.description || "",
-            beforeImageUrl,
-            afterImageUrl,
-            orderIndex: i,
-          }),
-          headers: {
-            "Content-Type": "application/json",
-          },
+        await apiRequest("POST", "/api/design-proposals/comparisons", {
+          proposalId: proposal.id,
+          title: comp.title,
+          description: comp.description || "",
+          beforeImageUrl,
+          afterImageUrl,
+          orderIndex: i,
         });
       }
 
