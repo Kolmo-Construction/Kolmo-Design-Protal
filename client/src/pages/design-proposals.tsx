@@ -25,9 +25,7 @@ export default function DesignProposalsPage() {
     }
 
     try {
-      await apiRequest(`/api/design-proposals/${id}`, {
-        method: "DELETE",
-      });
+      await apiRequest("DELETE", `/api/design-proposals/${id}`);
       queryClient.invalidateQueries({ queryKey: ["/api/design-proposals"] });
       toast({
         title: "Success",
@@ -175,7 +173,7 @@ export default function DesignProposalsPage() {
         <ViewProposalDialog
           proposal={viewingProposal}
           open={!!viewingProposal}
-          onOpenChange={(open) => !open && setViewingProposal(null)}
+          onOpenChange={(open: boolean) => !open && setViewingProposal(null)}
         />
       )}
     </div>
