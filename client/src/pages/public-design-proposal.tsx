@@ -101,18 +101,32 @@ export default function PublicDesignProposalPage() {
                   )}
                 </CardHeader>
                 <CardContent className="p-0">
-                  <div className="relative">
+                  <div className="relative bg-gray-50">
                     <ReactCompareSlider
                       itemOne={
                         <ReactCompareSliderImage
                           src={comparison.beforeImageUrl}
                           alt="Before"
+                          style={{ 
+                            objectFit: 'contain', 
+                            width: '100%', 
+                            height: '100%',
+                            maxHeight: 'none',
+                            display: 'block'
+                          }}
                         />
                       }
                       itemTwo={
                         <ReactCompareSliderImage
                           src={comparison.afterImageUrl}
                           alt="After"
+                          style={{ 
+                            objectFit: 'contain', 
+                            width: '100%', 
+                            height: '100%',
+                            maxHeight: 'none',
+                            display: 'block'
+                          }}
                         />
                       }
                       position={50}
