@@ -173,7 +173,14 @@ export class QuoteRepository {
       }
 
       await this.recalculateQuoteTotals(quote.id);
-      return quote;
+      
+      // Fetch and return the updated quote with recalculated totals
+      const [updatedQuote] = await db
+        .select()
+        .from(quotes)
+        .where(eq(quotes.id, quote.id));
+      
+      return updatedQuote;
     } catch (error) {
       console.error("Error creating quote:", error);
       throw error;
@@ -189,15 +196,21 @@ export class QuoteRepository {
         validUntil: typeof data.validUntil === 'string' ? new Date(data.validUntil) : data.validUntil,
       };
 
-      const [updatedQuote] = await db
+      await db
         .update(quotes)
         .set(updateData)
         .where(eq(quotes.id, id))
         .returning();
 
-      if (updatedQuote) {
+      if (updateData) {
         await this.recalculateQuoteTotals(id);
       }
+
+      // Fetch and return the updated quote with recalculated totals
+      const [updatedQuote] = await db
+        .select()
+        .from(quotes)
+        .where(eq(quotes.id, id));
 
       return updatedQuote;
     } catch (error) {
