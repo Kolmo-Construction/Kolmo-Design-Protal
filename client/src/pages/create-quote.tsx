@@ -42,6 +42,8 @@ interface LineItem {
   quantity: number;
   unit: string;
   unitPrice: number;
+  discountPercentage: number;
+  discountAmount: number;
   total: number;
 }
 
@@ -110,6 +112,8 @@ export default function CreateQuotePage() {
     quantity: 1,
     unit: "units",
     unitPrice: 0,
+    discountPercentage: 0,
+    discountAmount: 0,
   });
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -158,6 +162,17 @@ export default function CreateQuotePage() {
 
   const totals = calculateTotals();
 
+  const calculateLineItemTotal = (quantity: number, unitPrice: number, discountPercentage: number, discountAmount: number): number => {
+    const subtotal = quantity * unitPrice;
+    let discount = 0;
+    if (discountPercentage > 0) {
+      discount = subtotal * (discountPercentage / 100);
+    } else {
+      discount = discountAmount;
+    }
+    return subtotal - discount;
+  };
+
   const addLineItem = () => {
     if (!newItem.category || !newItem.description || !newItem.unitPrice) {
       toast({
@@ -168,6 +183,11 @@ export default function CreateQuotePage() {
       return;
     }
 
+    const subtotal = (newItem.quantity || 1) * newItem.unitPrice!;
+    const discountAmount = (newItem.discountPercentage || 0) > 0 
+      ? subtotal * ((newItem.discountPercentage || 0) / 100)
+      : (newItem.discountAmount || 0);
+
     const item: LineItem = {
       id: `temp-${Date.now()}`,
       category: newItem.category!,
@@ -175,7 +195,9 @@ export default function CreateQuotePage() {
       quantity: newItem.quantity || 1,
       unit: newItem.unit || "units",
       unitPrice: newItem.unitPrice!,
-      total: (newItem.quantity || 1) * newItem.unitPrice!,
+      discountPercentage: newItem.discountPercentage || 0,
+      discountAmount: discountAmount,
+      total: subtotal - discountAmount,
     };
 
     setLineItems([...lineItems, item]);
@@ -185,6 +207,8 @@ export default function CreateQuotePage() {
       quantity: 1,
       unit: "units",
       unitPrice: 0,
+      discountPercentage: 0,
+      discountAmount: 0,
     });
   };
 
@@ -214,6 +238,11 @@ export default function CreateQuotePage() {
 
     setLineItems(lineItems.map(item => {
       if (item.id === editingId) {
+        const subtotal = (editingItem.quantity || 1) * (editingItem.unitPrice || 0);
+        const discountAmount = (editingItem.discountPercentage || 0) > 0 
+          ? subtotal * ((editingItem.discountPercentage || 0) / 100)
+          : (editingItem.discountAmount || 0);
+        
         return {
           ...item,
           category: editingItem.category!,
@@ -221,7 +250,9 @@ export default function CreateQuotePage() {
           quantity: editingItem.quantity || 1,
           unit: editingItem.unit || "units",
           unitPrice: editingItem.unitPrice!,
-          total: (editingItem.quantity || 1) * editingItem.unitPrice!,
+          discountPercentage: editingItem.discountPercentage || 0,
+          discountAmount: discountAmount,
+          total: subtotal - discountAmount,
         };
       }
       return item;
@@ -263,6 +294,8 @@ export default function CreateQuotePage() {
           quantity: item.quantity,
           unit: item.unit,
           unitPrice: item.unitPrice,
+          discountPercentage: item.discountPercentage,
+          discountAmount: item.discountAmount,
           total: item.total,
         })),
       });
@@ -681,12 +714,37 @@ export default function CreateQuotePage() {
                             data-testid="input-item-unit-price"
                           />
                         </div>
+                        <div>
+                          <label className="text-sm font-medium">Discount (%)</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            placeholder="0"
+                            value={newItem.discountPercentage || ""}
+                            onChange={(e) => setNewItem({ ...newItem, discountPercentage: parseFloat(e.target.value) || 0, discountAmount: 0 })}
+                            data-testid="input-item-discount-percent"
+                          />
+                        </div>
                       </div>
                       <div className="flex justify-between items-center mt-4">
-                        <div className="text-sm" style={{ color: theme.colors.textMuted }}>
-                          Line Total: <span className="font-semibold" style={{ color: theme.colors.primary }}>
-                            {formatCurrency((newItem.quantity || 0) * (newItem.unitPrice || 0))}
-                          </span>
+                        <div className="text-sm space-y-1">
+                          <div style={{ color: theme.colors.textMuted }}>
+                            Subtotal: <span className="font-semibold" style={{ color: theme.colors.primary }}>
+                              {formatCurrency((newItem.quantity || 0) * (newItem.unitPrice || 0))}
+                            </span>
+                          </div>
+                          {(newItem.discountPercentage || 0) > 0 && (
+                            <div style={{ color: 'rgb(34, 197, 94)' }}>
+                              Discount: <span className="font-semibold">-{formatCurrency(((newItem.quantity || 0) * (newItem.unitPrice || 0)) * ((newItem.discountPercentage || 0) / 100))}</span>
+                            </div>
+                          )}
+                          <div className="text-sm" style={{ color: theme.colors.textMuted }}>
+                            Line Total: <span className="font-semibold" style={{ color: theme.colors.primary }}>
+                              {formatCurrency(calculateLineItemTotal(newItem.quantity || 0, newItem.unitPrice || 0, newItem.discountPercentage || 0, newItem.discountAmount || 0))}
+                            </span>
+                          </div>
                         </div>
                         <Button
                           type="button"
@@ -712,6 +770,7 @@ export default function CreateQuotePage() {
                               <th className="text-right p-3 font-medium">Qty</th>
                               <th className="text-left p-3 font-medium">Unit</th>
                               <th className="text-right p-3 font-medium">Unit Price</th>
+                              <th className="text-right p-3 font-medium">Discount</th>
                               <th className="text-right p-3 font-medium">Total</th>
                               <th className="p-3"></th>
                             </tr>
@@ -778,8 +837,20 @@ export default function CreateQuotePage() {
                                         onChange={(e) => setEditingItem({ ...editingItem, unitPrice: parseFloat(e.target.value) || 0 })}
                                       />
                                     </td>
+                                    <td className="p-2">
+                                      <Input
+                                        type="number"
+                                        className="h-8 text-xs w-16 text-right"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                        placeholder="0%"
+                                        value={editingItem.discountPercentage || ""}
+                                        onChange={(e) => setEditingItem({ ...editingItem, discountPercentage: parseFloat(e.target.value) || 0, discountAmount: 0 })}
+                                      />
+                                    </td>
                                     <td className="p-2 text-right font-medium text-xs">
-                                      {formatCurrency((editingItem.quantity || 0) * (editingItem.unitPrice || 0))}
+                                      {formatCurrency(calculateLineItemTotal(editingItem.quantity || 0, editingItem.unitPrice || 0, editingItem.discountPercentage || 0, editingItem.discountAmount || 0))}
                                     </td>
                                     <td className="p-2">
                                       <div className="flex gap-1">
@@ -812,6 +883,13 @@ export default function CreateQuotePage() {
                                     <td className="p-3 text-right">{item.quantity}</td>
                                     <td className="p-3">{item.unit}</td>
                                     <td className="p-3 text-right">{formatCurrency(item.unitPrice)}</td>
+                                    <td className="p-3 text-right">
+                                      {item.discountPercentage > 0 ? (
+                                        <span style={{ color: 'rgb(34, 197, 94)' }}>-{item.discountPercentage}%</span>
+                                      ) : (
+                                        <span style={{ color: theme.colors.textMuted }}>—</span>
+                                      )}
+                                    </td>
                                     <td className="p-3 text-right font-medium">{formatCurrency(item.total)}</td>
                                     <td className="p-3">
                                       <div className="flex gap-1">
@@ -847,6 +925,7 @@ export default function CreateQuotePage() {
                               <td colSpan={5} className="p-3 text-right font-semibold">
                                 Subtotal:
                               </td>
+                              <td className="p-3"></td>
                               <td className="p-3 text-right font-bold" style={{ color: theme.colors.primary }}>
                                 {formatCurrency(totals.subtotal)}
                               </td>
