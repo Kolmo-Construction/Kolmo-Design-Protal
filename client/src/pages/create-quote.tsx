@@ -295,6 +295,11 @@ export default function CreateQuotePage() {
     } else if (step === 4) {
       fieldsToValidate = ["taxRate", "discountValue", "downPaymentPercentage", "milestonePaymentPercentage", "finalPaymentPercentage"];
     }
+    // Step 3, 5, and 6 don't require form validation (no required fields beyond what's already filled)
+
+    if (fieldsToValidate.length === 0) {
+      return true; // No validation needed for this step
+    }
 
     const result = await form.trigger(fieldsToValidate);
     return result;
