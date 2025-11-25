@@ -149,7 +149,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
-                <Link href="/quotes">
+                <Link href="/quotes/create">
                   <Button
                     className="w-full text-white hover:opacity-90"
                     style={{ backgroundColor: theme.colors.accent }}
@@ -210,7 +210,7 @@ export default function Dashboard() {
                 <div className="text-center py-6">
                   <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">No quotes yet</p>
-                  <Link href="/quotes">
+                  <Link href="/quotes/create">
                     <Button
                       size="sm"
                       className="mt-2 text-white hover:opacity-90"
