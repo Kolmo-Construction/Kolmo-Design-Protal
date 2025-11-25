@@ -175,19 +175,26 @@ export class QuoteController {
 
   async deleteQuote(req: Request, res: Response) {
     try {
+      console.log("[deleteQuote] Route hit with params:", req.params);
       const quoteId = parseInt(req.params.id);
+      console.log("[deleteQuote] Parsed quote ID:", quoteId);
       if (isNaN(quoteId)) {
+        console.log("[deleteQuote] Invalid quote ID, returning 400");
         return res.status(400).json({ error: "Invalid quote ID" });
       }
 
+      console.log("[deleteQuote] Calling repository.deleteQuote...");
       const success = await this.quoteRepository.deleteQuote(quoteId);
+      console.log("[deleteQuote] Repository returned:", success);
       if (!success) {
+        console.log("[deleteQuote] Quote not found or delete failed, returning 404");
         return res.status(404).json({ error: "Quote not found" });
       }
 
+      console.log("[deleteQuote] Delete successful, returning 204");
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting quote:", error);
+      console.error("[deleteQuote] Error deleting quote:", error);
       res.status(500).json({ error: "Failed to delete quote" });
     }
   }

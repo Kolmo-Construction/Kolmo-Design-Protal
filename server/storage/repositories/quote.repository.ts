@@ -5,6 +5,10 @@ import {
   quoteMedia, 
   quoteResponses,
   quoteAccessTokens,
+  quoteAnalytics,
+  quoteViewSessions,
+  projects,
+  invoices,
   type InsertQuote,
   type InsertQuoteLineItem,
   type InsertQuoteResponse
@@ -226,26 +230,56 @@ export class QuoteRepository {
 
   async deleteQuote(id: number) {
     try {
-      // Delete all related data first to avoid foreign key constraint violations
+      console.log(`[QuoteRepository.deleteQuote] Starting delete for quote ID: ${id}`);
+      
+      // First, nullify foreign key references that don't have cascade delete
+      
+      // Nullify origin_quote_id in projects that reference this quote
+      console.log(`[QuoteRepository.deleteQuote] Nullifying project references...`);
+      await db.update(projects)
+        .set({ originQuoteId: null })
+        .where(eq(projects.originQuoteId, id));
+      
+      // Nullify quote_id in invoices that reference this quote
+      console.log(`[QuoteRepository.deleteQuote] Nullifying invoice references...`);
+      await db.update(invoices)
+        .set({ quoteId: null })
+        .where(eq(invoices.quoteId, id));
+      
+      // Delete all related data with cascade delete (in correct order)
+      
+      // Delete quote analytics (has cascade delete but let's be explicit)
+      console.log(`[QuoteRepository.deleteQuote] Deleting analytics...`);
+      await db.delete(quoteAnalytics).where(eq(quoteAnalytics.quoteId, id));
+      
+      // Delete quote view sessions
+      console.log(`[QuoteRepository.deleteQuote] Deleting view sessions...`);
+      await db.delete(quoteViewSessions).where(eq(quoteViewSessions.quoteId, id));
       
       // Delete quote line items (main constraint issue)
+      console.log(`[QuoteRepository.deleteQuote] Deleting line items...`);
       await db.delete(quoteLineItems).where(eq(quoteLineItems.quoteId, id));
       
       // Delete quote responses
+      console.log(`[QuoteRepository.deleteQuote] Deleting responses...`);
       await db.delete(quoteResponses).where(eq(quoteResponses.quoteId, id));
       
       // Delete quote media
+      console.log(`[QuoteRepository.deleteQuote] Deleting media...`);
       await db.delete(quoteMedia).where(eq(quoteMedia.quoteId, id));
       
       // Delete quote access tokens
+      console.log(`[QuoteRepository.deleteQuote] Deleting access tokens...`);
       await db.delete(quoteAccessTokens).where(eq(quoteAccessTokens.quoteId, id));
       
       // Finally delete the quote itself
+      console.log(`[QuoteRepository.deleteQuote] Deleting quote...`);
       await db.delete(quotes).where(eq(quotes.id, id));
       
+      console.log(`[QuoteRepository.deleteQuote] Delete completed successfully`);
       return true;
     } catch (error) {
-      console.error("Error deleting quote:", error);
+      console.error("[QuoteRepository.deleteQuote] Error deleting quote:", error);
       return false;
     }
   }
