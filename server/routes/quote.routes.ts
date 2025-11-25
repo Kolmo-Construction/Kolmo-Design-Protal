@@ -51,6 +51,48 @@ router.post("/:id/images/:type", isAuthenticated, upload.single('image'), quoteC
 router.patch("/:id/images/:type/caption", isAuthenticated, quoteController.updateImageCaption.bind(quoteController));
 router.delete("/:id/images/:type", isAuthenticated, quoteController.deleteBeforeAfterImage.bind(quoteController));
 
+// Tax rate lookup route
+router.post("/lookup/tax-rate", isAuthenticated, async (req, res) => {
+  try {
+    const { address } = req.body;
+    
+    if (!address || address.trim().length < 5) {
+      return res.status(400).json({ error: "Address is required and must be at least 5 characters" });
+    }
+
+    // Call WA State tax lookup API from backend (avoids CORS issues)
+    const url = `http://webgis.dor.wa.gov/webapi/AddressRates.aspx?output=xml&addr=${encodeURIComponent(address)}`;
+    
+    const response = await fetch(url);
+    const xmlText = await response.text();
+    
+    // Parse XML response to extract tax rate
+    const rateMatch = xmlText.match(/<rate[^>]*>([^<]+)<\/rate>/i);
+    const stateRateMatch = xmlText.match(/<StateSalesUseRate>([^<]+)<\/StateSalesUseRate>/i);
+    const localRateMatch = xmlText.match(/<LocalSalesUseRate>([^<]+)<\/LocalSalesUseRate>/i);
+    
+    let totalRate = 0;
+    if (rateMatch) {
+      totalRate = parseFloat(rateMatch[1]);
+    } else if (stateRateMatch && localRateMatch) {
+      const stateRate = parseFloat(stateRateMatch[1]);
+      const localRate = parseFloat(localRateMatch[1]);
+      totalRate = stateRate + localRate;
+    } else if (stateRateMatch) {
+      totalRate = parseFloat(stateRateMatch[1]);
+    }
+
+    if (totalRate > 0) {
+      res.json({ taxRate: totalRate });
+    } else {
+      res.status(404).json({ error: "No tax rate found for this address" });
+    }
+  } catch (error) {
+    console.error("Tax rate lookup error:", error);
+    res.status(500).json({ error: "Failed to lookup tax rate" });
+  }
+});
+
 // Public customer routes (no authentication required)
 router.get("/public/:token", quoteController.getQuoteByToken.bind(quoteController));
 router.post("/public/:token/respond", quoteController.respondToQuote.bind(quoteController));
