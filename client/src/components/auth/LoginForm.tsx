@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/use-auth-unified";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { theme } from "@/config/theme";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -72,28 +73,29 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
   const formIsLoading = isLoading || form.formState.isSubmitting;
 
   return (
-    <Card className="w-full max-w-md mx-auto shadow-lg">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
-        <CardDescription className="text-center">
-          Enter your credentials to access your account
+    <Card className="w-full max-w-md mx-auto shadow-lg" style={{ borderColor: theme.colors.border }}>
+      <CardHeader className="space-y-1" style={{ backgroundColor: theme.colors.surfaceLight }}>
+        <CardTitle className="text-2xl font-bold text-center" style={{ color: theme.colors.primary }}>Sign In</CardTitle>
+        <CardDescription className="text-center" style={{ color: theme.colors.textMuted }}>
+          Enter your credentials to access Kolmo
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {/* Username Field */}
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username" style={{ color: theme.colors.primary }}>Username</Label>
             <Input
               id="username"
               type="text"
               placeholder="Enter your username"
               autoComplete="username"
               disabled={formIsLoading}
+              style={{ borderColor: theme.colors.border, color: theme.colors.textDark }}
               {...form.register("username")}
             />
             {form.formState.errors.username && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm" style={{ color: theme.colors.error }}>
                 {form.formState.errors.username.message}
               </p>
             )}
@@ -101,7 +103,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
 
           {/* Password Field */}
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" style={{ color: theme.colors.primary }}>Password</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -109,6 +111,7 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
                 placeholder="Enter your password"
                 autoComplete="current-password"
                 disabled={formIsLoading}
+                style={{ borderColor: theme.colors.border, color: theme.colors.textDark }}
                 {...form.register("password")}
               />
               <Button
@@ -120,14 +123,14 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
                 disabled={formIsLoading}
               >
                 {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
+                  <EyeOff className="h-4 w-4" style={{ color: theme.colors.textMuted }} />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4" style={{ color: theme.colors.textMuted }} />
                 )}
               </Button>
             </div>
             {form.formState.errors.password && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm" style={{ color: theme.colors.error }}>
                 {form.formState.errors.password.message}
               </p>
             )}
@@ -138,11 +141,12 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
             <input
               id="rememberMe"
               type="checkbox"
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-4 w-4 rounded"
+              style={{ borderColor: theme.colors.border, accentColor: theme.colors.accent }}
               disabled={formIsLoading}
               {...form.register("rememberMe")}
             />
-            <Label htmlFor="rememberMe" className="text-sm">
+            <Label htmlFor="rememberMe" className="text-sm" style={{ color: theme.colors.textDark }}>
               Remember me for 30 days
             </Label>
           </div>
@@ -152,8 +156,11 @@ export function LoginForm({ onSuccess, redirectTo = "/" }: LoginFormProps) {
           {/* Submit Button */}
           <Button
             type="submit"
-            className="w-full"
+            className="w-full font-medium text-white"
+            style={{ backgroundColor: theme.colors.accent }}
             disabled={formIsLoading}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.colors.accentDark)}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.colors.accent)}
           >
             {formIsLoading ? (
               <>
