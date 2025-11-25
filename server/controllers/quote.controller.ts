@@ -1411,6 +1411,9 @@ This email was sent to ${quote.customerEmail}. All quotes are confidential and p
         taxRate: z.string().optional(),
         taxAmount: z.string().optional(),
         isManualTax: z.boolean().optional(),
+        downPaymentPercentage: z.string().optional(),
+        milestonePaymentPercentage: z.string().optional(),
+        finalPaymentPercentage: z.string().optional(),
       }).parse(req.body);
 
       const updatedQuote = await this.quoteRepository.updateQuoteFinancials(quoteId, validatedData);

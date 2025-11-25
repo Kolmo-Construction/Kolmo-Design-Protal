@@ -34,6 +34,18 @@ const updateFinancialsSchema = z.object({
   taxRate: z.string().optional(),
   taxAmount: z.string().optional(),
   isManualTax: z.boolean().optional(),
+  downPaymentPercentage: z.string().optional(),
+  milestonePaymentPercentage: z.string().optional(),
+  finalPaymentPercentage: z.string().optional(),
+}).refine((data) => {
+  const down = parseFloat(data.downPaymentPercentage || "0");
+  const milestone = parseFloat(data.milestonePaymentPercentage || "0");
+  const final = parseFloat(data.finalPaymentPercentage || "0");
+  const total = down + milestone + final;
+  return total === 100;
+}, {
+  message: "Payment percentages must add up to exactly 100%",
+  path: ["downPaymentPercentage"]
 });
 
 type UpdateFinancialsForm = z.infer<typeof updateFinancialsSchema>;
@@ -57,6 +69,9 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
       taxRate: quote.taxRate?.toString() || "10.60",
       taxAmount: quote.taxAmount?.toString() || "0",
       isManualTax: quote.isManualTax || false,
+      downPaymentPercentage: quote.downPaymentPercentage?.toString() || "40",
+      milestonePaymentPercentage: quote.milestonePaymentPercentage?.toString() || "40",
+      finalPaymentPercentage: quote.finalPaymentPercentage?.toString() || "20",
     },
   });
 
@@ -70,6 +85,9 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
         taxRate: quote.taxRate?.toString() || "10.60",
         taxAmount: quote.taxAmount?.toString() || "0",
         isManualTax: quote.isManualTax || false,
+        downPaymentPercentage: quote.downPaymentPercentage?.toString() || "40",
+        milestonePaymentPercentage: quote.milestonePaymentPercentage?.toString() || "40",
+        finalPaymentPercentage: quote.finalPaymentPercentage?.toString() || "20",
       });
     }
   }, [open, quote, form]);
@@ -161,7 +179,7 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
         <DialogHeader>
           <DialogTitle>Quote Financials</DialogTitle>
           <DialogDescription>
-            Manage discounts and tax settings for this quote
+            Manage discounts, tax settings, and payment schedule for this quote
           </DialogDescription>
         </DialogHeader>
 
@@ -246,6 +264,109 @@ export function QuoteFinancialsDialog({ quote, open, onOpenChange }: QuoteFinanc
                 <div className="text-xs text-gray-500">
                   If both are specified, percentage discount takes precedence
                 </div>
+              </div>
+
+              {/* Payment Schedule Section */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-gray-700">Payment Schedule</h4>
+                <p className="text-xs text-gray-500">
+                  Set the payment split. Percentages must total 100%.
+                </p>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="downPaymentPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Down Payment (%)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="1"
+                            min="0"
+                            max="100"
+                            placeholder="40"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <div className="text-xs text-gray-600 mt-1">
+                          {formatCurrency((parseFloat(quote.total?.toString() || "0") * parseFloat(field.value || "0")) / 100)}
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="milestonePaymentPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Milestone (%)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="1"
+                            min="0"
+                            max="100"
+                            placeholder="40"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <div className="text-xs text-gray-600 mt-1">
+                          {formatCurrency((parseFloat(quote.total?.toString() || "0") * parseFloat(field.value || "0")) / 100)}
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="finalPaymentPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Final Payment (%)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="1"
+                            min="0"
+                            max="100"
+                            placeholder="20"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <div className="text-xs text-gray-600 mt-1">
+                          {formatCurrency((parseFloat(quote.total?.toString() || "0") * parseFloat(field.value || "0")) / 100)}
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Validation Message */}
+                {(() => {
+                  const down = parseFloat(form.watch("downPaymentPercentage") || "0");
+                  const milestone = parseFloat(form.watch("milestonePaymentPercentage") || "0");
+                  const final = parseFloat(form.watch("finalPaymentPercentage") || "0");
+                  const total = down + milestone + final;
+                  return total !== 100 ? (
+                    <div className="p-2 rounded bg-red-50 border border-red-200">
+                      <p className="text-xs text-red-700">
+                        Total: {total.toFixed(1)}% (must be 100%)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded bg-green-50 border border-green-200">
+                      <p className="text-xs text-green-700">
+                        ✓ Payment split is valid
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               <Separator />

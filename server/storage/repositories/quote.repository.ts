@@ -600,6 +600,15 @@ export class QuoteRepository {
       if (data.isManualTax !== undefined) {
         updateData.isManualTax = data.isManualTax;
       }
+      if (data.downPaymentPercentage !== undefined) {
+        updateData.downPaymentPercentage = data.downPaymentPercentage === "" ? "40" : data.downPaymentPercentage;
+      }
+      if (data.milestonePaymentPercentage !== undefined) {
+        updateData.milestonePaymentPercentage = data.milestonePaymentPercentage === "" ? "40" : data.milestonePaymentPercentage;
+      }
+      if (data.finalPaymentPercentage !== undefined) {
+        updateData.finalPaymentPercentage = data.finalPaymentPercentage === "" ? "20" : data.finalPaymentPercentage;
+      }
 
       const [updatedQuote] = await db
         .update(quotes)

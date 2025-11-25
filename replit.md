@@ -19,7 +19,7 @@ The backend is powered by Node.js 20 with Express.js, written in TypeScript. It 
 - **Payment Processing**: Integrated with Stripe for payment intents and webhook-based confirmations, handling quote acceptance, down payments, and automated email notifications via Mailgun.
 - **Project Management**: Comprehensive project lifecycle tracking, client-project association, status management (draft, finalized, archived), file uploads, and punch list tracking.
 - **Communication**: Real-time chat via Stream Chat, offering project-based channels with WebSocket connections.
-- **Quote System**: Professional quote generation with line items, PDF generation, email delivery, and a workflow for acceptance that triggers project and invoice creation.
+- **Quote System**: Professional quote generation with line items, PDF generation, email delivery, and a workflow for acceptance that triggers project and invoice creation. Flexible payment milestone configuration (down payment, milestone, final) with per-quote customization while maintaining 40/40/20 default.
 - **Budget Tracking**: Integration with Zoho Expense for comprehensive budget tracking, including OAuth 2.0 authentication and secure token management.
 
 ### System Design Choices
