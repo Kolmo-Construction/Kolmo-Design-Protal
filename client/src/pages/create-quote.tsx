@@ -195,8 +195,31 @@ export default function CreateQuotePage() {
     console.log("[Tax Lookup] Starting lookup for:", address);
     setTaxLookupLoading(true);
     try {
-      // Call backend endpoint which handles the WA State tax lookup API
-      const response = await apiRequest("POST", "/api/quotes/lookup/tax-rate", { address });
+      // Parse address in format: "street, city, zip"
+      // Example: "6500 Linderson Way, Tumwater, 98501"
+      const parts = address.split(",").map(part => part.trim());
+      
+      let addrStr = address; // default to full address
+      let city = "";
+      let zip = "";
+      
+      if (parts.length >= 3) {
+        addrStr = parts[0];
+        city = parts[1];
+        zip = parts[2];
+      } else if (parts.length === 2) {
+        addrStr = parts[0];
+        city = parts[1];
+      }
+      
+      console.log("[Tax Lookup] Parsed address:", { addrStr, city, zip });
+      
+      // Call backend endpoint with separated address components
+      const response = await apiRequest("POST", "/api/quotes/lookup/tax-rate", { 
+        address: addrStr,
+        city,
+        zip
+      });
       
       console.log("[Tax Lookup] Response received:", response);
       

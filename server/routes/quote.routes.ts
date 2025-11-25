@@ -54,63 +54,80 @@ router.delete("/:id/images/:type", isAuthenticated, quoteController.deleteBefore
 // Tax rate lookup route
 router.post("/lookup/tax-rate", isAuthenticated, async (req, res) => {
   try {
-    const { address } = req.body;
+    const { address, city, zip } = req.body;
     
-    if (!address || address.trim().length < 5) {
-      return res.status(400).json({ error: "Address is required and must be at least 5 characters" });
+    // Parse address if only full address is provided
+    let addrStr = address || "";
+    let cityStr = city || "";
+    let zipStr = zip || "";
+    
+    if (!addrStr && address) {
+      addrStr = address;
+    }
+    
+    if (!addrStr || addrStr.trim().length < 3) {
+      return res.status(400).json({ error: "Address is required" });
     }
 
-    // Call WA State tax lookup API from backend (avoids CORS issues)
-    // The API can work with full address or structured address
-    const url = `http://webgis.dor.wa.gov/webapi/AddressRates.aspx?output=xml&addr=${encodeURIComponent(address)}`;
+    // Build URL with separated address components (WA State API format)
+    // Format: https://webgis.dor.wa.gov/webapi/AddressRates.aspx?output=xml&addr=STREET&city=CITY&zip=ZIP
+    const params = new URLSearchParams({
+      output: "xml",
+      addr: addrStr.trim(),
+      ...(cityStr && { city: cityStr.trim() }),
+      ...(zipStr && { zip: zipStr.trim() }),
+    });
+    
+    const url = `https://webgis.dor.wa.gov/webapi/AddressRates.aspx?${params.toString()}`;
     
     console.log(`[Tax Lookup] Requesting: ${url}`);
     
     const response = await fetch(url);
     const xmlText = await response.text();
     
-    console.log(`[Tax Lookup] XML Response length: ${xmlText.length}, First 500 chars: ${xmlText.substring(0, 500)}`);
+    console.log(`[Tax Lookup] XML Response length: ${xmlText.length}, First 1000 chars: ${xmlText.substring(0, 1000)}`);
     
     // Parse XML response to extract tax rate
-    // Try multiple possible response formats
     let totalRate = 0;
     
-    // Format 1: Combined rate element
-    const rateMatch = xmlText.match(/<rate[^>]*>([^<]+)<\/rate>/i);
-    if (rateMatch) {
-      totalRate = parseFloat(rateMatch[1]);
-      console.log(`[Tax Lookup] Found combined rate: ${totalRate}`);
+    // Format 1: root-level rate attribute (WA State returns this)
+    // Example: <response ... rate=".097" ...>
+    const rootRateMatch = xmlText.match(/rate="([^"]+)"/);
+    if (rootRateMatch) {
+      totalRate = parseFloat(rootRateMatch[1]) * 100; // Convert decimal to percentage
+      console.log(`[Tax Lookup] Found root rate attribute: ${totalRate}%`);
     }
     
-    // Format 2: State + Local rates
+    // Format 2: State + Local rates from rate element
     if (totalRate === 0) {
-      const stateRateMatch = xmlText.match(/<StateSalesUseRate>([^<]+)<\/StateSalesUseRate>/i);
-      const localRateMatch = xmlText.match(/<LocalSalesUseRate>([^<]+)<\/LocalSalesUseRate>/i);
+      const stateRateMatch = xmlText.match(/staterate="([^"]+)"/);
+      const localRateMatch = xmlText.match(/localrate="([^"]+)"/);
       
       if (stateRateMatch) {
-        const stateRate = parseFloat(stateRateMatch[1]);
-        const localRate = localRateMatch ? parseFloat(localRateMatch[1]) : 0;
+        const stateRate = parseFloat(stateRateMatch[1]) * 100;
+        const localRate = localRateMatch ? parseFloat(localRateMatch[1]) * 100 : 0;
         totalRate = stateRate + localRate;
-        console.log(`[Tax Lookup] Found state (${stateRate}) + local (${localRate}) = ${totalRate}`);
+        console.log(`[Tax Lookup] Found state (${stateRate}%) + local (${localRate}%) = ${totalRate}%`);
       }
     }
     
-    // Format 3: Total Rate element
+    // Format 3: Nested rate element value
     if (totalRate === 0) {
-      const totalRateMatch = xmlText.match(/<TotalRate>([^<]+)<\/TotalRate>/i);
-      if (totalRateMatch) {
-        totalRate = parseFloat(totalRateMatch[1]);
-        console.log(`[Tax Lookup] Found total rate: ${totalRate}`);
+      const rateMatch = xmlText.match(/<rate[^>]*>([^<]+)<\/rate>/i);
+      if (rateMatch) {
+        const rateValue = parseFloat(rateMatch[1]);
+        // Check if it's decimal format or percentage
+        totalRate = rateValue < 1 ? rateValue * 100 : rateValue;
+        console.log(`[Tax Lookup] Found nested rate element: ${totalRate}%`);
       }
     }
     
-    console.log(`[Tax Lookup] Final rate: ${totalRate}`);
+    console.log(`[Tax Lookup] Final rate: ${totalRate}%`);
 
     if (totalRate > 0 && !isNaN(totalRate)) {
       res.json({ taxRate: totalRate });
     } else {
       // Return a default WA state tax rate if lookup fails
-      // WA state base rate is 6.5%, but local rates vary
       console.log(`[Tax Lookup] No rate found, returning default`);
       res.json({ taxRate: 8.5 }); // Default WA rate
     }
