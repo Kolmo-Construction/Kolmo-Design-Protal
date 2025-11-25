@@ -1594,7 +1594,7 @@ export default function CreateQuotePage() {
                 Previous
               </Button>
 
-              {currentStep < 6 ? (
+              {currentStep < 5 ? (
                 <Button
                   type="button"
                   onClick={(e) => nextStep(e)}
