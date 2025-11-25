@@ -21,37 +21,11 @@ const upload = multer({
   }
 });
 
-// Protected admin routes
+// Protected admin routes - collection level
 router.get("/", isAuthenticated, quoteController.getAllQuotes.bind(quoteController));
 router.post("/", isAuthenticated, quoteController.createQuote.bind(quoteController));
-router.get("/:id", isAuthenticated, quoteController.getQuoteById.bind(quoteController));
-router.patch("/:id", isAuthenticated, quoteController.updateQuote.bind(quoteController));
-router.delete("/:id", isAuthenticated, quoteController.deleteQuote.bind(quoteController));
-router.post("/:id/send", isAuthenticated, quoteController.sendQuote.bind(quoteController));
-router.patch("/:id/financials", isAuthenticated, quoteController.updateQuoteFinancials.bind(quoteController));
 
-// Line item routes
-router.get("/:id/line-items", isAuthenticated, quoteController.getQuoteLineItems.bind(quoteController));
-router.post("/:id/line-items", isAuthenticated, quoteController.createLineItem.bind(quoteController));
-router.patch("/line-items/:lineItemId", isAuthenticated, quoteController.updateLineItem.bind(quoteController));
-router.delete("/line-items/:lineItemId", isAuthenticated, quoteController.deleteLineItem.bind(quoteController));
-
-// Image routes
-router.post("/:id/images", isAuthenticated, quoteController.uploadQuoteImage.bind(quoteController));
-router.delete("/images/:imageId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
-
-// Photo management routes
-router.get("/:id/media", isAuthenticated, quoteController.getQuoteMedia.bind(quoteController));
-router.post("/:id/photos", isAuthenticated, upload.single('photo'), quoteController.uploadQuotePhoto.bind(quoteController));
-router.patch("/media/:mediaId", isAuthenticated, quoteController.updateQuoteMedia.bind(quoteController));
-router.delete("/media/:mediaId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
-
-// Before/After image specific routes
-router.post("/:id/images/:type", isAuthenticated, upload.single('image'), quoteController.uploadBeforeAfterImage.bind(quoteController));
-router.patch("/:id/images/:type/caption", isAuthenticated, quoteController.updateImageCaption.bind(quoteController));
-router.delete("/:id/images/:type", isAuthenticated, quoteController.deleteBeforeAfterImage.bind(quoteController));
-
-// Tax rate lookup route
+// Specific non-ID routes (must come before :id routes)
 router.post("/lookup/tax-rate", isAuthenticated, async (req, res) => {
   try {
     const { address, city, zip } = req.body;
@@ -134,8 +108,37 @@ router.post("/lookup/tax-rate", isAuthenticated, async (req, res) => {
   }
 });
 
-// Public customer routes (no authentication required)
+// Public customer routes (no authentication required) - must come before :id routes
 router.get("/public/:token", quoteController.getQuoteByToken.bind(quoteController));
 router.post("/public/:token/respond", quoteController.respondToQuote.bind(quoteController));
+
+// Routes with nested resources (must come before generic :id routes)
+// Line item routes
+router.get("/:id/line-items", isAuthenticated, quoteController.getQuoteLineItems.bind(quoteController));
+router.post("/:id/line-items", isAuthenticated, quoteController.createLineItem.bind(quoteController));
+router.patch("/:id/line-items/:lineItemId", isAuthenticated, quoteController.updateLineItem.bind(quoteController));
+router.delete("/:id/line-items/:lineItemId", isAuthenticated, quoteController.deleteLineItem.bind(quoteController));
+
+// Image routes
+router.post("/:id/images", isAuthenticated, quoteController.uploadQuoteImage.bind(quoteController));
+router.post("/:id/images/:type", isAuthenticated, upload.single('image'), quoteController.uploadBeforeAfterImage.bind(quoteController));
+router.patch("/:id/images/:type/caption", isAuthenticated, quoteController.updateImageCaption.bind(quoteController));
+router.delete("/:id/images/:type", isAuthenticated, quoteController.deleteBeforeAfterImage.bind(quoteController));
+
+// Photo management routes
+router.get("/:id/media", isAuthenticated, quoteController.getQuoteMedia.bind(quoteController));
+router.post("/:id/photos", isAuthenticated, upload.single('photo'), quoteController.uploadQuotePhoto.bind(quoteController));
+
+// Non-nested resource deletion routes (specific paths that could be mistaken for :id)
+router.delete("/images/:imageId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
+router.patch("/media/:mediaId", isAuthenticated, quoteController.updateQuoteMedia.bind(quoteController));
+router.delete("/media/:mediaId", isAuthenticated, quoteController.deleteQuoteImage.bind(quoteController));
+
+// Generic :id routes (MUST COME LAST after all more specific routes)
+router.get("/:id", isAuthenticated, quoteController.getQuoteById.bind(quoteController));
+router.patch("/:id", isAuthenticated, quoteController.updateQuote.bind(quoteController));
+router.delete("/:id", isAuthenticated, quoteController.deleteQuote.bind(quoteController));
+router.post("/:id/send", isAuthenticated, quoteController.sendQuote.bind(quoteController));
+router.patch("/:id/financials", isAuthenticated, quoteController.updateQuoteFinancials.bind(quoteController));
 
 export default router;
