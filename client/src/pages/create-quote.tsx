@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import { z } from "zod";
 import { 
   ArrowLeft, ArrowRight, Check, User, FileText, DollarSign, Loader2,
-  Plus, Trash2, Package, Image, Calculator, Percent, Pencil, Save, X
+  Plus, Trash2, Package, Image, Calculator, Percent, Pencil, Save, X, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { theme } from "@/config/theme";
@@ -118,6 +125,13 @@ export default function CreateQuotePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Tax rate lookup state
+  const [showTaxLookup, setShowTaxLookup] = useState(false);
+  const [taxLookupLoading, setTaxLookupLoading] = useState(false);
+  const [taxLookupAddress, setTaxLookupAddress] = useState("");
+  const [taxLookupCity, setTaxLookupCity] = useState("");
+  const [taxLookupZip, setTaxLookupZip] = useState("");
 
   const form = useForm<CreateQuoteFormData>({
     resolver: zodResolver(createQuoteSchema),
@@ -171,6 +185,72 @@ export default function CreateQuotePage() {
       discount = discountAmount;
     }
     return subtotal - discount;
+  };
+
+  const lookupTaxRate = async () => {
+    if (!taxLookupAddress.trim() || !taxLookupCity.trim() || !taxLookupZip.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter address, city, and zip code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTaxLookupLoading(true);
+    try {
+      // Call WA State tax lookup API
+      const url = `http://webgis.dor.wa.gov/webapi/AddressRates.aspx?output=xml&addr=${encodeURIComponent(taxLookupAddress)}&city=${encodeURIComponent(taxLookupCity)}&zip=${encodeURIComponent(taxLookupZip)}`;
+      
+      const response = await fetch(url);
+      const xmlText = await response.text();
+      
+      // Parse XML response to extract tax rate
+      // The XML contains elements like <rate>8.5</rate> or <StateSalesUseRate>6.5</StateSalesUseRate>
+      const rateMatch = xmlText.match(/<rate[^>]*>([^<]+)<\/rate>/i);
+      const stateRateMatch = xmlText.match(/<StateSalesUseRate>([^<]+)<\/StateSalesUseRate>/i);
+      const localRateMatch = xmlText.match(/<LocalSalesUseRate>([^<]+)<\/LocalSalesUseRate>/i);
+      
+      let totalRate = 0;
+      if (rateMatch) {
+        // If there's a combined rate element
+        totalRate = parseFloat(rateMatch[1]);
+      } else if (stateRateMatch && localRateMatch) {
+        // If we need to add state and local rates
+        const stateRate = parseFloat(stateRateMatch[1]);
+        const localRate = parseFloat(localRateMatch[1]);
+        totalRate = stateRate + localRate;
+      } else if (stateRateMatch) {
+        totalRate = parseFloat(stateRateMatch[1]);
+      }
+
+      if (totalRate > 0) {
+        form.setValue("taxRate", totalRate);
+        toast({
+          title: "Tax Rate Updated",
+          description: `Tax rate set to ${totalRate}%`,
+        });
+        setShowTaxLookup(false);
+        setTaxLookupAddress("");
+        setTaxLookupCity("");
+        setTaxLookupZip("");
+      } else {
+        toast({
+          title: "No Rate Found",
+          description: "Could not find tax rate for this address",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Tax rate lookup error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to lookup tax rate",
+        variant: "destructive",
+      });
+    } finally {
+      setTaxLookupLoading(false);
+    }
   };
 
   const addLineItem = () => {
@@ -1020,16 +1100,29 @@ export default function CreateQuotePage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Tax Rate (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.1"
-                                {...field}
-                                data-testid="input-tax-rate"
-                              />
-                            </FormControl>
+                            <div className="flex gap-2">
+                              <FormControl className="flex-1">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.1"
+                                  {...field}
+                                  data-testid="input-tax-rate"
+                                />
+                              </FormControl>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowTaxLookup(true)}
+                                className="px-3"
+                                title="Look up tax rate from WA State"
+                                data-testid="button-lookup-tax-rate"
+                              >
+                                <Search className="h-4 w-4" />
+                              </Button>
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1461,6 +1554,76 @@ export default function CreateQuotePage() {
             </div>
           </form>
         </Form>
+
+        {/* Tax Rate Lookup Dialog */}
+        <Dialog open={showTaxLookup} onOpenChange={setShowTaxLookup}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Look Up Tax Rate</DialogTitle>
+              <DialogDescription>
+                Enter the address to look up the sales tax rate from Washington State Department of Revenue
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Street Address</label>
+                <Input
+                  placeholder="e.g., 6500 Linderson Way"
+                  value={taxLookupAddress}
+                  onChange={(e) => setTaxLookupAddress(e.target.value)}
+                  disabled={taxLookupLoading}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium">City</label>
+                  <Input
+                    placeholder="e.g., Tumwater"
+                    value={taxLookupCity}
+                    onChange={(e) => setTaxLookupCity(e.target.value)}
+                    disabled={taxLookupLoading}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">ZIP Code</label>
+                  <Input
+                    placeholder="e.g., 98501"
+                    value={taxLookupZip}
+                    onChange={(e) => setTaxLookupZip(e.target.value)}
+                    disabled={taxLookupLoading}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTaxLookup(false)}
+                  disabled={taxLookupLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={lookupTaxRate}
+                  disabled={taxLookupLoading}
+                  style={{ backgroundColor: theme.colors.accent }}
+                  className="text-white"
+                >
+                  {taxLookupLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Looking up...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4 mr-2" />
+                      Look Up Tax Rate
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
