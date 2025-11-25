@@ -165,6 +165,8 @@ export class QuoteRepository {
               quantity: String(item.quantity),
               unit: item.unit || "each",
               unitPrice: String(item.unitPrice),
+              discountPercentage: item.discountPercentage ? String(item.discountPercentage) : "0",
+              discountAmount: item.discountAmount ? String(item.discountAmount) : "0",
               totalPrice: String(item.total || item.quantity * item.unitPrice),
             });
         }
