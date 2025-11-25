@@ -305,14 +305,16 @@ export default function CreateQuotePage() {
     return result;
   };
 
-  const nextStep = async () => {
+  const nextStep = async (e?: React.MouseEvent) => {
+    e?.preventDefault?.();
     const isValid = await validateStep(currentStep);
     if (isValid && currentStep < 6) {
       setCurrentStep(currentStep + 1);
     }
   };
 
-  const prevStep = () => {
+  const prevStep = (e?: React.MouseEvent) => {
+    e?.preventDefault?.();
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
@@ -1336,7 +1338,7 @@ export default function CreateQuotePage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={prevStep}
+                onClick={(e) => prevStep(e)}
                 disabled={currentStep === 1}
                 style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
                 data-testid="button-previous-step"
@@ -1348,7 +1350,7 @@ export default function CreateQuotePage() {
               {currentStep < 6 ? (
                 <Button
                   type="button"
-                  onClick={nextStep}
+                  onClick={(e) => nextStep(e)}
                   className="text-white"
                   style={{ backgroundColor: theme.colors.accent }}
                   data-testid="button-next-step"
