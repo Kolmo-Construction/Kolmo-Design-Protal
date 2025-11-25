@@ -60,6 +60,9 @@ const createQuoteSchema = z.object({
   customerEmail: z.string().email("Valid email is required"),
   customerPhone: z.string().optional(),
   customerAddress: z.string().optional(),
+  customerCity: z.string().optional(),
+  customerState: z.string().optional(),
+  customerZip: z.string().optional(),
   projectType: z.string().min(1, "Project type is required"),
   location: z.string().optional(),
   description: z.string().optional(),
@@ -139,6 +142,9 @@ export default function CreateQuotePage() {
       customerEmail: "",
       customerPhone: "",
       customerAddress: "",
+      customerCity: "",
+      customerState: "WA",
+      customerZip: "",
       projectType: "",
       location: "",
       description: "",
@@ -185,40 +191,21 @@ export default function CreateQuotePage() {
     return subtotal - discount;
   };
 
-  const lookupTaxRate = useCallback(async (address: string) => {
-    if (!address || address.trim().length < 5) {
+  const lookupTaxRate = useCallback(async (street: string, city: string, zip: string) => {
+    if (!street || street.trim().length < 3) {
       console.log("[Tax Lookup] Address too short, clearing suggestion");
       setSuggestedTaxRate(null);
       return;
     }
 
-    console.log("[Tax Lookup] Starting lookup for:", address);
+    console.log("[Tax Lookup] Starting lookup for:", { street, city, zip });
     setTaxLookupLoading(true);
     try {
-      // Parse address in format: "street, city, zip"
-      // Example: "6500 Linderson Way, Tumwater, 98501"
-      const parts = address.split(",").map(part => part.trim());
-      
-      let addrStr = address; // default to full address
-      let city = "";
-      let zip = "";
-      
-      if (parts.length >= 3) {
-        addrStr = parts[0];
-        city = parts[1];
-        zip = parts[2];
-      } else if (parts.length === 2) {
-        addrStr = parts[0];
-        city = parts[1];
-      }
-      
-      console.log("[Tax Lookup] Parsed address:", { addrStr, city, zip });
-      
       // Call backend endpoint with separated address components
       const response = await apiRequest("POST", "/api/quotes/lookup/tax-rate", { 
-        address: addrStr,
-        city,
-        zip
+        address: street.trim(),
+        city: city.trim(),
+        zip: zip.trim()
       });
       
       console.log("[Tax Lookup] Response received:", response);
@@ -241,13 +228,13 @@ export default function CreateQuotePage() {
 
   // Auto-lookup tax rate when address changes and we're on the financials step
   useEffect(() => {
-    console.log("[Tax Lookup] useEffect triggered - currentStep:", currentStep, "address:", formValues.customerAddress);
-    if (currentStep === 4 && formValues.customerAddress) {
+    console.log("[Tax Lookup] useEffect triggered - currentStep:", currentStep);
+    if (currentStep === 4 && formValues.customerAddress && formValues.customerCity && formValues.customerZip) {
       console.log("[Tax Lookup] Conditions met, triggering lookup");
       setSuggestedTaxAccepted(false); // Reset acceptance flag when address changes
-      lookupTaxRate(formValues.customerAddress);
+      lookupTaxRate(formValues.customerAddress, formValues.customerCity, formValues.customerZip);
     }
-  }, [currentStep, formValues.customerAddress, lookupTaxRate]);
+  }, [currentStep, formValues.customerAddress, formValues.customerCity, formValues.customerZip, lookupTaxRate]);
 
   const addLineItem = () => {
     if (!newItem.category || !newItem.description || !newItem.unitPrice) {
@@ -560,46 +547,106 @@ export default function CreateQuotePage() {
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="customerPhone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="(555) 123-4567"
-                              {...field}
-                              onChange={(e) => {
-                                const formatted = formatPhoneNumber(e.target.value);
-                                field.onChange(formatted);
-                              }}
-                              data-testid="input-customer-phone"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={form.control}
+                    name="customerPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="(555) 123-4567"
+                            {...field}
+                            onChange={(e) => {
+                              const formatted = formatPhoneNumber(e.target.value);
+                              field.onChange(formatted);
+                            }}
+                            data-testid="input-customer-phone"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="customerAddress"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Address</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="123 Main St, City, State"
-                              {...field}
-                              data-testid="input-customer-address"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div>
+                    <h4 className="font-medium mb-3" style={{ color: theme.colors.primary }}>
+                      Project Address (for tax rate lookup)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="customerAddress"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Street Address</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g., 6500 Linderson Way"
+                                {...field}
+                                data-testid="input-customer-address"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="customerCity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g., Tumwater"
+                                {...field}
+                                data-testid="input-customer-city"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="customerState"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="WA"
+                                maxLength={2}
+                                {...field}
+                                data-testid="input-customer-state"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="customerZip"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>ZIP Code</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g., 98501"
+                                {...field}
+                                data-testid="input-customer-zip"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
