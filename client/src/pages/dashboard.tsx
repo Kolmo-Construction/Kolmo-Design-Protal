@@ -136,7 +136,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
-                <Link href="/quotes/create">
+                <Link href="/quotes">
                   <Button className="w-full bg-[#db973c] hover:bg-[#c8862b] text-white">
                     <FileText className="h-4 w-4 mr-2" />
                     Create Quote
@@ -182,7 +182,7 @@ export default function Dashboard() {
                 <div className="text-center py-6">
                   <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">No quotes yet</p>
-                  <Link href="/quotes/create">
+                  <Link href="/quotes">
                     <Button size="sm" className="mt-2 bg-[#db973c] hover:bg-[#c8862b] text-white">
                       Create First Quote
                     </Button>
