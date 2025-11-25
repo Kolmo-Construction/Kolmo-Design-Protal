@@ -558,29 +558,29 @@ export default function EditQuotePage() {
                     <h3 className="font-semibold mb-3" style={{ color: theme.colors.primary }}>
                       Payment Schedule
                     </h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: theme.colors.surfaceLight }}>
-                        <div className="text-xs" style={{ color: theme.colors.textMuted }}>Down Payment</div>
-                        <div className="font-semibold">{quote.downPaymentPercentage || 0}%</div>
-                        <div className="text-sm" style={{ color: theme.colors.textMuted }}>
-                          {formatCurrency((parseFloat(quote.total?.toString() || "0") * parseFloat((quote.downPaymentPercentage ?? 0).toString())) / 100)}
+                    {(() => {
+                      const payments = [
+                        { label: 'Down Payment', percentage: Number(quote.downPaymentPercentage ?? 0) },
+                        { label: 'Milestone', percentage: Number(quote.milestonePaymentPercentage ?? 0) },
+                        { label: 'Final', percentage: Number(quote.finalPaymentPercentage ?? 0) }
+                      ].filter(p => p.percentage > 0);
+
+                      const gridColsClass = payments.length === 1 ? 'grid-cols-1' : payments.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
+
+                      return (
+                        <div className={`grid ${gridColsClass} gap-4`}>
+                          {payments.map((payment, index) => (
+                            <div key={index} className="p-3 rounded-lg" style={{ backgroundColor: theme.colors.surfaceLight }}>
+                              <div className="text-xs" style={{ color: theme.colors.textMuted }}>{payment.label}</div>
+                              <div className="font-semibold">{payment.percentage}%</div>
+                              <div className="text-sm" style={{ color: theme.colors.textMuted }}>
+                                {formatCurrency((parseFloat(quote.total?.toString() || "0") * parseFloat(payment.percentage.toString())) / 100)}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: theme.colors.surfaceLight }}>
-                        <div className="text-xs" style={{ color: theme.colors.textMuted }}>Milestone</div>
-                        <div className="font-semibold">{quote.milestonePaymentPercentage || 0}%</div>
-                        <div className="text-sm" style={{ color: theme.colors.textMuted }}>
-                          {formatCurrency((parseFloat(quote.total?.toString() || "0") * parseFloat((quote.milestonePaymentPercentage ?? 0).toString())) / 100)}
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-lg" style={{ backgroundColor: theme.colors.surfaceLight }}>
-                        <div className="text-xs" style={{ color: theme.colors.textMuted }}>Final</div>
-                        <div className="font-semibold">{quote.finalPaymentPercentage || 0}%</div>
-                        <div className="text-sm" style={{ color: theme.colors.textMuted }}>
-                          {formatCurrency((parseFloat(quote.total?.toString() || "0") * parseFloat((quote.finalPaymentPercentage ?? 0).toString())) / 100)}
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </CardContent>

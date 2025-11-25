@@ -1025,37 +1025,31 @@ export default function CustomerQuotePage() {
             </div>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center p-6 rounded-xl border-2 border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
-                <div className="text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg" style={{backgroundColor: '#3d4552'}}>1</div>
-                <h4 className="font-bold mb-2" style={{color: '#1a1a1a'}}>Down Payment</h4>
-                <div className="text-3xl font-bold mb-2" style={{color: '#db973c'}}>{quoteData.downPaymentPercentage}%</div>
-                <div className="text-2xl font-semibold mb-2" style={{color: '#1a1a1a'}}>
-                  {formatCurrency((parseFloat(quoteData.total) * quoteData.downPaymentPercentage / 100).toString())}
+            {(() => {
+              const payments = [
+                { label: 'Down Payment', percentage: quoteData.downPaymentPercentage, description: 'To secure your project start date', color: '#3d4552', number: 1 },
+                { label: 'Progress Payment', percentage: quoteData.milestonePaymentPercentage, description: 'At project milestone completion', color: '#4a6670', number: 2 },
+                { label: 'Final Payment', percentage: quoteData.finalPaymentPercentage, description: 'Upon project completion', color: '#db973c', number: 3 }
+              ].filter(p => p.percentage > 0);
+
+              const gridColsClass = payments.length === 1 ? 'grid-cols-1' : payments.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3';
+
+              return (
+                <div className={`grid ${gridColsClass} gap-6`}>
+                  {payments.map((payment, index) => (
+                    <div key={index} className="text-center p-6 rounded-xl border-2 border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
+                      <div className="text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg" style={{backgroundColor: payment.color}}>{index + 1}</div>
+                      <h4 className="font-bold mb-2" style={{color: '#1a1a1a'}}>{payment.label}</h4>
+                      <div className="text-3xl font-bold mb-2" style={{color: '#db973c'}}>{payment.percentage}%</div>
+                      <div className="text-2xl font-semibold mb-2" style={{color: '#1a1a1a'}}>
+                        {formatCurrency((parseFloat(quoteData.total) * payment.percentage / 100).toString())}
+                      </div>
+                      <p className="text-sm" style={{color: '#4a6670'}}>{payment.description}</p>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-sm" style={{color: '#4a6670'}}>To secure your project start date</p>
-              </div>
-              
-              <div className="text-center p-6 rounded-xl border-2 border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
-                <div className="text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg" style={{backgroundColor: '#4a6670'}}>2</div>
-                <h4 className="font-bold mb-2" style={{color: '#1a1a1a'}}>Progress Payment</h4>
-                <div className="text-3xl font-bold mb-2" style={{color: '#db973c'}}>{quoteData.milestonePaymentPercentage}%</div>
-                <div className="text-2xl font-semibold mb-2" style={{color: '#1a1a1a'}}>
-                  {formatCurrency((parseFloat(quoteData.total) * quoteData.milestonePaymentPercentage / 100).toString())}
-                </div>
-                <p className="text-sm" style={{color: '#4a6670'}}>At project milestone completion</p>
-              </div>
-              
-              <div className="text-center p-6 rounded-xl border-2 border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
-                <div className="text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4 font-bold text-lg" style={{backgroundColor: '#db973c'}}>3</div>
-                <h4 className="font-bold mb-2" style={{color: '#1a1a1a'}}>Final Payment</h4>
-                <div className="text-3xl font-bold mb-2" style={{color: '#db973c'}}>{quoteData.finalPaymentPercentage}%</div>
-                <div className="text-2xl font-semibold mb-2" style={{color: '#1a1a1a'}}>
-                  {formatCurrency((parseFloat(quoteData.total) * quoteData.finalPaymentPercentage / 100).toString())}
-                </div>
-                <p className="text-sm" style={{color: '#4a6670'}}>Upon project completion</p>
-              </div>
-            </div>
+              );
+            })()}
             
             {quoteData.milestoneDescription && (
               <div className="mt-6 p-4 rounded-xl border border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
