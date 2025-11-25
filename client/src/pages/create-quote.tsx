@@ -129,6 +129,7 @@ export default function CreateQuotePage() {
   // Tax rate lookup state
   const [suggestedTaxRate, setSuggestedTaxRate] = useState<number | null>(null);
   const [taxLookupLoading, setTaxLookupLoading] = useState(false);
+  const [suggestedTaxAccepted, setSuggestedTaxAccepted] = useState(false);
 
   const form = useForm<CreateQuoteFormData>({
     resolver: zodResolver(createQuoteSchema),
@@ -211,6 +212,7 @@ export default function CreateQuotePage() {
   // Auto-lookup tax rate when address changes and we're on the financials step
   useEffect(() => {
     if (currentStep === 4 && formValues.customerAddress) {
+      setSuggestedTaxAccepted(false); // Reset acceptance flag when address changes
       lookupTaxRate(formValues.customerAddress);
     }
   }, [currentStep, formValues.customerAddress, lookupTaxRate]);
@@ -1086,7 +1088,7 @@ export default function CreateQuotePage() {
                                   </Button>
                                 )}
                               </div>
-                              {suggestedTaxRate !== null && suggestedTaxRate !== formValues.taxRate && (
+                              {suggestedTaxRate !== null && !suggestedTaxAccepted && (
                                 <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: theme.getColorWithOpacity(theme.colors.secondary, 0.1) }}>
                                   <span className="text-sm" style={{ color: theme.colors.secondary }}>
                                     <strong>Suggested: {suggestedTaxRate.toFixed(2)}%</strong> based on customer address
@@ -1095,7 +1097,10 @@ export default function CreateQuotePage() {
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => form.setValue("taxRate", suggestedTaxRate)}
+                                    onClick={() => {
+                                      form.setValue("taxRate", suggestedTaxRate);
+                                      setSuggestedTaxAccepted(true);
+                                    }}
                                     className="text-xs"
                                     style={{ color: theme.colors.secondary }}
                                     data-testid="button-apply-suggested-tax"
