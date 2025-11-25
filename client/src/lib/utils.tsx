@@ -220,4 +220,23 @@ export const formatCurrency = (amount: string | number) => {
   }).format(num || 0);
 };
 
+/**
+ * Formats a phone number as (XXX) XXX-XXXX
+ */
+export const formatPhoneNumber = (value: string): string => {
+  // Remove all non-digit characters
+  const digits = value.replace(/\D/g, '');
+  
+  // If less than 3 digits, return as is
+  if (digits.length < 3) return digits;
+  
+  // If less than 6 digits, format as (XXX) XXX
+  if (digits.length < 6) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  }
+  
+  // Format as (XXX) XXX-XXXX
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
+
 // --- End Helper Functions ---

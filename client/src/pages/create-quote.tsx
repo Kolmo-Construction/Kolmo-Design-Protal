@@ -33,7 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { theme } from "@/config/theme";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatPhoneNumber } from "@/lib/utils";
 
 interface LineItem {
   id: string;
@@ -460,6 +460,10 @@ export default function CreateQuotePage() {
                             <Input
                               placeholder="(555) 123-4567"
                               {...field}
+                              onChange={(e) => {
+                                const formatted = formatPhoneNumber(e.target.value);
+                                field.onChange(formatted);
+                              }}
                               data-testid="input-customer-phone"
                             />
                           </FormControl>

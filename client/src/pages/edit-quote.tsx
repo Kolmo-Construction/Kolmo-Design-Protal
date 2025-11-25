@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuoteWithDetails, QuoteLineItem } from "@shared/schema";
 import { theme } from "@/config/theme";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatPhoneNumber } from "@/lib/utils";
 import { CreateLineItemDialog } from "@/components/quotes/CreateLineItemDialog";
 import { EditLineItemDialog } from "@/components/quotes/EditLineItemDialog";
 import { QuoteFinancialsDialog } from "@/components/quotes/QuoteFinancialsDialog";
@@ -267,7 +267,14 @@ export default function EditQuotePage() {
                         <FormItem>
                           <FormLabel>Phone</FormLabel>
                           <FormControl>
-                            <Input {...field} data-testid="input-customer-phone" />
+                            <Input
+                              {...field}
+                              onChange={(e) => {
+                                const formatted = formatPhoneNumber(e.target.value);
+                                field.onChange(formatted);
+                              }}
+                              data-testid="input-customer-phone"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
