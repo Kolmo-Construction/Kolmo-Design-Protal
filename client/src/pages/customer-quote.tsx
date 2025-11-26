@@ -423,25 +423,11 @@ export default function CustomerQuotePage() {
               </div>
               <div className="text-center sm:text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold" style={{color: '#1a1a1a'}}>Kolmo Construction</h1>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-2" style={{color: '#4a6670'}}>
-                  <div className="flex items-center gap-1">
-                    <Shield className="h-4 w-4" style={{color: '#db973c'}} />
-                    <span>Licensed • KOLMOL*753JS</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Award className="h-4 w-4" style={{color: '#db973c'}} />
-                    <span>OSHA30 Certified</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4" style={{color: '#db973c'}} />
-                    <span>LEED Green Certified</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-1" style={{color: '#4a6670'}}>
-                  <div className="flex items-center gap-1">
-                    <Award className="h-4 w-4" style={{color: '#db973c'}} />
-                    <span>ASHE's ICRA 2.0 Certified</span>
-                  </div>
+                <div className="flex flex-wrap items-center gap-1 text-xs mt-2" style={{color: '#4a6670'}}>
+                  <Badge variant="outline" className="px-2 py-0.5" style={{borderColor: '#db973c', color: '#db973c'}}>Licensed</Badge>
+                  <Badge variant="outline" className="px-2 py-0.5" style={{borderColor: '#db973c', color: '#db973c'}}>OSHA30</Badge>
+                  <Badge variant="outline" className="px-2 py-0.5" style={{borderColor: '#db973c', color: '#db973c'}}>LEED</Badge>
+                  <Badge variant="outline" className="px-2 py-0.5" style={{borderColor: '#db973c', color: '#db973c'}}>ICRA 2.0</Badge>
                 </div>
               </div>
             </div>
