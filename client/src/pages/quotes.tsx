@@ -172,152 +172,143 @@ export default function QuotesPage() {
         </Button>
       </div>
 
-      {/* Quotes List */}
-      <div className="grid gap-4">
-        {quotes.length === 0 ? (
-          <Card>
-            <CardContent className="py-16">
-              <div className="text-center">
-                <FileText className="h-16 w-16 mx-auto mb-4" style={{ color: theme.colors.border }} />
-                <h3 className="text-lg font-medium mb-2" style={{ color: theme.colors.primary }}>
-                  No quotes yet
-                </h3>
-                <p className="mb-6" style={{ color: theme.colors.textMuted }}>
-                  Get started by creating your first quote
-                </p>
-                <Button
-                  onClick={() => navigate("/quotes/create")}
-                  className="text-white"
-                  style={{ backgroundColor: theme.colors.accent }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create First Quote
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          quotes.map((quote: QuoteWithDetails) => (
-            <Card key={quote.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Quote Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-lg" style={{ color: theme.colors.primary }}>
-                        {quote.quoteNumber}
-                      </h3>
+      {/* Quotes List - Compact Table View */}
+      {quotes.length === 0 ? (
+        <Card>
+          <CardContent className="py-16">
+            <div className="text-center">
+              <FileText className="h-16 w-16 mx-auto mb-4" style={{ color: theme.colors.border }} />
+              <h3 className="text-lg font-medium mb-2" style={{ color: theme.colors.primary }}>
+                No quotes yet
+              </h3>
+              <p className="mb-6" style={{ color: theme.colors.textMuted }}>
+                Get started by creating your first quote
+              </p>
+              <Button
+                onClick={() => navigate("/quotes/create")}
+                className="text-white"
+                style={{ backgroundColor: theme.colors.accent }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create First Quote
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${theme.colors.border}`, backgroundColor: theme.colors.surfaceLight }}>
+                  <th className="px-4 py-3 text-left font-semibold" style={{ color: theme.colors.textMuted }}>Quote</th>
+                  <th className="px-4 py-3 text-left font-semibold" style={{ color: theme.colors.textMuted }}>Customer</th>
+                  <th className="px-4 py-3 text-left font-semibold" style={{ color: theme.colors.textMuted }}>Status</th>
+                  <th className="px-4 py-3 text-right font-semibold" style={{ color: theme.colors.textMuted }}>Amount</th>
+                  <th className="px-4 py-3 text-center font-semibold" style={{ color: theme.colors.textMuted }}>Views</th>
+                  <th className="px-4 py-3 text-center font-semibold" style={{ color: theme.colors.textMuted }}>Avg Time</th>
+                  <th className="px-4 py-3 text-center font-semibold" style={{ color: theme.colors.textMuted }}>Scroll</th>
+                  <th className="px-4 py-3 text-left font-semibold" style={{ color: theme.colors.textMuted }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quotes.map((quote: QuoteWithDetails) => (
+                  <tr key={quote.id} style={{ borderBottom: `1px solid ${theme.colors.border}` }} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-medium">
+                      <div style={{ color: theme.colors.primary }}>{quote.quoteNumber}</div>
+                      <div className="text-xs" style={{ color: theme.colors.textMuted }}>{quote.title}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <div>{quote.customerName}</div>
+                      <div className="text-xs" style={{ color: theme.colors.textMuted }}>{quote.customerEmail}</div>
+                    </td>
+                    <td className="px-4 py-3">
                       <Badge style={getStatusStyle(quote.status)}>
                         {quote.status}
                       </Badge>
-                    </div>
-                    <p className="font-medium mb-1">{quote.title}</p>
-                    <p className="text-sm" style={{ color: theme.colors.textMuted }}>
-                      {quote.customerName} • {quote.customerEmail}
-                    </p>
-                  </div>
-
-                  {/* Price and Date */}
-                  <div className="text-right">
-                    <div className="text-2xl font-bold" style={{ color: theme.colors.accent }}>
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold" style={{ color: theme.colors.accent }}>
                       {formatCurrency(quote.total)}
-                    </div>
-                    <p className="text-sm" style={{ color: theme.colors.textMuted }}>
-                      Valid until {formatDate(quote.validUntil.toString())}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Analytics Row for Sent Quotes (show for all non-draft quotes) */}
-                {quote.status !== "draft" && (
-                  <div className="flex flex-wrap gap-6 mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border }}>
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" style={{ color: theme.colors.secondary }} />
-                      <div>
-                        <p className="text-xs" style={{ color: theme.colors.textMuted }}>Views</p>
-                        <p className="font-semibold text-sm" data-testid={`text-views-${quote.id}`}>
-                          {analyticsMap[quote.id]?.views ?? 0}
-                        </p>
+                    </td>
+                    <td className="px-4 py-3 text-center" data-testid={`text-views-${quote.id}`}>
+                      {quote.status !== "draft" ? (
+                        <span className="font-semibold">{analyticsMap[quote.id]?.views ?? 0}</span>
+                      ) : (
+                        <span style={{ color: theme.colors.textMuted }}>—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center" data-testid={`text-avgtime-${quote.id}`}>
+                      {quote.status !== "draft" && analyticsMap[quote.id]?.views > 0 ? (
+                        <span className="font-semibold">{analyticsMap[quote.id]?.avgTime ?? 0}s</span>
+                      ) : (
+                        <span style={{ color: theme.colors.textMuted }}>—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center" data-testid={`text-scroll-${quote.id}`}>
+                      {quote.status !== "draft" && analyticsMap[quote.id]?.views > 0 ? (
+                        <span className="font-semibold">{analyticsMap[quote.id]?.scrollDepth ?? 0}%</span>
+                      ) : (
+                        <span style={{ color: theme.colors.textMuted }}>—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setViewingQuote(quote)}
+                          title="View"
+                          data-testid={`button-view-${quote.id}`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => navigate(`/quotes/${quote.id}/edit`)}
+                          title="Edit"
+                          data-testid={`button-edit-${quote.id}`}
+                          style={{ color: theme.colors.secondary }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        {quote.status === "draft" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => sendQuoteMutation.mutate(quote.id)}
+                            disabled={sendQuoteMutation.isPending}
+                            title="Send"
+                            data-testid={`button-send-${quote.id}`}
+                            style={{ color: theme.colors.accent }}
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm("Are you sure you want to delete this quote?")) {
+                              deleteQuoteMutation.mutate(quote.id);
+                            }
+                          }}
+                          disabled={deleteQuoteMutation.isPending}
+                          title="Delete"
+                          data-testid={`button-delete-${quote.id}`}
+                          style={{ color: "#ef4444" }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </div>
-                    <div>
-                      <p className="text-xs" style={{ color: theme.colors.textMuted }}>Avg Time</p>
-                      <p className="font-semibold text-sm" data-testid={`text-avgtime-${quote.id}`}>
-                        {analyticsMap[quote.id]?.avgTime ?? 0}s
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs" style={{ color: theme.colors.textMuted }}>Scroll Depth</p>
-                      <p className="font-semibold text-sm" data-testid={`text-scroll-${quote.id}`}>
-                        {analyticsMap[quote.id]?.scrollDepth ?? 0}%
-                      </p>
-                    </div>
-                    {analyticsMap[quote.id]?.views === 0 && (
-                      <div className="flex items-center">
-                        <p className="text-xs italic" style={{ color: theme.colors.textMuted }}>
-                          No customer activity yet
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Actions - Clear separation: View (read-only) and Edit (navigate to edit page) */}
-                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewingQuote(quote)}
-                    style={{ borderColor: theme.colors.secondary, color: theme.colors.secondary }}
-                    data-testid={`button-view-${quote.id}`}
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    View
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => navigate(`/quotes/${quote.id}/edit`)}
-                    className="text-white"
-                    style={{ backgroundColor: theme.colors.secondary }}
-                    data-testid={`button-edit-${quote.id}`}
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  {quote.status === "draft" && (
-                    <Button
-                      size="sm"
-                      onClick={() => sendQuoteMutation.mutate(quote.id)}
-                      disabled={sendQuoteMutation.isPending}
-                      className="text-white"
-                      style={{ backgroundColor: theme.colors.accent }}
-                      data-testid={`button-send-${quote.id}`}
-                    >
-                      <Send className="h-4 w-4 mr-1" />
-                      Send
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this quote?")) {
-                        deleteQuoteMutation.mutate(quote.id);
-                      }
-                    }}
-                    disabled={deleteQuoteMutation.isPending}
-                    style={{ borderColor: "#ef4444", color: "#ef4444" }}
-                    data-testid={`button-delete-${quote.id}`}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* View-only Quote Dialog */}
       {viewingQuote && (
