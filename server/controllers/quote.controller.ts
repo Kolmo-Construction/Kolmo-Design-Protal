@@ -811,9 +811,11 @@ export class QuoteController {
                 
                 <div class="quote-card">
                 <div class="quote-header">
-                    <div class="quote-number">Quote Reference: ${quote.quoteNumber}</div>
-                    <div class="project-title">${quote.title}</div>
-                    ${quote.description ? `<div class="project-description">${quote.description}</div>` : ''}
+                    <a href="${quoteLink}" style="text-decoration: none; color: inherit;">
+                        <div class="quote-number">📋 Quote Reference: <span style="color: #db973c; font-weight: 700;">${quote.quoteNumber}</span></div>
+                        <div class="project-title" style="cursor: pointer; transition: color 0.2s;">${quote.title}</div>
+                        ${quote.description ? `<div class="project-description">${quote.description}</div>` : ''}
+                    </a>
                 </div>
                 
                 <div class="details-grid">
@@ -864,10 +866,15 @@ export class QuoteController {
                 </div>
 
                 <div class="cta-section">
-                    <p style="font-size: 18px; color: #3d4552; margin-bottom: 20px; text-align: center; font-weight: 600;">
-                        Ready to move forward? Click below to review the full proposal details, timelines, and payment options.
+                    <p style="font-size: 18px; color: #3d4552; margin-bottom: 15px; text-align: center; font-weight: 600;">
+                        ✓ Ready to move forward? Click the button below to:
                     </p>
-                    <a href="${quoteLink}" class="cta-button">View & Accept Your Proposal</a>
+                    <ul style="list-style: none; padding: 0; text-align: center; margin-bottom: 30px; font-size: 16px; color: #4a6670;">
+                        <li style="padding: 5px 0;">✓ Review detailed project breakdown</li>
+                        <li style="padding: 5px 0;">✓ See payment milestone options</li>
+                        <li style="padding: 5px 0;">✓ Accept the proposal online</li>
+                    </ul>
+                    <a href="${quoteLink}" class="cta-button" style="font-size: 18px; padding: 20px 45px;">VIEW YOUR QUOTE NOW</a>
                 </div>
 
                 <div class="validity-section">
