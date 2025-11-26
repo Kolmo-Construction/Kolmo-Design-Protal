@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { isAuthenticated } from "../middleware/auth.middleware";
+import { isAuthenticated, isAdmin } from "../middleware/auth.middleware";
 import { QuoteAnalyticsController } from "../controllers/quote-analytics.controller";
 
 const router = Router();
@@ -15,6 +15,6 @@ router.patch("/analytics/session/scroll", analyticsController.updateScrollDepth.
 router.get("/quotes/:quoteId/analytics/summary", isAuthenticated, analyticsController.getAnalyticsSummary.bind(analyticsController));
 router.get("/quotes/:quoteId/analytics/details", isAuthenticated, analyticsController.getAnalyticsDetails.bind(analyticsController));
 router.get("/analytics/dashboard", isAuthenticated, analyticsController.getDashboardAnalytics.bind(analyticsController));
-router.get("/admin/analytics/quotes", isAuthenticated, analyticsController.getAllQuotesAnalytics.bind(analyticsController));
+router.get("/admin/analytics/quotes", isAuthenticated, isAdmin, analyticsController.getAllQuotesAnalytics.bind(analyticsController));
 
 export default router;
