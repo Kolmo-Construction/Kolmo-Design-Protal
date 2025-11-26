@@ -21,6 +21,7 @@ interface DashboardAnalytics {
   };
   topQuotes: Array<{
     quoteId: number;
+    quoteNumber: string;
     views: number;
   }>;
 }
@@ -145,7 +146,7 @@ export default function QuoteAnalyticsOverview() {
                     <Badge variant="outline" className="bg-white">
                       #{index + 1}
                     </Badge>
-                    <span className="font-medium">Quote #{quote.quoteId}</span>
+                    <span className="font-medium text-[#1e3a5f]">{quote.quoteNumber}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Eye className="h-4 w-4 text-gray-500" />

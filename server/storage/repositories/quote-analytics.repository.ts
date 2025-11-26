@@ -299,8 +299,8 @@ export class QuoteAnalyticsRepository {
         .from(quoteViewSessions)
         .where(sql`${quoteViewSessions.maxScrollDepth} IS NOT NULL`);
 
-      // Get top performing quotes (most views)
-      const topQuotes = await db
+      // Get top performing quotes (most views) with quoteNumber
+      const topQuotesRaw = await db
         .select({
           quoteId: quoteAnalytics.quoteId,
           views: count(),
@@ -310,6 +310,23 @@ export class QuoteAnalyticsRepository {
         .groupBy(quoteAnalytics.quoteId)
         .orderBy(desc(count()))
         .limit(5);
+
+      // Fetch quote numbers for the top quotes
+      const quoteIds = topQuotesRaw.map(q => q.quoteId);
+      const quotesWithNumbers = quoteIds.length > 0 
+        ? await db
+            .select({ id: quotes.id, quoteNumber: quotes.quoteNumber })
+            .from(quotes)
+            .where(inArray(quotes.id, quoteIds))
+        : [];
+
+      const quoteNumberMap = new Map(quotesWithNumbers.map(q => [q.id, q.quoteNumber]));
+      
+      const topQuotes = topQuotesRaw.map(q => ({
+        quoteId: q.quoteId,
+        quoteNumber: quoteNumberMap.get(q.quoteId) || `Quote ${q.quoteId}`,
+        views: q.views,
+      }));
 
       // Get recent activity (last 24 hours)
       const yesterday = new Date();
