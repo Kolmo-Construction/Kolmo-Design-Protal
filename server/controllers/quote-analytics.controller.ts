@@ -180,4 +180,15 @@ export class QuoteAnalyticsController {
       res.status(500).json({ error: "Failed to get dashboard analytics" });
     }
   }
+
+  // Get analytics for ALL quotes (admin only) - returns a map keyed by quoteId
+  async getAllQuotesAnalytics(req: Request, res: Response) {
+    try {
+      const allQuotesAnalytics = await this.analyticsRepository.getAllQuotesAnalytics();
+      res.json(allQuotesAnalytics);
+    } catch (error) {
+      console.error("Error getting all quotes analytics:", error);
+      res.status(500).json({ error: "Failed to get all quotes analytics" });
+    }
+  }
 }

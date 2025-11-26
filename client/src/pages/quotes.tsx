@@ -22,11 +22,11 @@ export default function QuotesPage() {
     retry: false,
   });
 
-  const { data: analyticsMap = {} } = useQuery({
-    queryKey: ["/api/quotes/analytics/all"],
+  const { data: analyticsMap = {} } = useQuery<Record<number, { views: number; avgTime: number; scrollDepth: number }>>({
+    queryKey: ["/api/admin/analytics/quotes"],
     queryFn: async () => {
       try {
-        const response = await fetch("/api/quotes/analytics/all");
+        const response = await fetch("/api/admin/analytics/quotes");
         if (!response.ok) return {};
         return await response.json();
       } catch {
@@ -228,24 +228,37 @@ export default function QuotesPage() {
                   </div>
                 </div>
 
-                {/* Analytics Row for Sent Quotes */}
-                {quote.status === "sent" && analyticsMap[quote.id] && (
+                {/* Analytics Row for Sent Quotes (show for all non-draft quotes) */}
+                {quote.status !== "draft" && (
                   <div className="flex flex-wrap gap-6 mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border }}>
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-4 w-4" style={{ color: theme.colors.secondary }} />
                       <div>
                         <p className="text-xs" style={{ color: theme.colors.textMuted }}>Views</p>
-                        <p className="font-semibold text-sm">{analyticsMap[quote.id]?.views || 0}</p>
+                        <p className="font-semibold text-sm" data-testid={`text-views-${quote.id}`}>
+                          {analyticsMap[quote.id]?.views ?? 0}
+                        </p>
                       </div>
                     </div>
                     <div>
                       <p className="text-xs" style={{ color: theme.colors.textMuted }}>Avg Time</p>
-                      <p className="font-semibold text-sm">{analyticsMap[quote.id]?.avgTime || 0}s</p>
+                      <p className="font-semibold text-sm" data-testid={`text-avgtime-${quote.id}`}>
+                        {analyticsMap[quote.id]?.avgTime ?? 0}s
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs" style={{ color: theme.colors.textMuted }}>Scroll Depth</p>
-                      <p className="font-semibold text-sm">{analyticsMap[quote.id]?.scrollDepth || 0}%</p>
+                      <p className="font-semibold text-sm" data-testid={`text-scroll-${quote.id}`}>
+                        {analyticsMap[quote.id]?.scrollDepth ?? 0}%
+                      </p>
                     </div>
+                    {analyticsMap[quote.id]?.views === 0 && (
+                      <div className="flex items-center">
+                        <p className="text-xs italic" style={{ color: theme.colors.textMuted }}>
+                          No customer activity yet
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 

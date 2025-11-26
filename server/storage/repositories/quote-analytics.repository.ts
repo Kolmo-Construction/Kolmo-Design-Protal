@@ -1,6 +1,6 @@
 import { db } from "../../db";
-import { quoteAnalytics, quoteViewSessions } from "@shared/schema";
-import { eq, desc, and, gte, lte, count, sql } from "drizzle-orm";
+import { quoteAnalytics, quoteViewSessions, quotes } from "@shared/schema";
+import { eq, desc, and, gte, lte, count, sql, inArray } from "drizzle-orm";
 
 export interface AnalyticsEvent {
   quoteId: number;
@@ -337,6 +337,72 @@ export class QuoteAnalyticsRepository {
       };
     } catch (error) {
       console.error("Error getting dashboard analytics:", error);
+      throw error;
+    }
+  }
+
+  // Get analytics for ALL quotes (returns a map keyed by quoteId)
+  async getAllQuotesAnalytics(): Promise<Record<number, { views: number; avgTime: number; scrollDepth: number; sentAt: Date | null }>> {
+    try {
+      // Get all sent quotes (including those with no views yet)
+      const sentQuotes = await db
+        .select({
+          id: quotes.id,
+          sentAt: quotes.sentAt,
+        })
+        .from(quotes)
+        .where(inArray(quotes.status, ['sent', 'pending', 'accepted', 'declined', 'expired']));
+
+      // Initialize result map with all sent quotes (default to 0 metrics)
+      const result: Record<number, { views: number; avgTime: number; scrollDepth: number; sentAt: Date | null }> = {};
+      
+      for (const quote of sentQuotes) {
+        result[quote.id] = {
+          views: 0,
+          avgTime: 0,
+          scrollDepth: 0,
+          sentAt: quote.sentAt,
+        };
+      }
+
+      // Get view counts per quote
+      const viewsPerQuote = await db
+        .select({
+          quoteId: quoteAnalytics.quoteId,
+          views: count(),
+        })
+        .from(quoteAnalytics)
+        .where(eq(quoteAnalytics.event, 'view'))
+        .groupBy(quoteAnalytics.quoteId);
+
+      // Get session metrics per quote
+      const sessionsPerQuote = await db
+        .select({
+          quoteId: quoteViewSessions.quoteId,
+          avgTime: sql<number>`COALESCE(AVG(${quoteViewSessions.totalDuration}), 0)`,
+          avgScroll: sql<number>`COALESCE(AVG(${quoteViewSessions.maxScrollDepth}), 0)`,
+        })
+        .from(quoteViewSessions)
+        .groupBy(quoteViewSessions.quoteId);
+
+      // Merge view counts into result
+      for (const viewData of viewsPerQuote) {
+        if (result[viewData.quoteId]) {
+          result[viewData.quoteId].views = viewData.views;
+        }
+      }
+
+      // Merge session metrics into result
+      for (const sessionData of sessionsPerQuote) {
+        if (result[sessionData.quoteId]) {
+          result[sessionData.quoteId].avgTime = Math.round(sessionData.avgTime || 0);
+          result[sessionData.quoteId].scrollDepth = Math.round(sessionData.avgScroll || 0);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error getting all quotes analytics:", error);
       throw error;
     }
   }
