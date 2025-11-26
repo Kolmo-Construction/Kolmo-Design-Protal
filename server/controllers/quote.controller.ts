@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { QuoteRepository } from "../storage/repositories/quote.repository";
+import { QuoteAnalyticsRepository } from "../storage/repositories/quote-analytics.repository";
 import { createInsertSchema } from "drizzle-zod";
 import { quotes, quoteLineItems, quoteResponses } from "@shared/schema";
 import { uploadToR2, deleteFromR2 } from "../r2-upload";
@@ -83,9 +84,11 @@ const createResponseSchema = createInsertSchema(quoteResponses).omit({
 
 export class QuoteController {
   private quoteRepository: QuoteRepository;
+  private analyticsRepository: QuoteAnalyticsRepository;
 
   constructor() {
     this.quoteRepository = new QuoteRepository();
+    this.analyticsRepository = new QuoteAnalyticsRepository();
   }
 
   async getAllQuotes(req: Request, res: Response) {
@@ -241,6 +244,23 @@ export class QuoteController {
       }
 
       console.log(`[QuoteController] Quote status updated to 'sent' for quote ${quoteDetails.quoteNumber}`);
+
+      // Create initial analytics record for this quote (even with 0 views)
+      try {
+        await this.analyticsRepository.trackEvent({
+          quoteId,
+          event: 'quote_sent',
+          eventData: {
+            quoteNumber: quoteDetails.quoteNumber,
+            customerName: quoteDetails.customerName,
+            customerEmail: quoteDetails.customerEmail
+          }
+        });
+        console.log(`[QuoteController] Analytics record created for quote ${quoteDetails.quoteNumber}`);
+      } catch (analyticsError) {
+        console.warn("[QuoteController] Failed to create analytics record:", analyticsError);
+        // Continue with quote sending even if analytics fails
+      }
 
       // Initialize chat channel for quote
       try {

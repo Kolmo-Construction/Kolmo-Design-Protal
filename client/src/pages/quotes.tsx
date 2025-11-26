@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, FileText, Send, Edit, Trash2, Eye, ArrowLeft, Home } from "lucide-react";
+import { Plus, FileText, Send, Edit, Trash2, Eye, ArrowLeft, Home, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +20,19 @@ export default function QuotesPage() {
   const { data: quotes = [], isLoading } = useQuery<QuoteWithDetails[]>({
     queryKey: ["/api/quotes"],
     retry: false,
+  });
+
+  const { data: analyticsMap = {} } = useQuery({
+    queryKey: ["/api/quotes/analytics/all"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/quotes/analytics/all");
+        if (!response.ok) return {};
+        return await response.json();
+      } catch {
+        return {};
+      }
+    },
   });
 
   const sendQuoteMutation = useMutation({
@@ -214,6 +227,27 @@ export default function QuotesPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Analytics Row for Sent Quotes */}
+                {quote.status === "sent" && analyticsMap[quote.id] && (
+                  <div className="flex flex-wrap gap-6 mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border }}>
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" style={{ color: theme.colors.secondary }} />
+                      <div>
+                        <p className="text-xs" style={{ color: theme.colors.textMuted }}>Views</p>
+                        <p className="font-semibold text-sm">{analyticsMap[quote.id]?.views || 0}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs" style={{ color: theme.colors.textMuted }}>Avg Time</p>
+                      <p className="font-semibold text-sm">{analyticsMap[quote.id]?.avgTime || 0}s</p>
+                    </div>
+                    <div>
+                      <p className="text-xs" style={{ color: theme.colors.textMuted }}>Scroll Depth</p>
+                      <p className="font-semibold text-sm">{analyticsMap[quote.id]?.scrollDepth || 0}%</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Actions - Clear separation: View (read-only) and Edit (navigate to edit page) */}
                 <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border }}>
