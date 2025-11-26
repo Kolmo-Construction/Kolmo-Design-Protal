@@ -1,26 +1,59 @@
-import Mailgun from 'mailgun.js';
-import formData from 'form-data';
+import { google } from 'googleapis';
 import { getBaseUrl } from '@server/domain.config';
+import * as nodemailer from 'nodemailer';
 
-// Initialize Mailgun
-let mailgun: any = null;
+let connectionSettings: any;
 
-if (!process.env.MAILGUN_API_KEY || !process.env.MAILGUN_DOMAIN) {
-  console.warn("MAILGUN_API_KEY or MAILGUN_DOMAIN environment variable is not set. Email functionality will not work.");
-} else {
-  const mg = new Mailgun(formData);
-  mailgun = mg.client({
-    username: 'api',
-    key: process.env.MAILGUN_API_KEY,
-    url: process.env.MAILGUN_API_URL || 'https://api.mailgun.net'
+async function getAccessToken() {
+  if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
+    return connectionSettings.settings.access_token;
+  }
+  
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME
+  const xReplitToken = process.env.REPL_IDENTITY 
+    ? 'repl ' + process.env.REPL_IDENTITY 
+    : process.env.WEB_REPL_RENEWAL 
+    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+    : null;
+
+  if (!xReplitToken) {
+    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  }
+
+  connectionSettings = await fetch(
+    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-mail',
+    {
+      headers: {
+        'Accept': 'application/json',
+        'X_REPLIT_TOKEN': xReplitToken
+      }
+    }
+  ).then(res => res.json()).then(data => data.items?.[0]);
+
+  const accessToken = connectionSettings?.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
+
+  if (!connectionSettings || !accessToken) {
+    throw new Error('Gmail not connected');
+  }
+  return accessToken;
+}
+
+async function getGmailClient() {
+  const accessToken = await getAccessToken();
+
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({
+    access_token: accessToken
   });
+
+  return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 
 /**
  * Check if the email service is configured properly
  */
 export function isEmailServiceConfigured(): boolean {
-  return !!(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN);
+  return !!process.env.REPLIT_CONNECTORS_HOSTNAME;
 }
 
 interface EmailOptions {
@@ -33,13 +66,11 @@ interface EmailOptions {
   attachments?: any;
 }
 
-// Default sender email - should be a verified domain in Mailgun account
-// Override to use the verified Kolmo email address
 const DEFAULT_FROM_EMAIL = 'projects@kolmo.io';
 const DEFAULT_FROM_NAME = "Kolmo Construction";
 
 /**
- * Send an email using Mailgun
+ * Send an email using Gmail API
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === 'development';
@@ -55,7 +86,6 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.log('\n---- TEXT CONTENT ----');
     console.log(options.text || '(No text content)');
 
-    // Extract links from HTML content for easy testing
     const linkRegex = /href="([^"]+)"/g;
     const links = [];
     let match;
@@ -76,61 +106,56 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   if (!isEmailServiceConfigured()) {
-    console.warn("Mailgun API key or domain not configured - skipping email send");
-    return isDev; // Return true in dev mode so app doesn't break, false in production
+    console.warn("Gmail not configured - skipping email send");
+    return isDev;
   }
 
   try {
-    // Generate plain text from HTML if no text provided
     let textContent = options.text;
     if (!textContent && options.html) {
-      // Simple HTML to text conversion - strip HTML tags and decode entities
       textContent = options.html
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
-        .replace(/&amp;/g, '&')  // Replace HTML entities
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
-        .replace(/\s+/g, ' ')    // Replace multiple whitespace with single space
+        .replace(/\s+/g, ' ')
         .trim();
     }
 
-    const mailgunData: any = {
-      from: `${fromName} <${fromEmail}>`,
-      to: options.to,
-      subject: options.subject,
-      text: textContent || 'Please view this email in HTML format.',
-      html: options.html || options.text || ''
-    };
-
-    if (options.attachments) {
-      mailgunData.attachment = options.attachments;
-    }
-
-    const domain = process.env.MAILGUN_DOMAIN!;
-    const result = await mailgun.messages.create(domain, mailgunData);
+    const gmail = await getGmailClient();
     
-    console.log(`Email sent successfully to ${options.to} via Mailgun`);
-    console.log('Mailgun response:', result);
+    const message = [
+      `From: ${fromName} <${fromEmail}>`,
+      `To: ${options.to}`,
+      `Subject: ${options.subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      options.html || options.text || ''
+    ].join('\n');
+
+    const encodedMessage = Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+
+    const result = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+
+    console.log(`Email sent successfully to ${options.to} via Gmail API`);
+    console.log('Gmail response:', result.data);
     return true;
   } catch (error: any) {
-    console.error('Failed to send email via Mailgun:', error);
+    console.error('Failed to send email via Gmail:', error);
     
-    // Check for specific Mailgun errors and provide helpful messages
-    if (error?.details?.includes('add the address to your authorized recipients')) {
-      console.error(`⚠️  MAILGUN FREE ACCOUNT: Add ${options.to} to authorized recipients in Mailgun dashboard`);
-      console.error('   Or upgrade to a paid plan to remove recipient restrictions');
-    } else if (error?.details?.includes('Please activate your Mailgun account')) {
-      console.error('⚠️  MAILGUN ACCOUNT: Please activate your account via email or Mailgun dashboard');
-    }
-    
-    if (error?.response) {
-      console.error('Mailgun error response:', error.response);
-    }
-    
-    // In development, consider it a success to avoid breaking the flow
     if (isDev) {
       console.log('Development mode: Email delivery failed, but continuing as if successful');
       return true;
@@ -156,14 +181,11 @@ export async function sendMagicLinkEmail({
   resetPassword?: boolean;
   isNewUser?: boolean;
 }): Promise<boolean> {
-  // Use centralized domain configuration
   const baseUrl = getBaseUrl();
 
-  // Determine the correct path based on the purpose
-  // *** FIX: Corrected magic link path to match auth controller ***
   const path = resetPassword
-    ? `/reset-password?token=${token}` // Assuming a route like this
-    : `/auth/magic-link/${token}`; // Matches auth.ts route
+    ? `/reset-password?token=${token}`
+    : `/auth/magic-link/${token}`;
 
   const link = `${baseUrl}${path}`;
 
@@ -173,154 +195,223 @@ export async function sendMagicLinkEmail({
       ? 'Welcome to Construction Client Portal - Activate Your Account'
       : 'Access Your Construction Client Portal Account';
 
-  // Determine the message content based on the purpose
-  let contentHtml, contentText, buttonText;
-
-  if (resetPassword) {
-    contentHtml = `<p>We received a request to reset your password for the Construction Client Portal.</p>
-      <p>If you did not make this request, you can safely ignore this email.</p>
-      <p>Please click the button below to reset your password:</p>`;
-    contentText = 'We received a request to reset your password for the Construction Client Portal. If you did not make this request, you can safely ignore this email.';
-    buttonText = 'Reset Password';
-  } else if (isNewUser) {
-    contentHtml = `<p>Welcome to the Construction Client Portal! We've created an account for you to access your project information.</p>
-      <p>Please click the button below to set up your account:</p>`;
-    contentText = 'Welcome to the Construction Client Portal! We\'ve created an account for you to access your project information.';
-    buttonText = 'Activate My Account';
-  } else {
-    contentHtml = `<p>You've requested access to your Construction Client Portal account.</p>
-      <p>Please click the button below to sign in:</p>`;
-    contentText = 'You\'ve requested access to your Construction Client Portal account.';
-    buttonText = 'Sign In';
-  }
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px; overflow: hidden;">
-      <div style="background-color: #3d4f52; padding: 20px; text-align: center;">
-        <h1 style="color: white; margin: 0;">Construction Client Portal</h1>
-      </div>
-      <div style="padding: 30px;">
-        <p style="font-size: 16px; color: #333;">Hello ${firstName},</p>
-        <div style="font-size: 14px; color: #555; line-height: 1.6;">
-          ${contentHtml}
-        </div>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${link}"
-             style="background-color: #d8973c; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
-            ${buttonText}
-          </a>
-        </div>
-        <p style="font-size: 14px; color: #555; line-height: 1.6;">This link will remain valid for 5 months, so you can bookmark it for easy access to your project portal.</p>
-        <p style="font-size: 14px; color: #555; line-height: 1.6;">If you're having trouble with the button above, copy and paste the URL below into your web browser:</p>
-        <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; color: #333;">${link}</p>
-        <p style="font-size: 14px; color: #555; line-height: 1.6;">If you didn't request this email, please ignore it.</p>
-        <p style="font-size: 14px; color: #555; line-height: 1.6;">Thank you,<br>The Construction Portal Team</p>
-      </div>
-      <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
-        <p>This is an automated message, please do not reply to this email.</p>
-      </div>
-    </div>
-  `;
-
-  const text = `
-Hello ${firstName},
-
-${contentText}
-
-Please use the following link to ${resetPassword ? 'reset your password' : (isNewUser ? 'set up your account' : 'sign in')}:
-${link}
-
-This link will remain valid for 5 months, so you can bookmark it for easy access to your project portal.
-
-If you didn't request this email, please ignore it.
-
-Thank you,
-The Construction Portal Team
-
-This is an automated message, please do not reply to this email.
+  const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>${subject}</title>
+</head>
+<body style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #3d4552;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td style="padding: 20px 0;">
+                <table width="680" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(61, 69, 82, 0.1);">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 4px solid #db973c;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">Kolmo Construction</h1>
+                            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9; font-weight: 300;">Access Your Account</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 45px 35px;">
+                            <h2 style="color: #1a1a1a; margin-top: 0;">Hello ${firstName},</h2>
+                            
+                            <p>Click the button below to access your account:</p>
+                            
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="${link}" style="background-color: #db973c; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                                    Access Your Account
+                                </a>
+                            </div>
+                            
+                            <p style="color: #666; font-size: 14px; margin-top: 30px;">Or copy this link:<br/><a href="${link}" style="color: #db973c; word-break: break-all;">${link}</a></p>
+                            
+                            <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                                This is an automated message. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 `;
 
   return sendEmail({
     to: email,
-    subject,
-    html,
-    text
+    subject: subject,
+    html: emailHtml,
+    from: DEFAULT_FROM_EMAIL,
+    fromName: DEFAULT_FROM_NAME
   });
 }
 
-
-// --- NEW FUNCTION for Message Notifications ---
-interface NewMessageEmailOptions {
-    recipientEmail: string;
-    recipientFirstName: string;
-    senderName: string;
-    projectName: string;
-    messageSubject: string;
-    messageLink: string; // Link to the project's message tab
-}
-
-export async function sendNewMessageNotificationEmail({
-    recipientEmail,
-    recipientFirstName,
-    senderName,
-    projectName,
-    messageSubject,
-    messageLink
-}: NewMessageEmailOptions): Promise<boolean> {
-
-    const subject = `New Message in Project: ${projectName}`;
-
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px; overflow: hidden;">
-        <div style="background-color: #3d4f52; padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Construction Client Portal</h1>
-        </div>
-        <div style="padding: 30px;">
-          <p style="font-size: 16px; color: #333;">Hello ${recipientFirstName},</p>
-          <p style="font-size: 14px; color: #555; line-height: 1.6;">
-            You have received a new message from <strong>${senderName}</strong> regarding the project: <strong>${projectName}</strong>.
-          </p>
-          <p style="font-size: 14px; color: #555; line-height: 1.6;">
-            <strong>Subject:</strong> ${messageSubject}
-          </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${messageLink}"
-               style="background-color: #d8973c; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
-              View Message
-            </a>
-          </div>
-          <p style="font-size: 14px; color: #555; line-height: 1.6;">
-            You can view this message and reply by logging into the client portal.
-          </p>
-          <p style="font-size: 14px; color: #555; line-height: 1.6;">Thank you,<br>The Construction Portal Team</p>
-        </div>
-        <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
-          <p>This is an automated message, please do not reply to this email.</p>
-        </div>
-      </div>
-    `;
-
-    const text = `
-Hello ${recipientFirstName},
-
-You have received a new message from ${senderName} regarding the project: ${projectName}.
-
-Subject: ${messageSubject}
-
-You can view this message and reply by logging into the client portal:
-${messageLink}
-
-Thank you,
-The Construction Portal Team
-
-This is an automated message, please do not reply to this email.
+/**
+ * Send account confirmation email
+ */
+export async function sendAccountConfirmationEmail(email: string, firstName: string): Promise<boolean> {
+  const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Account Confirmed</title>
+</head>
+<body style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #3d4552;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td style="padding: 20px 0;">
+                <table width="680" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(61, 69, 82, 0.1);">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 4px solid #db973c;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Kolmo Construction</h1>
+                            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">Welcome to Your Portal</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 45px 35px;">
+                            <h2 style="color: #1a1a1a; margin-top: 0;">Welcome, ${firstName}!</h2>
+                            <p>Your account has been successfully created. You can now access the portal to view your projects and quotes.</p>
+                            <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                                This is an automated message. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 `;
 
-    return sendEmail({
-        to: recipientEmail,
-        subject,
-        html,
-        text
-    });
+  return sendEmail({
+    to: email,
+    subject: 'Account Confirmed - Welcome to Kolmo Construction Portal',
+    html: emailHtml,
+    from: DEFAULT_FROM_EMAIL,
+    fromName: DEFAULT_FROM_NAME
+  });
 }
-// --- END NEW FUNCTION ---
+
+/**
+ * Send quote acceptance email
+ */
+export async function sendQuoteAcceptanceEmail(email: string, customerName: string, quoteNumber: string): Promise<boolean> {
+  const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quote Accepted</title>
+</head>
+<body style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #3d4552;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td style="padding: 20px 0;">
+                <table width="680" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(61, 69, 82, 0.1);">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 4px solid #db973c;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Kolmo Construction</h1>
+                            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">Quote Accepted</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 45px 35px;">
+                            <h2 style="color: #1a1a1a; margin-top: 0;">Thank you, ${customerName}!</h2>
+                            <p>Your quote <strong>${quoteNumber}</strong> has been accepted. We'll be in touch shortly to discuss the next steps.</p>
+                            <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                                This is an automated message. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+`;
+
+  return sendEmail({
+    to: email,
+    subject: `Quote Accepted - ${quoteNumber}`,
+    html: emailHtml,
+    from: DEFAULT_FROM_EMAIL,
+    fromName: DEFAULT_FROM_NAME
+  });
+}
+
+/**
+ * Send new message notification email
+ */
+export async function sendNewMessageNotificationEmail({
+  recipientEmail,
+  recipientFirstName,
+  senderName,
+  projectName,
+  messagePreview
+}: {
+  recipientEmail: string;
+  recipientFirstName: string;
+  senderName: string;
+  projectName: string;
+  messagePreview: string;
+}): Promise<boolean> {
+  const baseUrl = getBaseUrl();
+  const projectUrl = `${baseUrl}/projects`;
+
+  const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Message Notification</title>
+</head>
+<body style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #3d4552;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td style="padding: 20px 0;">
+                <table width="680" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(61, 69, 82, 0.1);">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #3d4552 0%, #4a6670 100%); color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 4px solid #db973c;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Kolmo Construction</h1>
+                            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">New Message</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 45px 35px;">
+                            <h2 style="color: #1a1a1a; margin-top: 0;">Hello ${recipientFirstName},</h2>
+                            <p><strong>${senderName}</strong> sent you a message on project <strong>${projectName}</strong>:</p>
+                            <p style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #db973c; border-radius: 4px; color: #666;">
+                              "${messagePreview}"
+                            </p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="${projectUrl}" style="background-color: #db973c; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                                    View Messages
+                                </a>
+                            </div>
+                            <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                                This is an automated message. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+`;
+
+  return sendEmail({
+    to: recipientEmail,
+    subject: `New message from ${senderName} on ${projectName}`,
+    html: emailHtml,
+    from: DEFAULT_FROM_EMAIL,
+    fromName: DEFAULT_FROM_NAME
+  });
+}
