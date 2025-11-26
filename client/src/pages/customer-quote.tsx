@@ -260,6 +260,11 @@ export default function CustomerQuotePage() {
   const handleAccept = () => {
     const quoteData = quote as QuoteResponse;
     
+    // Track button click
+    if (analyticsRef.current) {
+      analyticsRef.current.trackButtonClick('accept_proposal', { quoteId: quoteData?.id });
+    }
+    
     // Use existing customer information from the quote
     const finalCustomerName = customerName || quoteData?.customerName || '';
     const finalCustomerEmail = customerEmail || quoteData?.customerEmail || '';
@@ -279,12 +284,21 @@ export default function CustomerQuotePage() {
   };
 
   const handleContinueToPayment = () => {
+    // Track button click
+    if (analyticsRef.current) {
+      analyticsRef.current.trackButtonClick('continue_to_payment', { quoteId: (quote as QuoteResponse)?.id });
+    }
     // Use the token instead of ID for payment flow
     setLocation(`/quote-payment/${token}`);
   };
 
   const handleDecline = () => {
     const quoteData = quote as QuoteResponse;
+    
+    // Track button click
+    if (analyticsRef.current) {
+      analyticsRef.current.trackButtonClick('decline_proposal', { quoteId: quoteData?.id });
+    }
     
     // Use existing customer information from the quote
     const finalCustomerName = customerName || quoteData?.customerName || '';
@@ -449,7 +463,7 @@ export default function CustomerQuotePage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Quote Overview Card */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <div id="section-quote-overview" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-6" style={{backgroundColor: '#3d4552', color: 'white'}}>
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
@@ -508,7 +522,7 @@ export default function CustomerQuotePage() {
 
         {/* Response Required Section - Only show if not accepted and not expired */}
         {!hasAccepted && !isExpired && (
-          <div className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#4a6670'}}>
+          <div id="section-call-to-action" className="rounded-2xl shadow-lg text-white p-6" style={{backgroundColor: '#4a6670'}}>
             <div className="text-center">
               <Clock className="h-12 w-12 mx-auto mb-4" style={{color: '#db973c'}} />
               <h3 className="text-2xl font-bold mb-2">Ready to Transform Your Space?</h3>
@@ -606,7 +620,7 @@ export default function CustomerQuotePage() {
         )}
 
         {/* Project Information */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <div id="section-project-details" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
             <h3 className="text-xl font-bold" style={{color: '#1a1a1a'}}>Project Details</h3>
           </div>
@@ -672,7 +686,7 @@ export default function CustomerQuotePage() {
 
         {/* Project Breakdown */}
         {quoteData.lineItems && quoteData.lineItems.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div id="section-investment-breakdown" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
               <div className="flex items-center gap-3">
                 <Calculator className="h-6 w-6" style={{color: '#db973c'}} />
@@ -742,7 +756,7 @@ export default function CustomerQuotePage() {
           const hasBeforeAfterPairs = beforeImages.length > 0 || afterImages.length > 0;
           
           return hasBeforeAfterPairs ? (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+            <div id="section-project-transformation" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -753,7 +767,12 @@ export default function CustomerQuotePage() {
                     </div>
                   </div>
                   <Button
-                    onClick={() => setShowBeforeAfter(!showBeforeAfter)}
+                    onClick={() => {
+                      setShowBeforeAfter(!showBeforeAfter);
+                      if (analyticsRef.current) {
+                        analyticsRef.current.trackImageInteraction(showBeforeAfter ? 'hide_images' : 'show_images', { section: 'before_after' });
+                      }
+                    }}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-2"
@@ -1016,7 +1035,7 @@ export default function CustomerQuotePage() {
         </div>
 
         {/* Payment Schedule */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <div id="section-payment-schedule" className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200" style={{backgroundColor: '#f5f5f5'}}>
             <div className="flex items-center gap-3">
               <DollarSign className="h-6 w-6" style={{color: '#db973c'}} />
