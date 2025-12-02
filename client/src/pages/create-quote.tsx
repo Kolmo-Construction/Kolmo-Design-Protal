@@ -347,7 +347,7 @@ export default function CreateQuotePage() {
     setEditingItem({});
   };
 
-  const paymentTotal = formValues.downPaymentPercentage + formValues.milestonePaymentPercentage + formValues.finalPaymentPercentage;
+  const paymentTotal = Number(formValues.downPaymentPercentage || 0) + Number(formValues.milestonePaymentPercentage || 0) + Number(formValues.finalPaymentPercentage || 0);
   const isPaymentValid = paymentTotal === 100;
 
   const createQuoteMutation = useMutation({
