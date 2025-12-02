@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth-unified";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import ProjectCard from "@/components/ProjectCard";
+import { CreateProjectDialog } from "@/components/project-management/CreateProjectDialog";
 import { Project, ProjectWithDetails } from "@shared/schema";
 import { 
   Card, 
@@ -20,13 +21,15 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Building2, Loader2, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Building2, Loader2, Search, Plus } from "lucide-react";
 
 export default function Projects() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
   // Fetch projects
   const { 
@@ -89,9 +92,17 @@ export default function Projects() {
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <main className="lg:ml-64 p-4 lg:p-8 pt-24 overflow-auto h-full">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-800 mb-2">Projects</h1>
-          <p className="text-slate-600">View and manage all your construction and remodeling projects</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 mb-2">Projects</h1>
+            <p className="text-slate-600">View and manage all your construction and remodeling projects</p>
+          </div>
+          <CreateProjectDialog isOpen={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <Button className="flex items-center gap-2" style={{ backgroundColor: '#db973c', color: 'white' }}>
+              <Plus className="h-4 w-4" />
+              New Project
+            </Button>
+          </CreateProjectDialog>
         </div>
 
         {/* Filters */}
