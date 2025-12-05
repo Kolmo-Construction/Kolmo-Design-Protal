@@ -10,10 +10,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button"; // Import Button for potential use
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useEffect } from "react";
 
 interface DeleteUserDialogProps {
   userToManage: User | null;
@@ -29,38 +29,47 @@ export function DeleteUserDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      // We could reset mutation state here if needed
+    }
+  }, [isOpen]);
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      await apiRequest("DELETE", `/api/admin/users/${userId}`);
-      return { success: true };
+      const response = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "User deleted",
         description: `${userToManage?.firstName} ${userToManage?.lastName} has been deleted.`,
       });
+      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      onOpenChange(false); // Close dialog
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      onOpenChange(false);
     },
     onError: (error: Error) => {
-       console.error("Delete user error:", error);
-       let description = "An unexpected error occurred.";
-       
-       // Try to extract the error message from API response
-       try {
-         // Handle both direct error messages and JSON error responses
-         if (error.message.includes('Cannot delete user:')) {
-           description = error.message;
-         } else if (error.message.includes('{')) {
-           const errorBody = JSON.parse(error.message.substring(error.message.indexOf('{')));
-           description = errorBody.message || errorBody.errors?.[0]?.message || description;
-         } else {
-           description = error.message || description;
-         }
-       } catch (e) { 
-         // If parsing fails, use the original error message
-         description = error.message || description;
-       }
+      console.error("Delete user error:", error);
+      let description = "An unexpected error occurred.";
+      
+      // Try to extract the error message from API response
+      try {
+        // Handle both direct error messages and JSON error responses
+        if (error.message.includes('Cannot delete user:')) {
+          description = error.message;
+        } else if (error.message.includes('{')) {
+          const errorBody = JSON.parse(error.message.substring(error.message.indexOf('{')));
+          description = errorBody.message || errorBody.errors?.[0]?.message || description;
+        } else {
+          description = error.message || description;
+        }
+      } catch (e) { 
+        // If parsing fails, use the original error message
+        description = error.message || description;
+      }
 
       toast({
         title: "Cannot delete user",
@@ -73,9 +82,21 @@ export function DeleteUserDialog({
   const handleDeleteConfirm = () => {
     if (userToManage) {
       deleteUserMutation.mutate(userToManage.id);
+    } else {
+      toast({
+        title: "Error",
+        description: "No user selected for deletion",
+        variant: "destructive",
+      });
+      onOpenChange(false);
     }
   };
 
+  // Don't render if no user is selected, but dialog is open
+  // This can happen if the dialog is controlled externally
+  if (isOpen && !userToManage) {
+    return null;
+  }
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -89,16 +110,24 @@ export function DeleteUserDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleteUserMutation.isPending}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDeleteConfirm}
-            className="bg-red-600 hover:bg-red-700 focus:ring-red-600" // Use destructive style from shadcn if available, else custom
+          <AlertDialogCancel 
             disabled={deleteUserMutation.isPending}
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              handleDeleteConfirm();
+            }}
+            className="bg-red-600 hover:bg-red-700 focus:ring-red-600 text-white"
+            disabled={deleteUserMutation.isPending || !userToManage}
           >
             {deleteUserMutation.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Yes, delete user
+            {deleteUserMutation.isPending ? "Deleting..." : "Yes, delete user"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
