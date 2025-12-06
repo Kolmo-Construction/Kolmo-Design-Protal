@@ -80,8 +80,9 @@ export function CreateProjectDialog({
 
       console.log("Submitting Create Project:", formattedValues);
       // API endpoint expects all potential fields from InsertProject, even if undefined
-      const res = await apiRequest("POST", "/api/projects", formattedValues as any); // Use 'as any' carefully or create a backend DTO
-      return await res.json();
+      // apiRequest already returns parsed JSON data
+      const res = await apiRequest("POST", "/api/projects", formattedValues as any);
+      return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });

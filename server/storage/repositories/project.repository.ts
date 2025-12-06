@@ -269,15 +269,59 @@ class ProjectRepository implements IProjectRepository {
 
     async deleteProject(projectId: number): Promise<boolean> {
         try {
-             // Assume ON DELETE CASCADE is set for related tables (tasks, documents, invoices, messages, etc.)
-             // and for the join table projectsToClients from the project side.
-             // If not, manual deletion is required here within a transaction.
-            const result = await this.db.delete(schema.projects)
-                .where(eq(schema.projects.id, projectId))
-                .returning({ id: schema.projects.id });
-            return result.length > 0;
+            console.log(`[deleteProject] Starting deletion of project ${projectId}`);
+
+            // Use a transaction and delete each table with individual statements
+            await this.db.transaction(async (tx) => {
+                // Delete client-project associations (no dependencies)
+                await tx.delete(schema.clientProjects)
+                    .where(eq(schema.clientProjects.projectId, projectId));
+
+                // Delete documents (no dependencies)
+                await tx.delete(schema.documents)
+                    .where(eq(schema.documents.projectId, projectId));
+
+                // Delete messages (no dependencies)
+                await tx.delete(schema.messages)
+                    .where(eq(schema.messages.projectId, projectId));
+
+                // Delete progress updates (has dependent update_media, but delete order handles it)
+                await tx.delete(schema.progressUpdates)
+                    .where(eq(schema.progressUpdates.projectId, projectId));
+
+                // Delete milestones (no dependencies)
+                await tx.delete(schema.milestones)
+                    .where(eq(schema.milestones.projectId, projectId));
+
+                // Delete selections (no dependencies)
+                await tx.delete(schema.selections)
+                    .where(eq(schema.selections.projectId, projectId));
+
+                // Delete invoices (has dependent payments, but order handles it)
+                await tx.delete(schema.invoices)
+                    .where(eq(schema.invoices.projectId, projectId));
+
+                // Delete daily logs (has cascade)
+                await tx.delete(schema.dailyLogs)
+                    .where(eq(schema.dailyLogs.projectId, projectId));
+
+                // Delete punch list items (has cascade)
+                await tx.delete(schema.punchListItems)
+                    .where(eq(schema.punchListItems.projectId, projectId));
+
+                // Delete tasks (has cascade)
+                await tx.delete(schema.tasks)
+                    .where(eq(schema.tasks.projectId, projectId));
+
+                // Finally delete the project
+                await tx.delete(schema.projects)
+                    .where(eq(schema.projects.id, projectId));
+            });
+
+            console.log(`[deleteProject] Successfully deleted project ${projectId}`);
+            return true;
         } catch (error) {
-            console.error(`Error deleting project ${projectId}:`, error);
+            console.error(`[deleteProject] Error deleting project ${projectId}:`, error);
             throw new Error('Database error while deleting project.');
         }
     }

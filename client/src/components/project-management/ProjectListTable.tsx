@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, PencilIcon } from "lucide-react";
+import { Loader2, PencilIcon, Trash2 } from "lucide-react";
 // REMOVED: format import from date-fns (not used here)
 // ADDED Imports from utils
 import { getProjectStatusLabel, getProjectStatusBadgeClasses } from "@/lib/utils";
@@ -20,6 +20,7 @@ interface ProjectListTableProps {
   projectManagers: User[];
   isLoading: boolean;
   onEditProject: (project: Project) => void;
+  onDeleteProject: (project: Project) => void;
   onTriggerMilestone?: (projectId: number, paymentType: 'milestone' | 'final') => void;
 }
 
@@ -32,6 +33,7 @@ export function ProjectListTable({
   projectManagers,
   isLoading,
   onEditProject,
+  onDeleteProject,
   onTriggerMilestone,
 }: ProjectListTableProps) {
   if (isLoading) {
@@ -91,17 +93,26 @@ export function ProjectListTable({
                     : <span className="text-slate-400">Unassigned</span>}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-
-                    onClick={() => onEditProject(project)}
-                    className="gap-1"
-                  >
-                    <PencilIcon className="h-3.5 w-3.5" />
-                    Edit
-
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEditProject(project)}
+                      className="gap-1"
+                    >
+                      <PencilIcon className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDeleteProject(project)}
+                      className="gap-1 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             );

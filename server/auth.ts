@@ -611,18 +611,26 @@ export function setupAuth(app: Express) {
   // Search/Get clients - admin only
   app.get("/api/admin/clients/search", async (req, res) => {
     try {
+      console.log("[/api/admin/clients/search] Request received");
+      console.log("[/api/admin/clients/search] User:", req.user?.email, "Role:", req.user?.role);
+      console.log("[/api/admin/clients/search] Authenticated:", req.isAuthenticated());
+
       // Check if admin
       if (!req.isAuthenticated() || req.user.role !== "admin") {
+        console.log("[/api/admin/clients/search] Access denied - not admin");
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const searchQuery = req.query.q as string;
+      console.log("[/api/admin/clients/search] Search query:", searchQuery);
 
       // Get all users
       const users = await storage.users.getAllUsers();
+      console.log("[/api/admin/clients/search] Total users:", users.length);
 
       // Filter for clients only
       let clients = users.filter(user => user.role === "client");
+      console.log("[/api/admin/clients/search] Total clients found:", clients.length);
 
       // If search query provided, filter by name or email
       if (searchQuery && searchQuery.trim()) {
@@ -633,6 +641,7 @@ export function setupAuth(app: Express) {
           client.email.toLowerCase().includes(query) ||
           `${client.firstName} ${client.lastName}`.toLowerCase().includes(query)
         );
+        console.log("[/api/admin/clients/search] Clients after search filter:", clients.length);
       }
 
       // Remove sensitive information from response
@@ -641,9 +650,10 @@ export function setupAuth(app: Express) {
         return clientWithoutSensitiveData;
       });
 
+      console.log("[/api/admin/clients/search] Returning clients:", sanitizedClients.length);
       res.status(200).json(sanitizedClients);
     } catch (err) {
-      console.error("Error searching clients:", err);
+      console.error("[/api/admin/clients/search] Error:", err);
       res.status(500).json({ message: "Failed to search clients" });
     }
   });

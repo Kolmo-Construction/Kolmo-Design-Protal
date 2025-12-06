@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth-unified";
 import TopNavBar from "@/components/TopNavBar";
 import Sidebar from "@/components/Sidebar";
 import { Project, User } from "@shared/schema"; // Keep User type for managers
-// Removed useToast if only used by mutations (assuming mutations handle their own toasts)
+import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient"; // Keep getQueryFn
 import {
@@ -34,6 +34,7 @@ import {
 import { ProjectListTable } from "@/components/project-management/ProjectListTable";
 import { CreateProjectDialog } from "@/components/project-management/CreateProjectDialog";
 import { EditProjectDialog } from "@/components/project-management/EditProjectDialog";
+import { DeleteProjectDialog } from "@/components/project-management/DeleteProjectDialog";
 // --- ADDED: Import the new hook ---
 import { useProjectManagementDialogs } from '@/hooks/useProjectManagementDialogs';
 import { usePaymentManagement } from '@/hooks/usePaymentManagement';
@@ -46,7 +47,10 @@ export default function ProjectManagement() {
   // --- REMOVED: selectedProject useState hook ---
   const [statusFilter, setStatusFilter] = useState("all"); // Keep filter state
   const [searchQuery, setSearchQuery] = useState(""); // Keep search state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, navigate] = useLocation();
 
   // --- ADDED: Get dialog state and handlers from hook ---
@@ -70,6 +74,42 @@ export default function ProjectManagement() {
     triggerMilestone.mutate({ projectId, paymentType });
   };
   // --- END ADDED ---
+
+  // Delete project mutation
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (projectId: number) => {
+      const res = await apiRequest("DELETE", `/api/projects/${projectId}`);
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setIsDeleteDialogOpen(false);
+      setProjectToDelete(null);
+      toast({
+        title: "Project deleted",
+        description: "The project has been successfully deleted.",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Delete project error:", error);
+      toast({
+        title: "Failed to delete project",
+        description: "An unexpected error occurred while deleting the project.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteProject = (project: Project) => {
+    setProjectToDelete(project);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteProject = () => {
+    if (projectToDelete) {
+      deleteProjectMutation.mutate(projectToDelete.id);
+    }
+  };
 
   // Redirect if not an admin
   useEffect(() => {
@@ -218,6 +258,7 @@ export default function ProjectManagement() {
                     projectManagers={projectManagers}
                     isLoading={projectsLoading || managersLoading}
                     onEditProject={openEditDialog} // Pass handler from hook
+                    onDeleteProject={handleDeleteProject}
                     onTriggerMilestone={handleTriggerMilestone}
                 />
                 {/* --- END MODIFIED --- */}
@@ -240,6 +281,14 @@ export default function ProjectManagement() {
          setIsOpen={setIsEditDialogOpen} // Use controlled setter from hook
          projectManagers={projectManagers}
          isLoadingManagers={managersLoading}
+       />
+
+       <DeleteProjectDialog
+         isOpen={isDeleteDialogOpen}
+         onOpenChange={setIsDeleteDialogOpen}
+         projectName={projectToDelete?.name || ""}
+         onConfirm={confirmDeleteProject}
+         isDeleting={deleteProjectMutation.isPending}
        />
        {/* --- END MODIFIED --- */}
     </div>

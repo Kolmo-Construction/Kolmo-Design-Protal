@@ -52,15 +52,19 @@ export function ClientMultiSelectCombobox({
     queryKey: ["/api/admin/clients/search", debouncedSearchQuery],
     queryFn: async ({ queryKey }) => {
       const [, query] = queryKey;
+      console.log("[ClientMultiSelectCombobox] Fetching clients with query:", query);
       try {
         // Always fetch, with or without query
         const url = query
           ? `/api/admin/clients/search?q=${encodeURIComponent(query as string)}`
           : `/api/admin/clients/search`; // Fetch all clients when no query
-        const res = await apiRequest("GET", url);
-        return await res.json();
+        console.log("[ClientMultiSelectCombobox] Request URL:", url);
+        // apiRequest already returns parsed JSON data
+        const data = await apiRequest("GET", url);
+        console.log("[ClientMultiSelectCombobox] Received clients:", data.length, data);
+        return data;
       } catch (error) {
-        console.error("Failed to search clients:", error);
+        console.error("[ClientMultiSelectCombobox] Failed to search clients:", error);
         return []; // Return empty on error
       }
     },
