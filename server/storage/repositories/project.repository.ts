@@ -273,38 +273,30 @@ class ProjectRepository implements IProjectRepository {
 
             // Use a transaction and delete each table with raw SQL to avoid ORM issues
             await this.db.transaction(async (tx) => {
-                // Delete client-project associations
-                await tx.execute(sql`DELETE FROM client_projects WHERE project_id = ${projectId}`);
-                
-                // Delete documents
-                await tx.execute(sql`DELETE FROM documents WHERE project_id = ${projectId}`);
-                
-                // Delete messages
-                await tx.execute(sql`DELETE FROM messages WHERE project_id = ${projectId}`);
-                
-                // Delete progress updates
-                await tx.execute(sql`DELETE FROM progress_updates WHERE project_id = ${projectId}`);
-                
-                // Delete milestones
-                await tx.execute(sql`DELETE FROM milestones WHERE project_id = ${projectId}`);
-                
-                // Delete selections
-                await tx.execute(sql`DELETE FROM selections WHERE project_id = ${projectId}`);
-                
-                // Delete invoices
-                await tx.execute(sql`DELETE FROM invoices WHERE project_id = ${projectId}`);
-                
-                // Delete daily logs
-                await tx.execute(sql`DELETE FROM daily_logs WHERE project_id = ${projectId}`);
-                
-                // Delete punch list items
-                await tx.execute(sql`DELETE FROM punch_list_items WHERE project_id = ${projectId}`);
-                
-                // Delete tasks
-                await tx.execute(sql`DELETE FROM tasks WHERE project_id = ${projectId}`);
-                
-                // Finally delete the project
-                await tx.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+                const tables = [
+                    { name: 'client_projects', sql: sql`DELETE FROM client_projects WHERE project_id = ${projectId}` },
+                    { name: 'documents', sql: sql`DELETE FROM documents WHERE project_id = ${projectId}` },
+                    { name: 'messages', sql: sql`DELETE FROM messages WHERE project_id = ${projectId}` },
+                    { name: 'progress_updates', sql: sql`DELETE FROM progress_updates WHERE project_id = ${projectId}` },
+                    { name: 'milestones', sql: sql`DELETE FROM milestones WHERE project_id = ${projectId}` },
+                    { name: 'selections', sql: sql`DELETE FROM selections WHERE project_id = ${projectId}` },
+                    { name: 'invoices', sql: sql`DELETE FROM invoices WHERE project_id = ${projectId}` },
+                    { name: 'daily_logs', sql: sql`DELETE FROM daily_logs WHERE project_id = ${projectId}` },
+                    { name: 'punch_list_items', sql: sql`DELETE FROM punch_list_items WHERE project_id = ${projectId}` },
+                    { name: 'tasks', sql: sql`DELETE FROM tasks WHERE project_id = ${projectId}` },
+                    { name: 'projects', sql: sql`DELETE FROM projects WHERE id = ${projectId}` }
+                ];
+
+                for (const table of tables) {
+                    try {
+                        console.log(`[deleteProject] Deleting from ${table.name} for project ${projectId}`);
+                        await tx.execute(table.sql);
+                    } catch (error) {
+                        console.error(`[deleteProject] Failed to delete from ${table.name}:`, error);
+                        // Re-throw to abort transaction
+                        throw error;
+                    }
+                }
             });
 
             console.log(`[deleteProject] Successfully deleted project ${projectId}`);
