@@ -6,24 +6,39 @@ import path from 'path';
 import { HttpError } from './errors';
 
 // --- R2 Configuration ---
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-const region = process.env.AWS_REGION || "auto";
-const bucketName = process.env.AWS_S3_BUCKET;
+// Try multiple environment variable names for flexibility
+const accessKeyId = process.env.R2_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+const bucketName = process.env.R2_BUCKET_NAME || process.env.AWS_S3_BUCKET;
+const accountId = process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID;
 
-if (!accessKeyId || !secretAccessKey || !bucketName) {
-  console.warn(
-    "WARNING: AWS S3/R2 environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET) are not fully set. File uploads will fail."
+// Log the configuration status
+console.log('R2 Configuration:', {
+  hasAccessKeyId: !!accessKeyId,
+  hasSecretAccessKey: !!secretAccessKey,
+  hasBucketName: !!bucketName,
+  hasAccountId: !!accountId,
+  bucketName,
+  accountId
+});
+
+if (!accessKeyId || !secretAccessKey || !bucketName || !accountId) {
+  const missing = [];
+  if (!accessKeyId) missing.push('ACCESS_KEY_ID');
+  if (!secretAccessKey) missing.push('SECRET_ACCESS_KEY');
+  if (!bucketName) missing.push('BUCKET_NAME');
+  if (!accountId) missing.push('ACCOUNT_ID');
+  
+  console.error(
+    `ERROR: R2 storage configuration is incomplete. Missing: ${missing.join(', ')}`
   );
-}
-
-// For Cloudflare R2, we need the account ID to construct the endpoint
-const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-
-if (!accountId) {
-  console.warn(
-    "WARNING: CLOUDFLARE_ACCOUNT_ID environment variable is not set. R2 uploads will fail."
-  );
+  console.error('Please set the following environment variables:');
+  console.error('- R2_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID');
+  console.error('- R2_ACCESS_KEY_ID or AWS_ACCESS_KEY_ID');
+  console.error('- R2_SECRET_ACCESS_KEY or AWS_SECRET_ACCESS_KEY');
+  console.error('- R2_BUCKET_NAME or AWS_S3_BUCKET');
+  
+  // Don't throw here, let it fail at runtime with a better error message
 }
 
 // For Cloudflare R2, we use auto region and S3-compatible endpoint
@@ -55,8 +70,18 @@ export async function uploadToR2(options: {
   mimetype: string;
   path?: string;
 }): Promise<UploadResult> {
-  if (!bucketName || !accessKeyId || !secretAccessKey) {
-    throw new HttpError(500, "R2 storage is not configured.");
+  // Check configuration at runtime
+  if (!bucketName || !accessKeyId || !secretAccessKey || !accountId) {
+    const missing = [];
+    if (!bucketName) missing.push('BUCKET_NAME');
+    if (!accessKeyId) missing.push('ACCESS_KEY_ID');
+    if (!secretAccessKey) missing.push('SECRET_ACCESS_KEY');
+    if (!accountId) missing.push('ACCOUNT_ID');
+    
+    const errorMsg = `R2 storage is not properly configured. Missing: ${missing.join(', ')}. ` +
+                     `Please check your environment variables.`;
+    console.error(errorMsg);
+    throw new HttpError(500, errorMsg);
   }
 
   // Use provided path or default to general uploads
@@ -113,8 +138,8 @@ export async function uploadToR2(options: {
  * @returns Promise that resolves when the file is deleted
  */
 export async function deleteFromR2(key: string): Promise<void> {
-  if (!bucketName || !accessKeyId || !secretAccessKey) {
-    throw new HttpError(500, "R2 storage is not configured.");
+  if (!bucketName || !accessKeyId || !secretAccessKey || !accountId) {
+    throw new HttpError(500, "R2 storage is not configured. Please check environment variables.");
   }
 
   try {
@@ -141,8 +166,8 @@ export async function deleteFromR2(key: string): Promise<void> {
  * @returns Promise that resolves to the signed download URL
  */
 export async function getR2DownloadUrl(key: string, originalFilename?: string): Promise<string> {
-  if (!bucketName || !accessKeyId || !secretAccessKey) {
-    throw new HttpError(500, "R2 storage is not configured.");
+  if (!bucketName || !accessKeyId || !secretAccessKey || !accountId) {
+    throw new HttpError(500, "R2 storage is not configured. Please check environment variables.");
   }
 
   try {
