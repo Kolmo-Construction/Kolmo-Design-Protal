@@ -3,6 +3,7 @@ import multer from 'multer';
 import { uploadToR2, deleteFromR2, getR2DownloadUrl } from '../r2-upload';
 import { isAuthenticated } from '../middleware/auth.middleware';
 import { HttpError, createBadRequestError, createNotFoundError } from '../errors';
+import { mediaRepository } from '../storage/repositories/media.repository';
 
 function getContentType(fileName: string): string {
   const ext = fileName.toLowerCase().split('.').pop();
@@ -159,6 +160,20 @@ storageRoutes.delete('/delete/:key(*)', isAuthenticated, async (req, res, next) 
       throw createBadRequestError('File key is required');
     }
 
+    // Construct the full URL or path to the media
+    // This depends on how your media URLs are structured
+    // For now, we'll assume the key is part of the URL
+    const mediaUrl = `https://your-r2-domain.com/${key}`;
+    
+    // Try to delete from media repository first
+    try {
+      await mediaRepository.deleteMediaByUrl(mediaUrl);
+    } catch (error) {
+      // Log but continue with R2 deletion
+      console.warn('Failed to delete media record:', error);
+    }
+
+    // Delete from R2 storage
     await deleteFromR2(key);
     
     res.json({

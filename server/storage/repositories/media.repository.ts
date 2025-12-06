@@ -155,6 +155,39 @@ export class MediaRepository {
          }
     }
 
+  async deleteMediaByUrl(mediaUrl: string, tx?: any): Promise<boolean> {
+    const dbContext = tx || this.dbOrTx;
+    
+    // Find media record by URL
+    const mediaRecord = await dbContext.query.updateMedia.findFirst({
+      where: eq(updateMedia.mediaUrl, mediaUrl),
+      columns: {
+        id: true,
+        mediaUrl: true,
+      }
+    });
+
+    if (!mediaRecord) {
+      this.logger.log("info", `No media record found for URL: ${mediaUrl}`);
+      return false;
+    }
+
+    try {
+      // Delete from storage
+      await this.mediaStorage.deleteFile(mediaRecord.mediaUrl);
+      this.logger.log("info", `Deleted media file: ${mediaRecord.mediaUrl}`);
+      
+      // Delete from database
+      await dbContext.delete(updateMedia).where(eq(updateMedia.id, mediaRecord.id));
+      this.logger.log("info", `Deleted media record with ID: ${mediaRecord.id}`);
+      
+      return true;
+    } catch (error) {
+      this.logger.log("error", `Failed to delete media: ${error}`);
+      throw new Error(`Failed to delete media: ${error}`);
+    }
+  }
+
 
   async getMediaKeysForPunchListItem(punchListItemId: number): Promise<string[]> {
     const media = await this.dbOrTx.query.updateMedia.findMany({
@@ -184,6 +217,7 @@ export interface IMediaRepository {
   deleteMediaForPunchListItem(punchListItemId: number, tx?: any): Promise<void>;
   getMediaKeysForPunchListItem(punchListItemId: number): Promise<string[]>;
   getMediaKeysForUpdate(updateId: number): Promise<string[]>;
+  deleteMediaByUrl(mediaUrl: string, tx?: any): Promise<boolean>;
 }
 
 // Export a singleton instance
