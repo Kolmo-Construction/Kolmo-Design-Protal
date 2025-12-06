@@ -240,81 +240,6 @@ export function CreateProjectDialog({
         <Form {...form}>
           {/* Ensure the type passed to handleSubmit matches the form */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
-            {/* Image Upload Section */}
-            <div className="space-y-4">
-              <div className="text-sm font-medium text-slate-600">Project Image</div>
-              <div className="flex flex-col gap-4">
-                {/* File Input */}
-                <div className="flex items-center gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('project-image-upload')?.click()}
-                    disabled={isUploading || createProjectMutation.isPending}
-                    className="flex items-center gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    {selectedFile ? 'Change Image' : 'Upload Image'}
-                  </Button>
-                  <input
-                    id="project-image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    disabled={isUploading || createProjectMutation.isPending}
-                  />
-                  {selectedFile && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={removeSelectedFile}
-                      disabled={isUploading || createProjectMutation.isPending}
-                      className="flex items-center gap-2 text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                      Remove
-                    </Button>
-                  )}
-                  {isUploading && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Uploading...
-                    </div>
-                  )}
-                </div>
-                
-                {/* Preview */}
-                {imagePreview && (
-                  <div className="mt-2">
-                    <p className="text-sm text-muted-foreground mb-2">Preview:</p>
-                    <div className="relative w-full max-w-xs h-48 border rounded-md overflow-hidden">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                {/* URL Input as alternative to upload */}
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-slate-600">Or enter image URL</div>
-                  <Input
-                    placeholder="https://example.com/image.jpg"
-                    value={form.watch('imageUrl') || ''}
-                    onChange={(e) => form.setValue('imageUrl', e.target.value)}
-                    disabled={isUploading || createProjectMutation.isPending}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Provide a direct image URL if you prefer not to upload a file.
-                  </p>
-                </div>
-              </div>
-            </div>
 
             {/* ProjectFormFields expects the base ProjectFormValues type,
                 which is compatible since CreateProjectFormValues is a subset */}
@@ -324,6 +249,13 @@ export function CreateProjectDialog({
               isLoadingManagers={isLoadingManagers}
               disabled={createProjectMutation.isPending || isUploading}
               isEditMode={false} // Explicitly false
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              imagePreview={imagePreview}
+              setImagePreview={setImagePreview}
+              isUploading={isUploading}
+              onFileChange={handleFileChange}
+              onRemoveFile={removeSelectedFile}
             />
             <DialogFooter className="pt-4">
               <Button

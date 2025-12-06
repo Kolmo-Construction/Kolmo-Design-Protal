@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, X } from "lucide-react";
+import { CalendarIcon, X, Upload, Loader2 } from "lucide-react";
 import { ClientMultiSelectCombobox } from "./ClientMultiSelectCombobox";
 
 // REMOVE the local definition of projectFormSchema and ProjectFormValues here
@@ -38,6 +38,14 @@ interface ProjectFormFieldsProps {
   isLoadingManagers: boolean;
   disabled?: boolean;
   isEditMode?: boolean;
+  // Upload related props
+  selectedFile: File | null;
+  setSelectedFile: (file: File | null) => void;
+  imagePreview: string | null;
+  setImagePreview: (preview: string | null) => void;
+  isUploading: boolean;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveFile: () => void;
 }
 
 export function ProjectFormFields({
@@ -46,6 +54,13 @@ export function ProjectFormFields({
   isLoadingManagers,
   disabled = false,
   isEditMode = false,
+  selectedFile,
+  setSelectedFile,
+  imagePreview,
+  setImagePreview,
+  isUploading,
+  onFileChange,
+  onRemoveFile,
 }: ProjectFormFieldsProps) {
 
     // Function to safely format dates
@@ -199,6 +214,82 @@ export function ProjectFormFields({
             </FormItem>
           )}
         />
+      </div>
+
+      <Separator />
+      <p className="text-sm font-medium text-slate-600">Project Image</p>
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4">
+          {/* File Input */}
+          <div className="flex items-center gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => document.getElementById('project-image-upload')?.click()}
+              disabled={disabled || isUploading}
+              className="flex items-center gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              {selectedFile ? 'Change Image' : 'Upload Image'}
+            </Button>
+            <input
+              id="project-image-upload"
+              type="file"
+              accept="image/*"
+              onChange={onFileChange}
+              className="hidden"
+              disabled={disabled || isUploading}
+            />
+            {selectedFile && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onRemoveFile}
+                disabled={disabled || isUploading}
+                className="flex items-center gap-2 text-destructive"
+              >
+                <X className="h-4 w-4" />
+                Remove
+              </Button>
+            )}
+            {isUploading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading...
+              </div>
+            )}
+          </div>
+          
+          {/* Preview */}
+          {imagePreview && (
+            <div className="mt-2">
+              <p className="text-sm text-muted-foreground mb-2">Preview:</p>
+              <div className="relative w-full max-w-xs h-48 border rounded-md overflow-hidden">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* URL Input as alternative to upload */}
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-slate-600">Or enter image URL</div>
+            <Input
+              placeholder="https://example.com/image.jpg"
+              value={form.watch('imageUrl') || ''}
+              onChange={(e) => form.setValue('imageUrl', e.target.value)}
+              disabled={disabled || isUploading}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Provide a direct image URL if you prefer not to upload a file.
+            </p>
+          </div>
+        </div>
       </div>
 
       <Separator />
