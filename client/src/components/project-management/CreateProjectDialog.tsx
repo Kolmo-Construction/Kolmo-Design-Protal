@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,9 +17,10 @@ import {
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { ProjectFormFields } from "./ProjectFormFields"; // Keep this import
+import { uploadToR2 } from "@/lib/upload";
 
 interface CreateProjectDialogProps {
   isOpen: boolean;
@@ -36,6 +37,9 @@ export function CreateProjectDialog({
 }: CreateProjectDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Use the imported CREATE schema and type
   const form = useForm<CreateProjectFormValues>({
@@ -57,9 +61,71 @@ export function CreateProjectDialog({
     },
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file (JPEG, PNG, etc.)",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Image must be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      // Clear the file input value to allow selecting the same file again
+      e.target.value = '';
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImagePreview(null);
+    form.setValue('imageUrl', '');
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!selectedFile) return null;
+    
+    setIsUploading(true);
+    try {
+      const imageUrl = await uploadToR2(selectedFile);
+      toast({
+        title: "Image uploaded",
+        description: "Project image has been uploaded successfully.",
+      });
+      return imageUrl;
+    } catch (error) {
+      console.error("Image upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const createProjectMutation = useMutation({
     // The input type for mutationFn should match the form values type
-    mutationFn: async (data: CreateProjectFormValues) => {
+    mutationFn: async (data: CreateProjectFormValues & { imageUrl?: string }) => {
       // Format data before sending
        const cleanedBudget = String(data.totalBudget).replace(/[$,]/g, ''); // Clean the string
        const formattedValues = {
@@ -73,6 +139,8 @@ export function CreateProjectDialog({
         // Ensure PM ID is number or undefined
         projectManagerId: data.projectManagerId ? Number(data.projectManagerId) : undefined,
         clientIds: data.clientIds || [], // Ensure clientIds is an array
+        // Include imageUrl if available
+        imageUrl: data.imageUrl || '',
       };
       // Ensure progress and actualCompletionDate are not sent if omitted by schema
       delete (formattedValues as any).progress;
@@ -88,6 +156,12 @@ export function CreateProjectDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       onOpenChange(false); // Close dialog
       form.reset(); // Reset form
+      // Clean up preview URL
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+      setSelectedFile(null);
+      setImagePreview(null);
       toast({
         title: "Project created",
         description: "New project has been successfully created.",
@@ -112,9 +186,22 @@ export function CreateProjectDialog({
   });
 
   // Use the specific form type here
-  const onSubmit = (values: CreateProjectFormValues) => {
+  const onSubmit = async (values: CreateProjectFormValues) => {
+    // First upload image if selected
+    let uploadedImageUrl = values.imageUrl;
+    
+    if (selectedFile) {
+      const url = await uploadImage();
+      if (url) {
+        uploadedImageUrl = url;
+      } else {
+        // Don't proceed if image upload failed
+        return;
+      }
+    }
+    
     // Validation is already handled by the Zod resolver before this runs
-    createProjectMutation.mutate(values);
+    createProjectMutation.mutate({ ...values, imageUrl: uploadedImageUrl });
   };
 
    // Reset form when dialog closes
@@ -127,6 +214,12 @@ export function CreateProjectDialog({
             imageUrl: "", startDate: undefined, estimatedCompletionDate: undefined,
             clientIds: [],
        });
+      // Clean up preview URL
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+      setSelectedFile(null);
+      setImagePreview(null);
     }
   }, [isOpen, form]);
 
@@ -144,13 +237,79 @@ export function CreateProjectDialog({
         <Form {...form}>
           {/* Ensure the type passed to handleSubmit matches the form */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+            {/* Image Upload Section */}
+            <div className="space-y-4">
+              <div className="text-sm font-medium text-slate-600">Project Image</div>
+              <div className="flex flex-col gap-4">
+                {/* File Input */}
+                <div className="flex items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('project-image-upload')?.click()}
+                    disabled={isUploading || createProjectMutation.isPending}
+                    className="flex items-center gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {selectedFile ? 'Change Image' : 'Upload Image'}
+                  </Button>
+                  <input
+                    id="project-image-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={isUploading || createProjectMutation.isPending}
+                  />
+                  {selectedFile && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeSelectedFile}
+                      disabled={isUploading || createProjectMutation.isPending}
+                      className="flex items-center gap-2 text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                      Remove
+                    </Button>
+                  )}
+                  {isUploading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Uploading...
+                    </div>
+                  )}
+                </div>
+                
+                {/* Preview */}
+                {imagePreview && (
+                  <div className="mt-2">
+                    <p className="text-sm text-muted-foreground mb-2">Preview:</p>
+                    <div className="relative w-full max-w-xs h-48 border rounded-md overflow-hidden">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Or use URL */}
+                <div className="text-sm text-muted-foreground">
+                  Or enter an image URL below. Uploading is recommended for better control.
+                </div>
+              </div>
+            </div>
+
             {/* ProjectFormFields expects the base ProjectFormValues type,
                 which is compatible since CreateProjectFormValues is a subset */}
             <ProjectFormFields
               form={form as any} // Use 'as any' or ensure compatible types
               projectManagers={projectManagers}
               isLoadingManagers={isLoadingManagers}
-              disabled={createProjectMutation.isPending}
+              disabled={createProjectMutation.isPending || isUploading}
               isEditMode={false} // Explicitly false
             />
             <DialogFooter className="pt-4">
@@ -158,15 +317,15 @@ export function CreateProjectDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={createProjectMutation.isPending}
+                disabled={createProjectMutation.isPending || isUploading}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={createProjectMutation.isPending}
+                disabled={createProjectMutation.isPending || isUploading}
               >
-                {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {(createProjectMutation.isPending || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Project
               </Button>
             </DialogFooter>

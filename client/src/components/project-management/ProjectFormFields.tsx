@@ -457,23 +457,23 @@ export function ProjectFormFields({
         {/* --- End Client Assignment --- */}
 
 
-        {/* Image URL */}
+        {/* Image URL - Keep for manual entry but make it less prominent */}
         <FormField
           control={form.control}
           name="imageUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Image URL</FormLabel>
+              <FormLabel>Image URL (if not uploading)</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Enter image URL"
+                  placeholder="Or enter image URL directly"
                   {...field}
                   value={field.value ?? ""} // Handle potential null/undefined
                   disabled={disabled}
                 />
               </FormControl>
               <FormDescription>
-                Optional: URL to project image.
+                Optional: Enter image URL if you prefer not to upload.
               </FormDescription>
               <FormMessage />
             </FormItem>
