@@ -110,10 +110,12 @@ export function ClientMultiSelectCombobox({
           <CommandList>
             <CommandEmpty>
               {isLoadingClients
-                ? "Searching..."
-                : searchQuery && clients.length === 0
-                ? "No clients found."
-                : "Type to search for clients."}
+                ? "Loading clients..."
+                : clients.length === 0 && !searchQuery
+                ? "No clients available. Create clients in User Management first."
+                : clients.length === 0 && searchQuery
+                ? `No clients found matching "${searchQuery}".`
+                : "Type to filter clients..."}
             </CommandEmpty>
             <CommandGroup>
               {clients.map((client) => (
