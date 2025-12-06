@@ -96,7 +96,7 @@ export function CreateProjectDialog({
       URL.revokeObjectURL(imagePreview);
     }
     setImagePreview(null);
-    form.setValue('imageUrl', '');
+    // Don't clear the imageUrl field here, as user might have entered a URL manually
   };
 
   const uploadImage = async (): Promise<string | null> => {
@@ -105,6 +105,8 @@ export function CreateProjectDialog({
     setIsUploading(true);
     try {
       const imageUrl = await uploadToR2(selectedFile);
+      // Update the form field with the uploaded URL
+      form.setValue('imageUrl', imageUrl);
       toast({
         title: "Image uploaded",
         description: "Project image has been uploaded successfully.",
@@ -296,9 +298,19 @@ export function CreateProjectDialog({
                   </div>
                 )}
                 
-                {/* Or use URL */}
-                <div className="text-sm text-muted-foreground">
-                  Or enter an image URL below. Uploading is recommended for better control.
+                {/* URL Input as alternative to upload */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-slate-600">Or enter image URL</div>
+                  <Input
+                    placeholder="https://example.com/image.jpg"
+                    value={form.watch('imageUrl') || ''}
+                    onChange={(e) => form.setValue('imageUrl', e.target.value)}
+                    disabled={isUploading || createProjectMutation.isPending}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Provide a direct image URL if you prefer not to upload a file.
+                  </p>
                 </div>
               </div>
             </div>
