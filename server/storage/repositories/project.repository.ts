@@ -271,51 +271,40 @@ class ProjectRepository implements IProjectRepository {
         try {
             console.log(`[deleteProject] Starting deletion of project ${projectId}`);
 
-            // Use a transaction and delete each table with individual statements
+            // Use a transaction and delete each table with raw SQL to avoid ORM issues
             await this.db.transaction(async (tx) => {
-                // Delete client-project associations (no dependencies)
-                await tx.delete(schema.clientProjects)
-                    .where(eq(schema.clientProjects.projectId, projectId));
-
-                // Delete documents (no dependencies)
-                await tx.delete(schema.documents)
-                    .where(eq(schema.documents.projectId, projectId));
-
-                // Delete messages (no dependencies)
-                await tx.delete(schema.messages)
-                    .where(eq(schema.messages.projectId, projectId));
-
-                // Delete progress updates (has dependent update_media, but delete order handles it)
-                await tx.delete(schema.progressUpdates)
-                    .where(eq(schema.progressUpdates.projectId, projectId));
-
-                // Delete milestones (no dependencies)
-                await tx.delete(schema.milestones)
-                    .where(eq(schema.milestones.projectId, projectId));
-
-                // Delete selections (no dependencies)
-                await tx.delete(schema.selections)
-                    .where(eq(schema.selections.projectId, projectId));
-
-                // Delete invoices (has dependent payments, but order handles it)
-                await tx.delete(schema.invoices)
-                    .where(eq(schema.invoices.projectId, projectId));
-
-                // Delete daily logs (has cascade)
-                await tx.delete(schema.dailyLogs)
-                    .where(eq(schema.dailyLogs.projectId, projectId));
-
-                // Delete punch list items (has cascade)
-                await tx.delete(schema.punchListItems)
-                    .where(eq(schema.punchListItems.projectId, projectId));
-
-                // Delete tasks (has cascade)
-                await tx.delete(schema.tasks)
-                    .where(eq(schema.tasks.projectId, projectId));
-
+                // Delete client-project associations
+                await tx.execute(sql`DELETE FROM client_projects WHERE project_id = ${projectId}`);
+                
+                // Delete documents
+                await tx.execute(sql`DELETE FROM documents WHERE project_id = ${projectId}`);
+                
+                // Delete messages
+                await tx.execute(sql`DELETE FROM messages WHERE project_id = ${projectId}`);
+                
+                // Delete progress updates
+                await tx.execute(sql`DELETE FROM progress_updates WHERE project_id = ${projectId}`);
+                
+                // Delete milestones
+                await tx.execute(sql`DELETE FROM milestones WHERE project_id = ${projectId}`);
+                
+                // Delete selections
+                await tx.execute(sql`DELETE FROM selections WHERE project_id = ${projectId}`);
+                
+                // Delete invoices
+                await tx.execute(sql`DELETE FROM invoices WHERE project_id = ${projectId}`);
+                
+                // Delete daily logs
+                await tx.execute(sql`DELETE FROM daily_logs WHERE project_id = ${projectId}`);
+                
+                // Delete punch list items
+                await tx.execute(sql`DELETE FROM punch_list_items WHERE project_id = ${projectId}`);
+                
+                // Delete tasks
+                await tx.execute(sql`DELETE FROM tasks WHERE project_id = ${projectId}`);
+                
                 // Finally delete the project
-                await tx.delete(schema.projects)
-                    .where(eq(schema.projects.id, projectId));
+                await tx.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
             });
 
             console.log(`[deleteProject] Successfully deleted project ${projectId}`);
